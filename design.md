@@ -123,3 +123,10 @@ Preferred communication style: Simple, everyday language.
 - Audio files (MP3, OGG, WAV) supported for game sounds
 
 The application is designed as a complete 2D game with full-stack capabilities. The codebase is ready for future database integration and production deployment.
+
+## Static Serving and Routing
+
+- The game is a single-page application with **no client-side routing** (no React Router or similar).
+- The game is fully self-contained and can be served as static assets from the Vite build output (`dist/`).
+- **No API calls** are made during gameplay; all logic and assets are handled client-side.
+- The `server/` directory is only needed for development (`npm run dev`) and is not required for production/static serving.
