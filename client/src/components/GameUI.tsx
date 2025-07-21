@@ -76,7 +76,7 @@ export default function GameUI({ phase, onStart, onRestart, onNextLevel, isIniti
       <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
         <Card className="w-96">
           <CardContent className="p-6 text-center">
-            <h1 className="text-2xl font-bold mb-4 text-black">Stick Figure Battle</h1>
+            <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
             <div className="text-sm text-gray-600 mb-6">
               <p>Use WASD or Arrow Keys to move</p>
               <p>Space to jump</p>
@@ -86,6 +86,10 @@ export default function GameUI({ phase, onStart, onRestart, onNextLevel, isIniti
               Start Game
             </Button>
             {CheckboxGroup}
+            <div className="mt-8 text-xs text-gray-500">
+              <div>by Garrett Jones</div>
+              <div className="mt-1">based on ideas from Juancho Jones</div>
+            </div>
           </CardContent>
         </Card>
       </div>

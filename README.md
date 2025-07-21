@@ -1,4 +1,4 @@
-# Stick Fight Saga
+# Pencil Platoon
 
 A 2D stick figure battle game built with React, TypeScript, and Express.
 
