@@ -1,4 +1,5 @@
 import { BoundingBox, TerrainSegment, TerrainPoint } from "./types";
+import { TerrainConfig } from "./LevelConfig";
 
 export class Terrain {
   static readonly WORLD_TOP = 600; // The top of the world/screen for all entities
@@ -8,7 +9,7 @@ export class Terrain {
   private terrainPoints: TerrainPoint[] = [];
   private groundLevel = Terrain.WORLD_BOTTOM + 100;
 
-  generateTerrain(level: number = 1) {
+  generateTerrain(config: TerrainConfig) {
     // Generate continuous sloped terrain line for 10 screens
     this.terrainPoints = [];
     
@@ -22,12 +23,12 @@ export class Terrain {
       // Create varied terrain heights with smooth slopes
       let y = this.groundLevel;
       
-      // Add variation based on position and level
-      const wave1 = Math.sin(x * 0.002) * 80;
-      const wave2 = Math.sin(x * 0.005) * 40;
-      const wave3 = Math.sin(x * 0.001 + level) * 120;
+      // Add variation based on config
+      const wave1 = Math.sin(x * config.frequency * 2) * config.amplitude;
+      const wave2 = Math.sin(x * config.frequency * 5) * (config.amplitude / 2);
+      const wave3 = Math.sin(x * config.frequency + config.roughness) * (config.amplitude * config.roughness);
       
-      y = this.groundLevel + wave1 + wave2 + wave3;
+      y = this.groundLevel + 200 + wave1 + wave2 + wave3;
       
       // Ensure terrain doesn't go too low or high (now, y is clamped between bottom and top)
       y = Math.max(Terrain.WORLD_BOTTOM + 20, Math.min(Terrain.WORLD_TOP - 100, y));

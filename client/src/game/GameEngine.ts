@@ -6,8 +6,9 @@ import { Camera } from "./Camera";
 import { CollisionSystem } from "./CollisionSystem";
 import { GameObject, Vector2 } from "./types";
 import { Bullet } from "./Bullet";
-import { useGameStore } from "../lib/stores/useGameStore"; // (for context, but not used in this file)
+import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
+import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
 
 export class GameEngine {
   private canvas: HTMLCanvasElement;
@@ -27,7 +28,13 @@ export class GameEngine {
   private keys: Set<string> = new Set();
   private mousePos: Vector2 = { x: 0, y: 0 };
   private mousePressed = false;
-  private currentLevel = 1;
+  private currentLevelIndex = 0;
+  private get currentLevelName() {
+    return LEVEL_ORDER[this.currentLevelIndex];
+  }
+  private get currentLevelConfig(): LevelConfig {
+    return LEVEL_DEFINITIONS[this.currentLevelName];
+  }
   private debugMode = false;
   private paused = false;
 
@@ -45,13 +52,15 @@ export class GameEngine {
   }
 
   init() {
-    this.initLevel(this.currentLevel);
+    this.initLevel(this.currentLevelIndex);
     console.log("Game engine initialized");
   }
 
-  initLevel(level: number) {
-    this.currentLevel = level;
-    this.terrain.generateTerrain(level);
+  initLevel(levelIndex: number) {
+    this.currentLevelIndex = levelIndex;
+    const levelName = this.currentLevelName;
+    const config = this.currentLevelConfig;
+    this.terrain.generateTerrain(config.terrain);
     // After terrain is generated, reset player position to just above terrain height
     this.player.position.x = 50;
     this.player.position.y = this.terrain.getHeightAt(50) + 1;
@@ -69,7 +78,7 @@ export class GameEngine {
     this.camera.y = 0;
     this.spawnEnemies();
     console.log(`[initLevel] Player y set to ${this.player.position.y} at x=50, terrain height: ${this.terrain.getHeightAt(50)}`);
-    console.log(`Level ${level} initialized`);
+    console.log(`Level ${levelName} initialized`);
   }
 
   start() {
@@ -83,34 +92,39 @@ export class GameEngine {
     this.enemies = [];
     this.allEnemies = [];
     this.activeEnemies.clear();
-    // Player will be spawned in initLevel
     this.particleSystem.clear();
-    this.currentLevel = 1;
-    this.initLevel(this.currentLevel);
+    this.currentLevelIndex = 0;
+    this.initLevel(this.currentLevelIndex);
     this.isRunning = true;
     console.log("Game restarted");
   }
 
   nextLevel() {
-    this.currentLevel++;
-    this.bullets = [];
-    this.enemies = [];
-    this.allEnemies = [];
-    this.activeEnemies.clear();
-    this.particleSystem.clear();
-    // Fully reset player state
-    this.player.position.x = 50;
-    this.player.position.y = this.terrain.getHeightAt(50) + 1;
-    this.player.velocity.x = 0;
-    this.player.velocity.y = 1;
-    this.player.health = this.player.maxHealth;
-    this.player.active = true;
-    // Reset camera to start
-    this.camera.x = 0;
-    this.camera.y = 0;
-    this.initLevel(this.currentLevel);
-    this.isRunning = true;
-    console.log("Next level started");
+    if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
+      this.currentLevelIndex++;
+      this.bullets = [];
+      this.enemies = [];
+      this.allEnemies = [];
+      this.activeEnemies.clear();
+      this.particleSystem.clear();
+      // Fully reset player state
+      this.player.position.x = 50;
+      this.player.position.y = this.terrain.getHeightAt(50) + 1;
+      this.player.velocity.x = 0;
+      this.player.velocity.y = 1;
+      this.player.health = this.player.maxHealth;
+      this.player.active = true;
+      // Reset camera to start
+      this.camera.x = 0;
+      this.camera.y = 0;
+      this.initLevel(this.currentLevelIndex);
+      this.isRunning = true;
+      console.log("Next level started");
+    } else {
+      this.stop();
+      // Game over logic here if needed
+      console.log("Game over: All levels completed.");
+    }
   }
 
   stop() {
@@ -167,7 +181,7 @@ export class GameEngine {
     const levelWidth = this.terrain.getLevelWidth();
     const screenWidth = 800;
     const numScreens = Math.ceil(levelWidth / screenWidth);
-    const enemiesPerScreen = 3;
+    const enemiesPerScreen = this.currentLevelConfig.enemiesPerScreen;
     
     // Spawn enemies starting from the second screen
     for (let screen = 1; screen < numScreens; screen++) {
@@ -259,14 +273,14 @@ export class GameEngine {
 
   private checkLevelCompletion() {
     const levelWidth = this.terrain.getLevelWidth();
-    
     // Check if player reached the right edge of the level
     if (this.player.position.x >= levelWidth - 100) {
-      this.stop();
-      // Trigger level completion
-      import("../lib/stores/useGameStore").then(({ useGameStore }) => {
-        useGameStore.getState().completeLevel();
-      });
+      if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
+        this.nextLevel();
+      } else {
+        this.stop();
+        useGameStore.getState().end();
+      }
     }
   }
 
@@ -423,7 +437,7 @@ export class GameEngine {
     this.ctx.fillStyle = "black";
     this.ctx.font = "16px Arial";
     this.ctx.fillText(`Health: ${this.player.health}/${this.player.maxHealth}`, 22, 60);
-    this.ctx.fillText(`Level: ${this.currentLevel}`, 22, 80);
+    this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 80);
     this.ctx.fillText(`Enemies: ${this.enemies.length}`, 22, 100);
     
     // Progress indicator
