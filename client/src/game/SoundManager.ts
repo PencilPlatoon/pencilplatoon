@@ -10,8 +10,8 @@ export class SoundManager {
 
   private loadSounds() {
     try {
-      this.hitSound = new Audio("/sounds/hit.mp3");
-      this.shootSound = new Audio("/sounds/ak47_1.mp3");
+      this.hitSound = new Audio("sounds/hit.mp3");
+      this.shootSound = new Audio("sounds/ak47_1.mp3");
       this.hitSound.volume = 0.3;
       this.shootSound.volume = 0.2;
     } catch (error) {

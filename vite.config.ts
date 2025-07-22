@@ -8,7 +8,14 @@ import glsl from "vite-plugin-glsl";
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
+// Define base paths for dev and build
+const DEV_BASE_PATH = "/";
+const BUILD_BASE_PATH = "/pencilplatoon/";
+const isBuild = process.env.NODE_ENV === "production" || process.argv.includes("build");
+const base = isBuild ? BUILD_BASE_PATH : DEV_BASE_PATH;
+
 export default defineConfig({
+  base,
   plugins: [
     react(),
     runtimeErrorOverlay(),
