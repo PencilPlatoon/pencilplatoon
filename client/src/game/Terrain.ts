@@ -8,6 +8,13 @@ export class Terrain {
   private segments: TerrainSegment[] = [];
   private terrainPoints: TerrainPoint[] = [];
   private groundLevel = Terrain.WORLD_BOTTOM + 100;
+  private terrainColor: string = "rgba(0, 0, 0, 0.1)";
+
+  constructor(terrainColor?: string) {
+    if (terrainColor) {
+      this.terrainColor = terrainColor;
+    }
+  }
 
   generateTerrain(config: TerrainConfig) {
     // Generate continuous sloped terrain line for 10 screens
@@ -105,7 +112,7 @@ export class Terrain {
     ctx.stroke();
     
     // Optional: Fill the area below the terrain line for better visibility
-    ctx.fillStyle = "rgba(0, 0, 0, 0.1)";
+    ctx.fillStyle = this.terrainColor;
     ctx.beginPath();
     ctx.moveTo(this.terrainPoints[0].x, toCanvasY(this.terrainPoints[0].y));
     for (let i = 1; i < this.terrainPoints.length; i++) {

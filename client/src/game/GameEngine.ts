@@ -42,7 +42,7 @@ export class GameEngine {
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.camera = new Camera(canvas.width, canvas.height);
-    this.terrain = new Terrain();
+    this.terrain = new Terrain(this.currentLevelConfig.terrainColor);
     this.particleSystem = new ParticleSystem();
     this.soundManager = new SoundManager();
     this.collisionSystem = new CollisionSystem();
@@ -60,6 +60,7 @@ export class GameEngine {
     this.currentLevelIndex = levelIndex;
     const levelName = this.currentLevelName;
     const config = this.currentLevelConfig;
+    this.terrain = new Terrain(config.terrainColor);
     this.terrain.generateTerrain(config.terrain);
     // After terrain is generated, reset player position to just above terrain height
     this.player.position.x = 50;

@@ -10,6 +10,10 @@ export interface TerrainConfig {
 export interface LevelConfig {
   enemiesPerScreen: number;
   terrain: TerrainConfig;
+  /**
+   * Hex color for the shaded terrain under the terrain line
+   */
+  terrainColor: string;
 }
 
 // Dictionary of all possible level definitions, keyed by readable string name
@@ -21,6 +25,7 @@ export const LEVEL_DEFINITIONS: Record<string, LevelConfig> = {
       frequency: 0.001,
       roughness: 1,
     },
+    terrainColor: "#e6f9e6", // very light green
   },
   "Desert": {
     enemiesPerScreen: 2,
@@ -29,6 +34,7 @@ export const LEVEL_DEFINITIONS: Record<string, LevelConfig> = {
       frequency: 0.0012,
       roughness: 2,
     },
+    terrainColor: "#fff9e3", // very light yellow
   },
   "Mountains": {
     enemiesPerScreen: 3,
@@ -37,6 +43,7 @@ export const LEVEL_DEFINITIONS: Record<string, LevelConfig> = {
       frequency: 0.0015,
       roughness: 3,
     },
+    terrainColor: "#e8d3b1", // light brown
   },
 };
 
