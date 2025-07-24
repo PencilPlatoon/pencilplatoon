@@ -4,7 +4,7 @@ import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
 import { WeaponFigure } from "../figures/WeaponFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
-import { BoundingBoxFigure } from "../figures/BoundingBox";
+import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
 
 declare global {

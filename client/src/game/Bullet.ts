@@ -1,6 +1,7 @@
 import { GameObject, Vector2, BoundingBox } from "./types";
 import { Terrain } from "./Terrain";
 import { toCanvasY } from "./Terrain";
+import { BulletFigure } from "../figures/BulletFigure";
 
 declare global {
   interface Window {
@@ -80,42 +81,13 @@ export class Bullet implements GameObject {
   render(ctx: CanvasRenderingContext2D) {
     if (!this.active) return;
 
-    const canvasY = toCanvasY(this.position.y) - this.bounds.height / 2;
-    //console.log('[BULLET RENDER] worldY:', this.position.y, 'canvasY:', canvasY, 'x:', this.position.x - this.bounds.width / 2);
-
-    ctx.fillStyle = this.color;
-    ctx.fillRect(
-      this.position.x - this.bounds.width / 2,
-      canvasY,
-      this.bounds.width,
-      this.bounds.height
-    );
-
-    // Add glow effect
-    ctx.shadowColor = this.color;
-    ctx.shadowBlur = 4;
-    ctx.fillRect(
-      this.position.x - this.bounds.width / 2,
-      canvasY,
-      this.bounds.width,
-      this.bounds.height
-    );
-    ctx.shadowBlur = 0;
-
-    // Draw debug bounding box if enabled
-    const debugMode = typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
-    if (debugMode) {
-      ctx.save();
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        this.bounds.x,
-        toCanvasY(this.bounds.y + this.bounds.height),
-        this.bounds.width,
-        toCanvasY(this.bounds.y) - toCanvasY(this.bounds.y + this.bounds.height)
-      );
-      ctx.restore();
-    }
+    BulletFigure.render({
+      ctx,
+      position: this.position,
+      bounds: this.bounds,
+      color: this.color,
+      active: this.active
+    });
   }
 
   deactivate(reason: string, terrain?: Terrain) {
