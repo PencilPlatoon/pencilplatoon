@@ -1,10 +1,12 @@
 import { BoundingBox, TerrainSegment, TerrainPoint } from "./types";
 import { TerrainConfig } from "./LevelConfig";
+import { TerrainFigure } from "../figures/TerrainFigure";
 
 export class Terrain {
   static readonly WORLD_TOP = 600; // The top of the world/screen for all entities
   static readonly WORLD_BOTTOM = 0; // The bottom of the world/screen for all entities
   static readonly LEVEL_WIDTH = 8000; // The width of the level for global access
+
   private segments: TerrainSegment[] = [];
   private terrainPoints: TerrainPoint[] = [];
   private groundLevel = Terrain.WORLD_BOTTOM + 100;
@@ -94,35 +96,12 @@ export class Terrain {
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    if (this.terrainPoints.length < 2) return;
-    
-    // Draw terrain as a continuous line
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    
-    // Start from the first point
-    ctx.moveTo(this.terrainPoints[0].x, toCanvasY(this.terrainPoints[0].y));
-    
-    // Draw lines to all other points
-    for (let i = 1; i < this.terrainPoints.length; i++) {
-      ctx.lineTo(this.terrainPoints[i].x, toCanvasY(this.terrainPoints[i].y));
-    }
-    
-    ctx.stroke();
-    
-    // Optional: Fill the area below the terrain line for better visibility
-    ctx.fillStyle = this.terrainColor;
-    ctx.beginPath();
-    ctx.moveTo(this.terrainPoints[0].x, toCanvasY(this.terrainPoints[0].y));
-    for (let i = 1; i < this.terrainPoints.length; i++) {
-      ctx.lineTo(this.terrainPoints[i].x, toCanvasY(this.terrainPoints[i].y));
-    }
-    // Close the path by going to bottom and back
-    ctx.lineTo(this.terrainPoints[this.terrainPoints.length - 1].x, toCanvasY(Terrain.WORLD_BOTTOM));
-    ctx.lineTo(this.terrainPoints[0].x, toCanvasY(Terrain.WORLD_BOTTOM));
-    ctx.closePath();
-    ctx.fill();
+    TerrainFigure.render({
+      ctx,
+      terrainPoints: this.terrainPoints,
+      terrainColor: this.terrainColor,
+      worldBottom: Terrain.WORLD_BOTTOM,
+    });
   }
 }
 

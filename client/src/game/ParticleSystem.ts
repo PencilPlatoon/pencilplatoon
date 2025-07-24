@@ -1,5 +1,5 @@
 import { Particle, Vector2 } from "./types";
-import { toCanvasY } from "./Terrain";
+import { ParticleFigure } from "../figures/ParticleFigure";
 
 export class ParticleSystem {
   private particles: Particle[] = [];
@@ -63,23 +63,7 @@ export class ParticleSystem {
 
   render(ctx: CanvasRenderingContext2D) {
     this.particles.forEach(particle => {
-      ctx.save();
-      const alpha = particle.life / particle.maxLife;
-      // console.log('[PARTICLE RENDER]', particle.color, 'x:', particle.position.x, 'y:', particle.position.y, 'size:', particle.size, 'alpha:', alpha);
-      ctx.globalAlpha = alpha;
-      ctx.fillStyle = particle.color;
-      ctx.shadowColor = particle.color;
-      ctx.shadowBlur = 8;
-      ctx.beginPath();
-      ctx.arc(
-        particle.position.x,
-        toCanvasY(particle.position.y),
-        particle.size,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-      ctx.restore();
+      ParticleFigure.render({ ctx, particle });
     });
   }
 

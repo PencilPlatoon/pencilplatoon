@@ -4,13 +4,15 @@ import { Terrain } from "./Terrain";
 import { ParticleSystem } from "./ParticleSystem";
 import { Camera } from "./Camera";
 import { CollisionSystem } from "./CollisionSystem";
-import { GameObject, Vector2 } from "./types";
 import { Bullet } from "./Bullet";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
 
 export class GameEngine {
+  static readonly SCREEN_WIDTH = 800;
+  static readonly PLAYER_START_X = 50;
+
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private player: Player;
@@ -26,8 +28,6 @@ export class GameEngine {
   private isRunning = false;
   private lastTime = 0;
   private keys: Set<string> = new Set();
-  private mousePos: Vector2 = { x: 0, y: 0 };
-  private mousePressed = false;
   private currentLevelIndex = 0;
   private get currentLevelName() {
     return LEVEL_ORDER[this.currentLevelIndex];
@@ -47,7 +47,7 @@ export class GameEngine {
     this.soundManager = new SoundManager();
     this.collisionSystem = new CollisionSystem();
     // Create player at far left spawn position, at the top of the world
-    this.player = new Player(50, Terrain.WORLD_TOP);
+    this.player = new Player(GameEngine.PLAYER_START_X, Terrain.WORLD_TOP);
     this.setupEventListeners();
   }
 
@@ -63,8 +63,8 @@ export class GameEngine {
     this.terrain = new Terrain(config.terrainColor);
     this.terrain.generateTerrain(config.terrain);
     // After terrain is generated, reset player position to just above terrain height
-    this.player.position.x = 50;
-    this.player.position.y = this.terrain.getHeightAt(50) + 1;
+    this.player.position.x = GameEngine.PLAYER_START_X;
+    this.player.position.y = this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1;
     this.player.velocity.x = 0;
     this.player.velocity.y = 1;
     this.player.health = this.player.maxHealth;
@@ -78,7 +78,7 @@ export class GameEngine {
     this.camera.x = 0;
     this.camera.y = 0;
     this.spawnEnemies();
-    console.log(`[initLevel] Player y set to ${this.player.position.y} at x=50, terrain height: ${this.terrain.getHeightAt(50)}`);
+    console.log(`[initLevel] Player y set to ${this.player.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
     console.log(`Level ${levelName} initialized`);
   }
 
@@ -109,8 +109,8 @@ export class GameEngine {
       this.activeEnemies.clear();
       this.particleSystem.clear();
       // Fully reset player state
-      this.player.position.x = 50;
-      this.player.position.y = this.terrain.getHeightAt(50) + 1;
+      this.player.position.x = GameEngine.PLAYER_START_X;
+      this.player.position.y = this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1;
       this.player.velocity.x = 0;
       this.player.velocity.y = 1;
       this.player.health = this.player.maxHealth;
@@ -154,33 +154,12 @@ export class GameEngine {
     window.addEventListener("keyup", (e) => {
       this.keys.delete(e.code);
     });
-
-    // Mouse events
-    this.canvas.addEventListener("mousemove", (e) => {
-      const rect = this.canvas.getBoundingClientRect();
-      this.mousePos = {
-        x: e.clientX - rect.left + this.camera.x,
-        y: e.clientY - rect.top + this.camera.y
-      };
-    });
-
-    this.canvas.addEventListener("mousedown", (e) => {
-      if (e.button === 0) {
-        this.mousePressed = true;
-      }
-    });
-
-    this.canvas.addEventListener("mouseup", (e) => {
-      if (e.button === 0) {
-        this.mousePressed = false;
-      }
-    });
   }
 
   private spawnEnemies() {
     this.allEnemies = [];
     const levelWidth = this.terrain.getLevelWidth();
-    const screenWidth = 800;
+    const screenWidth = GameEngine.SCREEN_WIDTH;
     const numScreens = Math.ceil(levelWidth / screenWidth);
     const enemiesPerScreen = this.currentLevelConfig.enemiesPerScreen;
     console.log(`[spawnEnemies] levelWidth=${levelWidth}, numScreens=${numScreens}, enemiesPerScreen=${enemiesPerScreen}`);
@@ -257,7 +236,7 @@ export class GameEngine {
   }
 
   private activateNearbyEnemies() {
-    const screenWidth = 800;
+    const screenWidth = GameEngine.SCREEN_WIDTH;
     const cameraX = this.camera.x;
     let activatedCount = 0;
     // Activate enemies within 2 screens of the camera
