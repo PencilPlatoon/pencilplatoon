@@ -1,8 +1,10 @@
 import { GameObject, Vector2, BoundingBox, WeaponType } from "./types";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
-import { toCanvasY } from "./Terrain";
-import { useGameStore } from "../lib/stores/useGameStore";
+import { HumanFigure } from "../figures/HumanFigure";
+import { WeaponFigure } from "../figures/WeaponFigure";
+import { HealthBarFigure } from "../figures/HealthBarFigure";
+import { BoundingBoxFigure } from "../figures/BoundingBox";
 
 declare global {
   interface Window {
@@ -40,12 +42,21 @@ export class Player implements GameObject {
   private aimAngle = 0; // Weapon aim angle in radians
   private lastCollisionDebugX: number | null = null;
 
+  static readonly HEALTHBAR_OFFSET_Y = 20;
+
+  getWeaponPosition() {
+    return {
+      x: this.position.x + (this.facing * HumanFigure.HAND_OFFSET_X),
+      y: this.position.y + HumanFigure.HAND_OFFSET_Y
+    };
+  }
+
   constructor(x: number, y: number) {
     this.id = "player";
     // position.y is now feet (bottom of player)
     this.position = { x, y };
     this.velocity = { x: 0, y: 1 };
-    this.bounds = { x: x - 14, y: y, width: 28, height: 56 };
+    this.bounds = { x: x - HumanFigure.getWidth() / 2, y, width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
     this.active = true;
     this.health = 100;
     this.maxHealth = 100;
@@ -97,8 +108,6 @@ export class Player implements GameObject {
     this.bounds.y = this.position.y;
 
     // Terrain collision
-    const preCollisionY = this.position.y;
-    const terrainY = terrain.getHeightAt(this.position.x);
     this.handleTerrainCollision(terrain);
     if (this.lastCollisionDebugX !== this.position.x) {
       this.lastCollisionDebugX = this.position.x;
@@ -142,8 +151,7 @@ export class Player implements GameObject {
 
     // Calculate weapon tip position (matches render)
     const weaponLength = 20;
-    const weaponX = this.position.x + (this.facing * 12);
-    const weaponY = this.position.y + 25;
+    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
     const weaponEndX = weaponX + Math.cos(this.aimAngle) * weaponLength * this.facing;
     const weaponEndY = weaponY + Math.sin(this.aimAngle) * weaponLength;
 
@@ -171,87 +179,28 @@ export class Player implements GameObject {
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    // Draw stick figure with feet at position.y
-   
-    ctx.lineWidth = 2;
-    // Head
-    const headRadius = 8;
-    const headCenterY = this.position.y + 48;
-    ctx.beginPath();
-    ctx.arc(this.position.x, toCanvasY(headCenterY), headRadius, 0, Math.PI * 2); // head center
-    ctx.stroke();
-    // Body (neck starts at bottom of head)
-    ctx.beginPath();
-    ctx.moveTo(this.position.x, toCanvasY(headCenterY - headRadius)); // Start at bottom of head
-    ctx.lineTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.stroke();
-    // Arms
-    ctx.beginPath();
-    ctx.moveTo(this.position.x - 12, toCanvasY(this.position.y + 25));
-    ctx.lineTo(this.position.x + 12, toCanvasY(this.position.y + 25));
-    ctx.stroke();
-    // Legs
-    ctx.beginPath();
-    ctx.moveTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.lineTo(this.position.x - 8, toCanvasY(this.position.y));
-    ctx.moveTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.lineTo(this.position.x + 8, toCanvasY(this.position.y));
-    ctx.stroke();
-    // Weapon/arm line
-    const weaponLength = 20;
-    const weaponX = this.position.x + (this.facing * 12);
-    const weaponY = this.position.y + 25;
-    const weaponEndX = weaponX + Math.cos(this.aimAngle) * weaponLength * this.facing;
-    const weaponEndY = weaponY + Math.sin(this.aimAngle) * weaponLength;
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(weaponX, toCanvasY(weaponY));
-    ctx.lineTo(weaponEndX, toCanvasY(weaponEndY));
-    ctx.stroke();
-    // Draw dashed aiming line
-    const aimLineLength = 100;
-    const aimEndX = weaponX + Math.cos(this.aimAngle) * aimLineLength * this.facing;
-    const aimEndY = weaponY + Math.sin(this.aimAngle) * aimLineLength;
-    ctx.strokeStyle = "red";
-    ctx.lineWidth = 2;
-    ctx.setLineDash([5, 5]);
-    ctx.beginPath();
-    ctx.moveTo(weaponEndX, toCanvasY(weaponEndY));
-    ctx.lineTo(aimEndX, toCanvasY(aimEndY));
-    ctx.stroke();
-    ctx.setLineDash([]);
-    // Health bar above head
-    const healthBarWidth = 30;
-    const healthBarHeight = 4;
-    const healthPercentage = this.health / this.maxHealth;
-    ctx.fillStyle = "red";
-    ctx.fillRect(
-      this.position.x - healthBarWidth / 2,
-      toCanvasY(headCenterY + headRadius + 20), // Move health bar above new head position
-      healthBarWidth,
-      healthBarHeight
-    );
-    ctx.fillStyle = "green";
-    ctx.fillRect(
-      this.position.x - healthBarWidth / 2,
-      toCanvasY(headCenterY + headRadius + 20), // Move health bar above new head position
-      healthBarWidth * healthPercentage,
-      healthBarHeight
-    );
-    // Draw debug bounding box if enabled
-    const debugMode = typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
-    if (debugMode) {
-      ctx.save();
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        this.bounds.x,
-        toCanvasY(this.bounds.y + this.bounds.height),
-        this.bounds.width,
-        toCanvasY(this.bounds.y) - toCanvasY(this.bounds.y + this.bounds.height)
-      );
-      ctx.restore();
-    }
+    HumanFigure.render({
+      ctx,
+      position: this.position,
+      active: this.active
+    });
+    WeaponFigure.render({
+      ctx,
+      position: this.getWeaponPosition(),
+      facing: this.facing,
+      aimAngle: this.aimAngle,
+      weapon: this.weapon,
+      showAimLine: true,
+      weaponLength: 20,
+      aimLineLength: 100
+    });
+    HealthBarFigure.render({
+      ctx,
+      position: this.position,
+      health: this.health,
+      maxHealth: this.maxHealth,
+      headY: this.position.y + HumanFigure.HEAD_OFFSET_Y + HumanFigure.NECK_LENGTH + Player.HEALTHBAR_OFFSET_Y
+    });
+    BoundingBoxFigure.render(ctx, this.bounds);
   }
 }

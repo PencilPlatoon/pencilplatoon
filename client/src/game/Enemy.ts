@@ -1,7 +1,10 @@
 import { GameObject, Vector2, BoundingBox, WeaponType } from "./types";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
-import { toCanvasY } from "./Terrain";
+import { HumanFigure } from "../figures/HumanFigure";
+import { WeaponFigure } from "../figures/WeaponFigure";
+import { HealthBarFigure } from "../figures/HealthBarFigure";
+import { BoundingBoxFigure } from "../figures/BoundingBox";
 
 declare global {
   interface Window {
@@ -28,14 +31,22 @@ export class Enemy implements GameObject {
   private patrolStartX: number;
   private patrolRange = 200;
   private gravity = 1500;
-  private isGrounded = false;
+
+  static readonly HEALTHBAR_OFFSET_Y = 20;
+
+  getWeaponPosition() {
+    return {
+      x: this.position.x + (this.facing * HumanFigure.HAND_OFFSET_X),
+      y: this.position.y + HumanFigure.HAND_OFFSET_Y
+    };
+  }
 
   constructor(x: number, y: number, id: string) {
     this.id = id;
     // position.y is now feet (bottom of enemy)
     this.position = { x, y };
     this.velocity = { x: 0, y: 1 };
-    this.bounds = { x: x - 14, y: y, width: 28, height: 56 };
+    this.bounds = { x: x - HumanFigure.getWidth() / 2, y, width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
     this.active = true;
     this.health = 75;
     this.maxHealth = 75;
@@ -118,19 +129,13 @@ export class Enemy implements GameObject {
       if (this.position.y <= terrainY && this.velocity.y <= 0) {
         this.position.y = terrainY;
         this.velocity.y = 0;
-        this.isGrounded = true;
-      } else {
-        this.isGrounded = false;
       }
-    } else {
-      this.isGrounded = false;
     }
     // Prevent falling below world
     const worldBottom = Terrain.WORLD_BOTTOM;
     if (this.position.y < worldBottom) {
       this.position.y = worldBottom;
       this.velocity.y = 0;
-      this.isGrounded = true;
     }
   }
 
@@ -157,8 +162,7 @@ export class Enemy implements GameObject {
     const direction = { x: dx / distance, y: dy / distance };
 
     // Weapon attached to hand (end of arm)
-    const weaponX = this.position.x + (this.facing * 12);
-    const weaponY = this.position.y + 25;
+    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
     const weaponLength = 13;
     const weaponEndX = weaponX + this.facing * weaponLength;
     const weaponEndY = weaponY;
@@ -184,75 +188,37 @@ export class Enemy implements GameObject {
     }
   }
 
-  render(ctx: CanvasRenderingContext2D) {
+  render(ctx: CanvasRenderingContext2D, playerPos?: Vector2) {
     if (!this.active) return;
-    ctx.lineWidth = 2;
-    // Head
-    const headRadius = 8;
-    const headCenterY = this.position.y + 48;
-    ctx.beginPath();
-    ctx.arc(this.position.x, toCanvasY(headCenterY), headRadius, 0, Math.PI * 2);
-    ctx.stroke();
-    // Body
-    ctx.beginPath();
-    ctx.moveTo(this.position.x, toCanvasY(headCenterY - headRadius));
-    ctx.lineTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.stroke();
-    // Arms
-    ctx.beginPath();
-    ctx.moveTo(this.position.x - 12, toCanvasY(this.position.y + 25));
-    ctx.lineTo(this.position.x + 12, toCanvasY(this.position.y + 25));
-    ctx.stroke();
-    // Legs
-    ctx.beginPath();
-    ctx.moveTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.lineTo(this.position.x - 8, toCanvasY(this.position.y));
-    ctx.moveTo(this.position.x, toCanvasY(this.position.y + 10));
-    ctx.lineTo(this.position.x + 8, toCanvasY(this.position.y));
-    ctx.stroke();
-    // Weapon/arm line
-    const weaponLength = 13;
-    const weaponX = this.position.x + (this.facing * 12);
-    const weaponY = this.position.y + 25;
-    const weaponEndX = weaponX + this.facing * weaponLength;
-    const weaponEndY = weaponY;
-    ctx.strokeStyle = "black";
-    ctx.lineWidth = 3;
-    ctx.beginPath();
-    ctx.moveTo(weaponX, toCanvasY(weaponY));
-    ctx.lineTo(weaponEndX, toCanvasY(weaponEndY));
-    ctx.stroke();
-    // Health bar above head
-    const healthBarWidth = 30;
-    const healthBarHeight = 4;
-    const healthPercentage = this.health / this.maxHealth;
-    ctx.fillStyle = "red";
-    ctx.fillRect(
-      this.position.x - healthBarWidth / 2,
-      toCanvasY(headCenterY + headRadius + 20),
-      healthBarWidth,
-      healthBarHeight
-    );
-    ctx.fillStyle = "green";
-    ctx.fillRect(
-      this.position.x - healthBarWidth / 2,
-      toCanvasY(headCenterY + headRadius + 20),
-      healthBarWidth * healthPercentage,
-      healthBarHeight
-    );
-    // Draw debug bounding box if enabled
-    const debugMode = typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
-    if (debugMode) {
-      ctx.save();
-      ctx.strokeStyle = 'red';
-      ctx.lineWidth = 1;
-      ctx.strokeRect(
-        this.bounds.x,
-        toCanvasY(this.bounds.y + this.bounds.height),
-        this.bounds.width,
-        toCanvasY(this.bounds.y) - toCanvasY(this.bounds.y + this.bounds.height)
-      );
-      ctx.restore();
+    HumanFigure.render({
+      ctx,
+      position: this.position,
+      active: this.active
+    });
+    // Compute aim angle toward player if playerPos is provided
+    let aimAngle = 0;
+    if (playerPos) {
+      const { x: weaponX, y: weaponY } = this.getWeaponPosition();
+      const dx = playerPos.x - weaponX;
+      const dy = playerPos.y - weaponY;
+      aimAngle = Math.atan2(dy, dx * this.facing); // adjust for facing
     }
+    WeaponFigure.render({
+      ctx,
+      position: this.getWeaponPosition(),
+      facing: this.facing,
+      aimAngle,
+      weapon: this.weapon,
+      weaponLength: 13,
+      showAimLine: false
+    });
+    HealthBarFigure.render({
+      ctx,
+      position: this.position,
+      health: this.health,
+      maxHealth: this.maxHealth,
+      headY: this.position.y + HumanFigure.HEAD_OFFSET_Y + HumanFigure.NECK_LENGTH + Enemy.HEALTHBAR_OFFSET_Y
+    });
+    BoundingBoxFigure.render(ctx, this.bounds);
   }
 }

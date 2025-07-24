@@ -391,7 +391,7 @@ export class GameEngine {
     this.player.render(this.ctx);
 
     // Render enemies
-    this.enemies.forEach(enemy => enemy.render(this.ctx));
+    this.enemies.forEach(enemy => enemy.render(this.ctx, this.player.position));
 
     // Render bullets
     this.bullets.forEach(bullet => bullet.render(this.ctx));
