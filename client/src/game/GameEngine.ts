@@ -325,12 +325,14 @@ export class GameEngine {
       if (!bullet.active) return;
 
       this.enemies.forEach(enemy => {
+        const bulletAbs = bullet.getAbsoluteBounds();
+        const enemyAbs = enemy.getAbsoluteBounds();
         if (
-          this.collisionSystem.checkCollision(bullet.bounds, enemy.bounds) ||
+          this.collisionSystem.checkCollision(bulletAbs, enemyAbs) ||
           this.collisionSystem.checkLineIntersectsRect(
             bullet.previousPosition.x, bullet.previousPosition.y,
             bullet.position.x, bullet.position.y,
-            enemy.bounds
+            enemyAbs
           )
         ) {
           // Hit enemy
@@ -347,12 +349,14 @@ export class GameEngine {
     this.bullets.forEach(bullet => {
       if (!bullet.active) return;
 
+      const bulletAbs = bullet.getAbsoluteBounds();
+      const playerAbs = this.player.getAbsoluteBounds();
       if (
-        this.collisionSystem.checkCollision(bullet.bounds, this.player.bounds) ||
+        this.collisionSystem.checkCollision(bulletAbs, playerAbs) ||
         this.collisionSystem.checkLineIntersectsRect(
           bullet.previousPosition.x, bullet.previousPosition.y,
           bullet.position.x, bullet.position.y,
-          this.player.bounds
+          playerAbs
         )
       ) {
         // Hit player
@@ -368,7 +372,8 @@ export class GameEngine {
     this.bullets.forEach(bullet => {
       if (!bullet.active) return;
 
-      if (this.terrain.checkCollision(bullet.bounds)) {
+      const bulletAbs = bullet.getAbsoluteBounds();
+      if (this.terrain.checkCollision(bulletAbs)) {
         bullet.deactivate('hit-terrain', this.terrain);
         this.particleSystem.createExplosion(bullet.position, 'terrain');
       }

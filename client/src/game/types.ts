@@ -4,8 +4,6 @@ export interface Vector2 {
 }
 
 export interface BoundingBox {
-  x: number;
-  y: number;
   width: number;
   height: number;
 }
@@ -51,4 +49,9 @@ export interface TerrainSegment {
 export interface TerrainPoint {
   x: number;
   y: number;
+}
+
+export interface AbsoluteBoundingBox {
+  upperLeft: Vector2; // x: min (left), y: min (top)
+  lowerRight: Vector2; // x: max (right), y: max (bottom)
 }

@@ -67,12 +67,12 @@ export class Terrain {
     return Terrain.LEVEL_WIDTH;
   }
 
-  checkCollision(bounds: BoundingBox): boolean {
+  checkCollision(absBounds: { upperLeft: { x: number; y: number }; lowerRight: { x: number; y: number } }): boolean {
     return this.segments.some(segment => 
-      bounds.x < segment.x + segment.width &&
-      bounds.x + bounds.width > segment.x &&
-      bounds.y < segment.y + segment.height &&
-      bounds.y + bounds.height > segment.y
+      absBounds.upperLeft.x < segment.x + segment.width &&
+      absBounds.lowerRight.x > segment.x &&
+      absBounds.lowerRight.y < segment.y + segment.height &&
+      absBounds.upperLeft.y > segment.y
     );
   }
 

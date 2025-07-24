@@ -51,12 +51,25 @@ export class Player implements GameObject {
     };
   }
 
+  getAbsoluteBounds() {
+    return {
+      upperLeft: {
+        x: this.position.x - this.bounds.width / 2,
+        y: this.position.y + this.bounds.height
+      },
+      lowerRight: {
+        x: this.position.x + this.bounds.width / 2,
+        y: this.position.y
+      }
+    };
+  }
+
   constructor(x: number, y: number) {
     this.id = "player";
     // position.y is now feet (bottom of player)
     this.position = { x, y };
     this.velocity = { x: 0, y: 1 };
-    this.bounds = { x: x - HumanFigure.getWidth() / 2, y, width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
+    this.bounds = { width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
     this.active = true;
     this.health = 100;
     this.maxHealth = 100;
@@ -96,10 +109,6 @@ export class Player implements GameObject {
     // Update position
     this.position.x += this.velocity.x * deltaTime;
     this.position.y += this.velocity.y * deltaTime;
-
-    // Update bounds (feet-based)
-    this.bounds.x = this.position.x - this.bounds.width / 2;
-    this.bounds.y = this.position.y;
 
     // Terrain collision
     this.handleTerrainCollision(terrain);
@@ -171,6 +180,6 @@ export class Player implements GameObject {
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.render(ctx, this.bounds);
+    BoundingBoxFigure.render(ctx, this.getAbsoluteBounds());
   }
 }

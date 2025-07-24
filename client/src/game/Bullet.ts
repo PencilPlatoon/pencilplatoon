@@ -39,7 +39,7 @@ export class Bullet implements GameObject {
       x: direction.x * speed,
       y: direction.y * speed
     };
-    this.bounds = { x, y, width: 6, height: 6 };
+    this.bounds = { width: 6, height: 6 };
     this.active = true;
     this.damage = damage;
     this.color = color;
@@ -52,10 +52,6 @@ export class Bullet implements GameObject {
     // Update position
     this.position.x += this.velocity.x * deltaTime;
     this.position.y += this.velocity.y * deltaTime;
-
-    // Update bounds
-    this.bounds.x = this.position.x - this.bounds.width / 2;
-    this.bounds.y = this.position.y - this.bounds.height / 2;
 
     // Update lifetime
     this.lifeTime += deltaTime;
@@ -88,6 +84,19 @@ export class Bullet implements GameObject {
       color: this.color,
       active: this.active
     });
+  }
+
+  getAbsoluteBounds() {
+    return {
+      upperLeft: {
+        x: this.position.x - this.bounds.width / 2,
+        y: this.position.y + this.bounds.height
+      },
+      lowerRight: {
+        x: this.position.x + this.bounds.width / 2,
+        y: this.position.y
+      }
+    };
   }
 
   deactivate(reason: string, terrain?: Terrain) {

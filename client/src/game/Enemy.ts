@@ -1,4 +1,4 @@
-import { GameObject, Vector2, BoundingBox, WeaponType } from "./types";
+import { GameObject, Vector2, BoundingBox } from "./types";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
@@ -43,12 +43,25 @@ export class Enemy implements GameObject {
     };
   }
 
+  getAbsoluteBounds() {
+    return {
+      upperLeft: {
+        x: this.position.x - this.bounds.width / 2,
+        y: this.position.y + this.bounds.height
+      },
+      lowerRight: {
+        x: this.position.x + this.bounds.width / 2,
+        y: this.position.y
+      }
+    };
+  }
+
   constructor(x: number, y: number, id: string) {
     this.id = id;
     // position.y is now feet (bottom of enemy)
     this.position = { x, y };
     this.velocity = { x: 0, y: 1 };
-    this.bounds = { x: x - HumanFigure.getWidth() / 2, y, width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
+    this.bounds = { width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
     this.active = true;
     this.health = 75;
     this.maxHealth = 75;
@@ -79,10 +92,6 @@ export class Enemy implements GameObject {
     this.position.y += this.velocity.y * deltaTime;
     // Clamp x to valid terrain range
     this.position.x = Math.max(0, Math.min(this.position.x, terrain.getLevelWidth()));
-
-    // Update bounds (feet-based)
-    this.bounds.x = this.position.x - this.bounds.width / 2;
-    this.bounds.y = this.position.y;
 
     // Terrain collision with gravity
     this.handleTerrainCollision(terrain);
@@ -199,6 +208,6 @@ export class Enemy implements GameObject {
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.render(ctx, this.bounds);
+    BoundingBoxFigure.render(ctx, this.getAbsoluteBounds());
   }
 }

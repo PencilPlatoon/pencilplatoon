@@ -40,6 +40,15 @@ export class BulletFigure {
     ctx.shadowBlur = 0;
 
     // Draw debug bounding box using BoundingBoxFigure
-    BoundingBoxFigure.render(ctx, bounds);
+    BoundingBoxFigure.render(ctx, {
+      upperLeft: {
+        x: position.x - bounds.width / 2,
+        y: position.y + bounds.height
+      },
+      lowerRight: {
+        x: position.x + bounds.width / 2,
+        y: position.y
+      }
+    });
   }
 } 
