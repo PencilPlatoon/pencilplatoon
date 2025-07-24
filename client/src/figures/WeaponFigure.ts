@@ -10,7 +10,6 @@ export class WeaponFigure {
     aimAngle,
     weapon,
     showAimLine = false,
-    weaponLength,
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
@@ -19,7 +18,6 @@ export class WeaponFigure {
     aimAngle: number;
     weapon: WeaponType;
     showAimLine?: boolean;
-    weaponLength: number;
     aimLineLength?: number;
   }) {
     // Weapon/arm line
@@ -27,10 +25,10 @@ export class WeaponFigure {
     const weaponY = position.y;
     let weaponEndX, weaponEndY;
     if (showAimLine) {
-      weaponEndX = weaponX + Math.cos(aimAngle) * weaponLength * facing;
-      weaponEndY = weaponY + Math.sin(aimAngle) * weaponLength;
+      weaponEndX = weaponX + Math.cos(aimAngle) * weapon.weaponLength * facing;
+      weaponEndY = weaponY + Math.sin(aimAngle) * weapon.weaponLength;
     } else {
-      weaponEndX = weaponX + facing * weaponLength;
+      weaponEndX = weaponX + facing * weapon.weaponLength;
       weaponEndY = weaponY;
     }
     ctx.save();

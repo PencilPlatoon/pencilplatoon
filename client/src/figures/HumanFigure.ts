@@ -25,7 +25,11 @@ export class HumanFigure {
   static readonly HEAD_CENTER_OFFSET_Y = HumanFigure.HEAD_BOTTOM_OFFSET_Y + HumanFigure.HEAD_RADIUS;
   static readonly HEAD_TOP_OFFSET = HumanFigure.HEAD_BOTTOM_OFFSET_Y + 2*HumanFigure.HEAD_RADIUS;
 
-  static readonly FIGURE_WIDTH = 28;
+  static readonly FIGURE_WIDTH = 2*Math.max(
+    HumanFigure.HEAD_RADIUS,
+    HumanFigure.ARM_LENGTH,
+    HumanFigure.LEG_WIDTH
+  );
   static readonly FIGURE_HEIGHT = HumanFigure.HEAD_TOP_OFFSET;
 
   static getWidth() {

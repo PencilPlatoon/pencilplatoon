@@ -16,7 +16,6 @@ export class Bullet implements GameObject {
   active: boolean;
   damage: number;
   color: string;
-  isEnemyBullet: boolean;
   private lifeTime = 0;
   private maxLifeTime = 3; // seconds
   private initialPosition: Vector2;
@@ -29,8 +28,7 @@ export class Bullet implements GameObject {
     direction: Vector2,
     speed: number,
     damage: number,
-    color: string,
-    isEnemyBullet: boolean
+    color: string
   ) {
     this.id = `bullet_${Date.now()}_${Math.random()}`;
     this.position = { x, y };
@@ -44,7 +42,6 @@ export class Bullet implements GameObject {
     this.active = true;
     this.damage = damage;
     this.color = color;
-    this.isEnemyBullet = isEnemyBullet;
   }
 
   update(deltaTime: number) {
@@ -122,7 +119,6 @@ export class Bullet implements GameObject {
   }
 
   deactivate(reason: string, terrain?: Terrain) {
-    const owner = this.isEnemyBullet ? 'ENEMY' : 'PLAYER';
     let terrainY = '(n/a)';
     if (terrain) {
       try {
@@ -131,7 +127,7 @@ export class Bullet implements GameObject {
         terrainY = '(out of bounds)';
       }
     }
-    console.log(`[${owner} BULLET] deactivated:`, reason, 'x =', this.position.x, 'y =', this.position.y, 'terrainY:', terrainY);
+    console.log(`[BULLET] deactivated:`, reason, 'x =', this.position.x, 'y =', this.position.y, 'terrainY:', terrainY);
     this.active = false;
   }
 }

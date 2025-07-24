@@ -26,6 +26,7 @@ export interface WeaponType {
   fireRate: number;
   bulletSpeed: number;
   bulletColor: string;
+  weaponLength: number;
   soundEffect?: string;
 }
 

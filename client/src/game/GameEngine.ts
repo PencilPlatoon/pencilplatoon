@@ -183,7 +183,7 @@ export class GameEngine {
     const screenWidth = 800;
     const numScreens = Math.ceil(levelWidth / screenWidth);
     const enemiesPerScreen = this.currentLevelConfig.enemiesPerScreen;
-    
+    console.log(`[spawnEnemies] levelWidth=${levelWidth}, numScreens=${numScreens}, enemiesPerScreen=${enemiesPerScreen}`);
     // Spawn enemies starting from the second screen
     for (let screen = 1; screen < numScreens; screen++) {
       for (let i = 0; i < enemiesPerScreen; i++) {
@@ -196,10 +196,10 @@ export class GameEngine {
         const y = this.terrain.getHeightAt(x) + 1;
         const enemy = new Enemy(x, y, `enemy_${screen}_${i}`);
         this.allEnemies.push(enemy);
+        console.log(`[spawnEnemies] Spawned enemy id=${enemy.id} at x=${x}, y=${y}`);
       }
     }
-    
-    console.log(`Spawned ${this.allEnemies.length} enemies across ${numScreens - 1} screens (starting from screen 1)`);
+    console.log(`[spawnEnemies] Total spawned: ${this.allEnemies.length}`);
   }
 
   private gameLoop(currentTime: number) {
@@ -226,7 +226,7 @@ export class GameEngine {
       enemy.update(deltaTime, this.player.position, this.terrain);
       
       // Enemy shooting
-      if (enemy.canShoot()) {
+      if (enemy.canShoot(this.player.position)) {
         const bullet = enemy.shoot(this.player.position);
         if (bullet) {
           this.bullets.push(bullet);
@@ -259,15 +259,15 @@ export class GameEngine {
   private activateNearbyEnemies() {
     const screenWidth = 800;
     const cameraX = this.camera.x;
-    
+    let activatedCount = 0;
     // Activate enemies within 2 screens of the camera
     this.allEnemies.forEach(enemy => {
       const distanceFromCamera = Math.abs(enemy.position.x - cameraX);
-      
       if (distanceFromCamera <= screenWidth * 2 && !this.activeEnemies.has(enemy.id)) {
         this.activeEnemies.add(enemy.id);
         this.enemies.push(enemy);
-        console.log(`Activated enemy ${enemy.id} at position ${enemy.position.x}`);
+        activatedCount++;
+        console.log(`[activateNearbyEnemies] Activated enemy id=${enemy.id} at x=${enemy.position.x}, distanceFromCamera=${distanceFromCamera}`);
       }
     });
   }
@@ -302,7 +302,7 @@ export class GameEngine {
 
     // Player shooting
     if (input.shoot && this.player.canShoot()) {
-      const bullet = this.player.shoot(this.terrain);
+      const bullet = this.player.shoot();
       if (bullet) {
         this.bullets.push(bullet);
         this.soundManager.playShoot();
@@ -322,7 +322,7 @@ export class GameEngine {
   private handleCollisions() {
     // Bullet vs Enemy collisions
     this.bullets.forEach(bullet => {
-      if (!bullet.active || bullet.isEnemyBullet) return;
+      if (!bullet.active) return;
 
       this.enemies.forEach(enemy => {
         if (
@@ -345,7 +345,7 @@ export class GameEngine {
 
     // Enemy bullet vs Player collisions
     this.bullets.forEach(bullet => {
-      if (!bullet.active || !bullet.isEnemyBullet) return;
+      if (!bullet.active) return;
 
       if (
         this.collisionSystem.checkCollision(bullet.bounds, this.player.bounds) ||

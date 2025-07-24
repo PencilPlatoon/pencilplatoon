@@ -5,6 +5,7 @@ import { HumanFigure } from "../figures/HumanFigure";
 import { WeaponFigure } from "../figures/WeaponFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBox";
+import { Weapon } from "./Weapon";
 
 declare global {
   interface Window {
@@ -36,8 +37,7 @@ export class Player implements GameObject {
   private jumpForce = 600;
   private gravity = 1500;
   private isGrounded = false;
-  private lastShotTime = 0;
-  private weapon: WeaponType;
+  private weapon: Weapon;
   private facing = 1; // 1 for right, -1 for left
   private aimAngle = 0; // Weapon aim angle in radians
   private lastCollisionDebugX: number | null = null;
@@ -61,13 +61,7 @@ export class Player implements GameObject {
     this.health = 100;
     this.maxHealth = 100;
     
-    this.weapon = {
-      name: "Rifle",
-      damage: 25,
-      fireRate: 200, // milliseconds between shots
-      bulletSpeed: 800,
-      bulletColor: "orange"
-    };
+    this.weapon = new Weapon(Weapon.RIFLE);
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
@@ -135,40 +129,15 @@ export class Player implements GameObject {
   }
 
   canShoot(): boolean {
-    return Date.now() - this.lastShotTime > this.weapon.fireRate;
+    return this.weapon.canShoot();
   }
 
-  shoot(terrain: Terrain): Bullet | null {
-    if (!this.canShoot()) return null;
-
-    this.lastShotTime = Date.now();
-
-    // Calculate direction based on facing direction and aim angle
-    const direction = {
-      x: Math.cos(this.aimAngle) * this.facing,
-      y: Math.sin(this.aimAngle)
-    };
-
-    // Calculate weapon tip position (matches render)
-    const weaponLength = 20;
-    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
-    const weaponEndX = weaponX + Math.cos(this.aimAngle) * weaponLength * this.facing;
-    const weaponEndY = weaponY + Math.sin(this.aimAngle) * weaponLength;
-
-    // Create bullet at weapon tip
-    const terrainY = terrain.getHeightAt(this.position.x);
-    console.log('Player shoot: player.y =', this.position.y, 'bullet spawn y =', weaponEndY, 'terrain y =', terrainY);
-    const bullet = new Bullet(
-      weaponEndX,
-      weaponEndY,
-      direction,
-      this.weapon.bulletSpeed,
-      this.weapon.damage,
-      this.weapon.bulletColor,
-      false
-    );
-
-    return bullet;
+  shoot(): Bullet | null {
+    return this.weapon.shoot({
+      position: this.getWeaponPosition(),
+      facing: this.facing,
+      aimAngle: this.aimAngle
+    });
   }
 
   takeDamage(damage: number) {
@@ -191,7 +160,6 @@ export class Player implements GameObject {
       aimAngle: this.aimAngle,
       weapon: this.weapon,
       showAimLine: true,
-      weaponLength: 20,
       aimLineLength: 100
     });
     HealthBarFigure.render({

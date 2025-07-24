@@ -5,6 +5,7 @@ import { HumanFigure } from "../figures/HumanFigure";
 import { WeaponFigure } from "../figures/WeaponFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBox";
+import { Weapon } from "./Weapon";
 
 declare global {
   interface Window {
@@ -25,12 +26,13 @@ export class Enemy implements GameObject {
   private detectionRange = 400;
   private shootingRange = 300;
   private lastShotTime = 0;
-  private weapon: WeaponType;
+  private weapon: Weapon;
   private facing = 1;
   private patrolDirection = 1;
   private patrolStartX: number;
   private patrolRange = 200;
   private gravity = 1500;
+  private fireRate = 800; // ms, distinct from weapon fireRate
 
   static readonly HEALTHBAR_OFFSET_Y = 20;
 
@@ -52,13 +54,7 @@ export class Enemy implements GameObject {
     this.maxHealth = 75;
     this.patrolStartX = x;
     
-    this.weapon = {
-      name: "EnemyRifle",
-      damage: 15,
-      fireRate: 800, // milliseconds between shots
-      bulletSpeed: 600,
-      bulletColor: "red"
-    };
+    this.weapon = new Weapon(Weapon.RIFLE);
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
@@ -139,46 +135,29 @@ export class Enemy implements GameObject {
     }
   }
 
-  canShoot(): boolean {
-    return Date.now() - this.lastShotTime > this.weapon.fireRate;
+  canShoot(playerPos: Vector2): boolean {
+    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
+    const dx = playerPos.x - weaponX;
+    const dy = playerPos.y - weaponY;
+    const distance = Math.sqrt(dx * dx + dy * dy);
+    const now = Date.now();
+    const enemyCooldown = now - this.lastShotTime > this.fireRate;
+    const weaponCooldown = this.weapon.canShoot();
+    return distance <= this.shootingRange && enemyCooldown && weaponCooldown;
   }
 
-  shoot(targetPos: Vector2): Bullet | null {
-    const distance = Math.sqrt(
-      Math.pow(targetPos.x - this.position.x, 2) + 
-      Math.pow(targetPos.y - this.position.y, 2)
-    );
-
-    if (distance > this.shootingRange || !this.canShoot()) return null;
-
+  shoot(playerPos: Vector2): Bullet | null {
     this.lastShotTime = Date.now();
-
-    // Calculate direction to target
-    const dx = targetPos.x - this.position.x;
-    const dy = targetPos.y - this.position.y;
-
-    if (distance === 0) return null;
-
-    const direction = { x: dx / distance, y: dy / distance };
-
-    // Weapon attached to hand (end of arm)
+    // Compute aim angle toward player
     const { x: weaponX, y: weaponY } = this.getWeaponPosition();
-    const weaponLength = 13;
-    const weaponEndX = weaponX + this.facing * weaponLength;
-    const weaponEndY = weaponY;
-
-    // Create bullet at weapon tip
-    const bullet = new Bullet(
-      weaponEndX,
-      weaponEndY,
-      direction,
-      this.weapon.bulletSpeed,
-      this.weapon.damage,
-      this.weapon.bulletColor,
-      true
-    );
-
-    return bullet;
+    const dx = playerPos.x - weaponX;
+    const dy = playerPos.y - weaponY;
+    const aimAngle = Math.atan2(dy, dx * this.facing); // adjust for facing
+    return this.weapon.shoot({
+      position: this.getWeaponPosition(),
+      facing: this.facing,
+      aimAngle
+    });
   }
 
   takeDamage(damage: number) {
@@ -209,7 +188,6 @@ export class Enemy implements GameObject {
       facing: this.facing,
       aimAngle,
       weapon: this.weapon,
-      weaponLength: 13,
       showAimLine: false
     });
     HealthBarFigure.render({
