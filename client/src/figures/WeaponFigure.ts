@@ -1,5 +1,6 @@
 import { Vector2, WeaponType } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
+import { AimLineFigure } from "./AimLineFigure";
 
 export class WeaponFigure {
   static render({
@@ -9,7 +10,7 @@ export class WeaponFigure {
     aimAngle,
     weapon,
     showAimLine = false,
-    weaponLength = 20,
+    weaponLength,
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
@@ -18,7 +19,7 @@ export class WeaponFigure {
     aimAngle: number;
     weapon: WeaponType;
     showAimLine?: boolean;
-    weaponLength?: number;
+    weaponLength: number;
     aimLineLength?: number;
   }) {
     // Weapon/arm line
@@ -39,20 +40,17 @@ export class WeaponFigure {
     ctx.moveTo(weaponX, toCanvasY(weaponY));
     ctx.lineTo(weaponEndX, toCanvasY(weaponEndY));
     ctx.stroke();
+    ctx.restore();
     // Draw dashed aiming line (for player only)
     if (showAimLine) {
-      const aimLineLen = aimLineLength;
-      const aimEndX = weaponX + Math.cos(aimAngle) * aimLineLen * facing;
-      const aimEndY = weaponY + Math.sin(aimAngle) * aimLineLen;
-      ctx.strokeStyle = "red";
-      ctx.lineWidth = 2;
-      ctx.setLineDash([5, 5]);
-      ctx.beginPath();
-      ctx.moveTo(weaponEndX, toCanvasY(weaponEndY));
-      ctx.lineTo(aimEndX, toCanvasY(aimEndY));
-      ctx.stroke();
-      ctx.setLineDash([]);
+      AimLineFigure.render({
+        ctx,
+        weaponX: weaponEndX,
+        weaponY: weaponEndY,
+        aimAngle,
+        aimLineLength,
+        facing
+      });
     }
-    ctx.restore();
   }
 } 

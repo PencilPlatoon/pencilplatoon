@@ -2,34 +2,34 @@ import { Vector2 } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
 
 export class HealthBarFigure {
+  static readonly WIDTH = 30;
+  static readonly HEIGHT = 4;
   static render({
     ctx,
-    position,
+    centerPosition,
     health,
-    maxHealth,
-    headY
+    maxHealth
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
+    centerPosition: Vector2;
     health: number;
     maxHealth: number;
-    headY: number;
   }) {
-    const healthBarWidth = 30;
-    const healthBarHeight = 4;
+    const healthBarWidth = HealthBarFigure.WIDTH;
+    const healthBarHeight = HealthBarFigure.HEIGHT;
     const healthPercentage = health / maxHealth;
     ctx.save();
     ctx.fillStyle = "red";
     ctx.fillRect(
-      position.x - healthBarWidth / 2,
-      toCanvasY(headY),
+      centerPosition.x - healthBarWidth / 2,
+      toCanvasY(centerPosition.y),
       healthBarWidth,
       healthBarHeight
     );
     ctx.fillStyle = "green";
     ctx.fillRect(
-      position.x - healthBarWidth / 2,
-      toCanvasY(headY),
+      centerPosition.x - healthBarWidth / 2,
+      toCanvasY(centerPosition.y),
       healthBarWidth * healthPercentage,
       healthBarHeight
     );

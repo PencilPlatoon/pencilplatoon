@@ -46,7 +46,7 @@ export class Player implements GameObject {
 
   getWeaponPosition() {
     return {
-      x: this.position.x + (this.facing * HumanFigure.HAND_OFFSET_X),
+      x: this.position.x + (this.facing * HumanFigure.ARM_LENGTH),
       y: this.position.y + HumanFigure.HAND_OFFSET_Y
     };
   }
@@ -196,10 +196,12 @@ export class Player implements GameObject {
     });
     HealthBarFigure.render({
       ctx,
-      position: this.position,
+      centerPosition: {
+        x: this.position.x,
+        y: this.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
+      },
       health: this.health,
-      maxHealth: this.maxHealth,
-      headY: this.position.y + HumanFigure.HEAD_OFFSET_Y + HumanFigure.NECK_LENGTH + Player.HEALTHBAR_OFFSET_Y
+      maxHealth: this.maxHealth
     });
     BoundingBoxFigure.render(ctx, this.bounds);
   }
