@@ -87,8 +87,8 @@ export default function GameUI({ phase, onStart, onRestart, onNextLevel, isIniti
             </Button>
             {CheckboxGroup}
             <div className="mt-8 text-xs text-gray-500">
-              <div>by Garrett Jones</div>
-              <div className="mt-1">based on ideas from Juancho Jones</div>
+              <div>Developed by Garrett Jones</div>
+              <div className="mt-1">Artwork by Juancho Jones</div>
             </div>
           </CardContent>
         </Card>
