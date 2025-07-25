@@ -1,4 +1,4 @@
-import { Vector2, WeaponType } from "../game/types";
+import { Vector2, WeaponType, BoundingBox } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
 import { AimLineFigure } from "./AimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
@@ -11,7 +11,7 @@ export class WeaponFigure {
     aimAngle,
     weapon,
     svgInfo,
-    holdOffset,
+    boundingBox,
     showAimLine = false,
     aimLineLength = 100
   }: {
@@ -21,12 +21,13 @@ export class WeaponFigure {
     aimAngle: number;
     weapon: WeaponType;
     svgInfo?: SVGInfo | null;
-    holdOffset: number;
+    boundingBox: BoundingBox;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
     if (svgInfo) {
       ctx.save();
+      // The passed-in position is the world reference point; draw SVG so that the reference point aligns with (0,0)
       ctx.translate(position.x, toCanvasY(position.y));
       ctx.rotate(facing === 1 ? -aimAngle : aimAngle);
       ctx.scale(facing, 1);
@@ -34,8 +35,10 @@ export class WeaponFigure {
       const svgHeight = svgInfo.boundingBox.height;
       const scale = weapon.weaponLength / svgWidth;
       ctx.scale(scale, scale);
-      // Shift by -holdOffset so the hold point aligns with the hand
-      ctx.drawImage(svgInfo.image, -holdOffset, -svgHeight / 2, svgWidth, svgHeight);
+      // Draw SVG so that the reference point aligns with (0,0)
+      const anchorX = svgWidth * boundingBox.relativeReferenceX;
+      const anchorY = svgHeight * boundingBox.relativeReferenceY;
+      ctx.drawImage(svgInfo.image, -anchorX, -anchorY, svgWidth, svgHeight);
       ctx.restore();
       if (showAimLine) {
         const weaponEndX = position.x + Math.cos(aimAngle) * weapon.weaponLength * facing;
@@ -52,7 +55,7 @@ export class WeaponFigure {
       return;
     }
     // If not loaded, fallback to basic
-    this.renderBasic({ ctx, position, facing, aimAngle, weapon, holdOffset, showAimLine, aimLineLength });
+    this.renderBasic({ ctx, position, facing, aimAngle, weapon, boundingBox, showAimLine, aimLineLength });
   }
 
   static renderBasic({
@@ -61,7 +64,6 @@ export class WeaponFigure {
     facing,
     aimAngle,
     weapon,
-    holdOffset,
     showAimLine = false,
     aimLineLength = 100
   }: {
@@ -70,12 +72,12 @@ export class WeaponFigure {
     facing: number;
     aimAngle: number;
     weapon: WeaponType;
-    holdOffset: number;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
-    const weaponX = position.x - Math.cos(aimAngle) * holdOffset * facing;
-    const weaponY = position.y - Math.sin(aimAngle) * holdOffset;
+    // The passed-in position is already the absolute reference point
+    const weaponX = position.x;
+    const weaponY = position.y;
     let weaponEndX, weaponEndY;
     if (showAimLine) {
       weaponEndX = weaponX + Math.cos(aimAngle) * weapon.weaponLength * facing;
@@ -113,7 +115,7 @@ export class WeaponFigure {
     showAimLine = false,
     aimLineLength = 100,
     svgInfo,
-    holdOffset
+    boundingBox
   }: {
     ctx: CanvasRenderingContext2D;
     position: Vector2;
@@ -123,12 +125,12 @@ export class WeaponFigure {
     showAimLine?: boolean;
     aimLineLength?: number;
     svgInfo?: SVGInfo;
-    holdOffset: number;
+    boundingBox: BoundingBox;
   }) {
     if (svgInfo) {
-      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgInfo, holdOffset, showAimLine, aimLineLength });
+      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgInfo, boundingBox, showAimLine, aimLineLength });
     } else {
-      this.renderBasic({ ctx, position, facing, aimAngle, weapon, holdOffset, showAimLine, aimLineLength });
+      this.renderBasic({ ctx, position, facing, aimAngle, weapon, showAimLine, aimLineLength });
     }
   }
 } 

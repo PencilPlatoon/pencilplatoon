@@ -34,24 +34,47 @@ export class Weapon {
     this._loadPromise = Promise.resolve();
     // Compute bounding box
     if (this.svgPath) {
-      this.boundingBox = { width: 192, height: 196 };
+      this.boundingBox = { width: 192, height: 196, relativeReferenceX: 0.5, relativeReferenceY: 0.5 };
       const weaponLength = this.weaponLength;
+      const holdOffset = this.holdOffset;
       this._loadPromise = (async () => {
         const info = await SVGLoader.get(this.svgPath!);
         if (info) {
-          this.boundingBox = info.boundingBox;
+          // Scale bounding box to match weaponLength (like WeaponFigure)
+          const svgWidth = info.boundingBox.width;
+          const svgHeight = info.boundingBox.height;
+          const scale = weaponLength / svgWidth;
+          // Reference point as a fraction of weaponLength
+          const relativeReferenceX = (holdOffset ?? weaponLength / 2) / weaponLength;
+          const relativeReferenceY = 0.5; // middle vertically
+          this.boundingBox = {
+            width: svgWidth * scale,
+            height: svgHeight * scale,
+            relativeReferenceX,
+            relativeReferenceY
+          };
           this.svgInfo = info;
           this.isLoaded = true;
         } else {
           console.warn(`Weapon SVG failed to load: ${this.svgPath}`);
           // Fallback to basic weapon
-          this.boundingBox = { width: weaponLength, height: 1 };
+          this.boundingBox = {
+            width: weaponLength,
+            height: 1,
+            relativeReferenceX: holdOffset / weaponLength,
+            relativeReferenceY: 0.5
+          };
           this.isLoaded = true;
         }
       })();
     } else {
       // Basic weapon: line from (0,0) to (weaponLength,0)
-      this.boundingBox = { width: this.weaponLength, height: 1 };
+      this.boundingBox = {
+        width: this.weaponLength,
+        height: 1,
+        relativeReferenceX: this.holdOffset / this.weaponLength,
+        relativeReferenceY: 0.5
+      };
       this.isLoaded = true;
       this._loadPromise = Promise.resolve();
     }
@@ -82,30 +105,21 @@ export class Weapon {
     );
   }
 
-  getAbsoluteBounds({ position, facing, aimAngle }: { position: Vector2; facing: number; aimAngle: number; }) {
-    // Compute the base (hand) of the weapon in world coordinates
-    const baseX = position.x - Math.cos(aimAngle) * this.holdOffset * facing;
-    const baseY = position.y - Math.sin(aimAngle) * this.holdOffset;
+  getAbsoluteBounds(referencePoint: Vector2, facing: number) {
     // Get bounding box size in local weapon space
     const w = this.boundingBox.width;
     const h = this.boundingBox.height;
-    // Four corners in local space (before transforms)
+    const refX = w * this.boundingBox.relativeReferenceX;
+    const refY = h * (this.boundingBox.relativeReferenceY - 0.5); // center y at 0
+    // Four corners in local space (relative to reference point)
     const corners = [
-      { x: 0, y: -h / 2 },           // left-top
-      { x: w, y: -h / 2 },           // right-top
-      { x: w, y: h / 2 },            // right-bottom
-      { x: 0, y: h / 2 },            // left-bottom
+      { x: -refX, y: -h / 2 - refY },           // left-top
+      { x: w - refX, y: -h / 2 - refY },        // right-top
+      { x: w - refX, y: h / 2 - refY },         // right-bottom
+      { x: -refX, y: h / 2 - refY },            // left-bottom
     ];
-    // Transform each corner: scale (facing), rotate (aimAngle), then translate to base
-    const worldCorners = corners.map(({ x, y }) => {
-      // Flip for facing (after rotation)
-      const xr = x * Math.cos(aimAngle) - y * Math.sin(aimAngle);
-      const yr = x * Math.sin(aimAngle) + y * Math.cos(aimAngle);
-      // Now flip x for facing
-      const xf = xr * facing;
-      // Translate
-      return { x: baseX + xf, y: baseY + yr };
-    });
+    // Flip x for facing
+    const worldCorners = corners.map(({ x, y }) => ({ x: referencePoint.x + x * facing, y: referencePoint.y + y }));
     // Find axis-aligned bounding box
     const xs = worldCorners.map(c => c.x);
     const ys = worldCorners.map(c => c.y);
@@ -143,9 +157,9 @@ export class Weapon {
       showAimLine,
       aimLineLength,
       svgInfo: this.svgInfo,
-      holdOffset: this.holdOffset
+      boundingBox: this.boundingBox
     });
-    const absBounds = this.getAbsoluteBounds({ position, facing, aimAngle });
+    const absBounds = this.getAbsoluteBounds(position, facing);
     BoundingBoxFigure.render(ctx, absBounds);
   }
 
@@ -160,9 +174,9 @@ export class Weapon {
     fireRate: 200,
     bulletSpeed: 800,
     bulletColor: "orange",
-    weaponLength: 60,
+    weaponLength: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
-    holdOffset: 60
+    holdOffset: 25
   };
 
   static readonly MACHINE_GUN: WeaponType = {

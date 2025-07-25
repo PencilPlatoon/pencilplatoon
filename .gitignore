@@ -2,3 +2,4 @@ node_modules
 .DS_Store
 attached_assets/
 dist/
+client/public/.DS_Store

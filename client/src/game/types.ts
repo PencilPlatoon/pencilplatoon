@@ -6,6 +6,8 @@ export interface Vector2 {
 export interface BoundingBox {
   width: number;
   height: number;
+  relativeReferenceX: number; // 0-1, fraction of width (e.g., 0.5 is center)
+  relativeReferenceY: number; // 0-1, fraction of height (e.g., 0.5 is center)
 }
 
 export interface GameObject {
