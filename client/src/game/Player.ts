@@ -162,12 +162,11 @@ export class Player implements GameObject {
       position: this.position,
       active: this.active
     });
-    WeaponFigure.render({
+    this.weapon.render({
       ctx,
       position: this.getWeaponPosition(),
       facing: this.facing,
       aimAngle: this.aimAngle,
-      weapon: this.weapon,
       showAimLine: true,
       aimLineLength: 100
     });

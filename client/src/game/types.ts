@@ -26,6 +26,13 @@ export interface WeaponType {
   bulletColor: string;
   weaponLength: number;
   soundEffect?: string;
+  svgPath?: string;
+  /**
+   * The offset (in weapon SVG or line coordinates) from the weapon's base to the hand position.
+   * A value of 0 means the weapon base is aligned with the hand (current behavior).
+   * Positive values move the weapon forward, negative values move it backward.
+   */
+  holdOffset?: number;
 }
 
 export interface Particle {

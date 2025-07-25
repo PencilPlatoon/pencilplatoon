@@ -1,5 +1,6 @@
 import { Vector2, WeaponType } from "./types";
 import { Bullet } from "./Bullet";
+import { WeaponFigure } from "../figures/WeaponFigure";
 
 export class Weapon {
   name: string;
@@ -9,6 +10,8 @@ export class Weapon {
   bulletColor: string;
   weaponLength: number;
   soundEffect?: string;
+  svgPath?: string;
+  holdOffset: number;
   private lastShotTime = 0;
 
   constructor(weaponType: WeaponType) {
@@ -19,6 +22,8 @@ export class Weapon {
     this.bulletColor = weaponType.bulletColor;
     this.weaponLength = weaponType.weaponLength;
     this.soundEffect = weaponType.soundEffect;
+    this.svgPath = weaponType.svgPath;
+    this.holdOffset = weaponType.holdOffset ?? 0;
   }
 
   canShoot(): boolean {
@@ -46,13 +51,43 @@ export class Weapon {
     );
   }
 
+  render({
+    ctx,
+    position,
+    facing,
+    aimAngle,
+    showAimLine = false,
+    aimLineLength = 100
+  }: {
+    ctx: CanvasRenderingContext2D;
+    position: Vector2;
+    facing: number;
+    aimAngle: number;
+    showAimLine?: boolean;
+    aimLineLength?: number;
+  }) {
+    WeaponFigure.render({
+      ctx,
+      position,
+      facing,
+      aimAngle,
+      weapon: this,
+      showAimLine,
+      aimLineLength,
+      svgPath: this.svgPath,
+      holdOffset: this.holdOffset
+    });
+  }
+
   static readonly RIFLE: WeaponType = {
     name: "Rifle",
     damage: 25,
     fireRate: 200,
     bulletSpeed: 800,
     bulletColor: "orange",
-    weaponLength: 20
+    weaponLength: 60,
+    svgPath: "/svg/rifle-a-main-offensive.svg",
+    holdOffset: 60
   };
 
   static readonly MACHINE_GUN: WeaponType = {
@@ -61,7 +96,8 @@ export class Weapon {
     fireRate: 100,
     bulletSpeed: 700,
     bulletColor: "yellow",
-    weaponLength: 16
+    weaponLength: 16,
+    holdOffset: 8
   };
 
   static readonly SNIPER: WeaponType = {
@@ -70,7 +106,8 @@ export class Weapon {
     fireRate: 1000,
     bulletSpeed: 1200,
     bulletColor: "red",
-    weaponLength: 28
+    weaponLength: 28,
+    holdOffset: 14
   };
 
   static readonly PISTOL: WeaponType = {
@@ -79,6 +116,7 @@ export class Weapon {
     fireRate: 300,
     bulletSpeed: 600,
     bulletColor: "orange",
-    weaponLength: 12
+    weaponLength: 12,
+    holdOffset: 0
   };
 }

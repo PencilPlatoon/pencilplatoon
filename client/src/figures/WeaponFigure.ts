@@ -3,26 +3,89 @@ import { toCanvasY } from "../game/Terrain";
 import { AimLineFigure } from "./AimLineFigure";
 
 export class WeaponFigure {
-  static render({
+  static imageCache: { [path: string]: { img: HTMLImageElement, loaded: boolean } } = {};
+
+  static renderSVG({
     ctx,
-    position, // Now expected to be the weapon base
+    position,
     facing,
     aimAngle,
     weapon,
+    svgPath,
+    holdOffset,
     showAimLine = false,
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2; // weapon base
+    position: Vector2;
     facing: number;
     aimAngle: number;
     weapon: WeaponType;
+    svgPath: string;
+    holdOffset: number;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
-    // Weapon/arm line
-    const weaponX = position.x;
-    const weaponY = position.y;
+    if (!this.imageCache[svgPath]) {
+      const img = new window.Image();
+      img.src = svgPath;
+      this.imageCache[svgPath] = { img, loaded: false };
+      img.onload = () => {
+        this.imageCache[svgPath].loaded = true;
+      };
+    }
+    const cache = this.imageCache[svgPath];
+    if (cache.loaded) {
+      ctx.save();
+      ctx.translate(position.x, toCanvasY(position.y));
+      ctx.rotate(facing === 1 ? -aimAngle : aimAngle);
+      ctx.scale(facing, 1);
+      const svgWidth = 192;
+      const svgHeight = 196;
+      const scale = weapon.weaponLength / svgWidth;
+      ctx.scale(scale, scale);
+      // Shift by -holdOffset so the hold point aligns with the hand
+      ctx.drawImage(cache.img, -holdOffset, -svgHeight / 2, svgWidth, svgHeight);
+      ctx.restore();
+      if (showAimLine) {
+        const weaponEndX = position.x + Math.cos(aimAngle) * weapon.weaponLength * facing;
+        const weaponEndY = position.y + Math.sin(aimAngle) * weapon.weaponLength;
+        AimLineFigure.render({
+          ctx,
+          weaponX: weaponEndX,
+          weaponY: weaponEndY,
+          aimAngle,
+          aimLineLength,
+          facing
+        });
+      }
+      return;
+    }
+    // If not loaded, fallback to basic
+    this.renderBasic({ ctx, position, facing, aimAngle, weapon, holdOffset, showAimLine, aimLineLength });
+  }
+
+  static renderBasic({
+    ctx,
+    position,
+    facing,
+    aimAngle,
+    weapon,
+    holdOffset,
+    showAimLine = false,
+    aimLineLength = 100
+  }: {
+    ctx: CanvasRenderingContext2D;
+    position: Vector2;
+    facing: number;
+    aimAngle: number;
+    weapon: WeaponType;
+    holdOffset: number;
+    showAimLine?: boolean;
+    aimLineLength?: number;
+  }) {
+    const weaponX = position.x - Math.cos(aimAngle) * holdOffset * facing;
+    const weaponY = position.y - Math.sin(aimAngle) * holdOffset;
     let weaponEndX, weaponEndY;
     if (showAimLine) {
       weaponEndX = weaponX + Math.cos(aimAngle) * weapon.weaponLength * facing;
@@ -39,7 +102,6 @@ export class WeaponFigure {
     ctx.lineTo(weaponEndX, toCanvasY(weaponEndY));
     ctx.stroke();
     ctx.restore();
-    // Draw dashed aiming line (for player only)
     if (showAimLine) {
       AimLineFigure.render({
         ctx,
@@ -49,6 +111,34 @@ export class WeaponFigure {
         aimLineLength,
         facing
       });
+    }
+  }
+
+  static render({
+    ctx,
+    position,
+    facing,
+    aimAngle,
+    weapon,
+    showAimLine = false,
+    aimLineLength = 100,
+    svgPath,
+    holdOffset
+  }: {
+    ctx: CanvasRenderingContext2D;
+    position: Vector2;
+    facing: number;
+    aimAngle: number;
+    weapon: WeaponType;
+    showAimLine?: boolean;
+    aimLineLength?: number;
+    svgPath?: string;
+    holdOffset: number;
+  }) {
+    if (svgPath) {
+      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgPath, holdOffset, showAimLine, aimLineLength });
+    } else {
+      this.renderBasic({ ctx, position, facing, aimAngle, weapon, holdOffset, showAimLine, aimLineLength });
     }
   }
 } 

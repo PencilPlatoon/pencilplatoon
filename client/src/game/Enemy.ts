@@ -191,12 +191,11 @@ export class Enemy implements GameObject {
       const dy = playerPos.y - weaponY;
       aimAngle = Math.atan2(dy, dx * this.facing); // adjust for facing
     }
-    WeaponFigure.render({
+    this.weapon.render({
       ctx,
       position: this.getWeaponPosition(),
       facing: this.facing,
       aimAngle,
-      weapon: this.weapon,
       showAimLine: false
     });
     HealthBarFigure.render({
