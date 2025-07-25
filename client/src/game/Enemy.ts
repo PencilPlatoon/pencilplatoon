@@ -209,4 +209,9 @@ export class Enemy implements GameObject {
     });
     BoundingBoxFigure.render(ctx, this.getAbsoluteBounds());
   }
+
+  async waitForLoaded(): Promise<void> {
+    await this.weapon.waitForLoaded();
+    console.log(`Enemy loaded: ${this.id}`);
+  }
 }

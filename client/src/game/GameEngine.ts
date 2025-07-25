@@ -82,7 +82,10 @@ export class GameEngine {
     console.log(`Level ${levelName} initialized`);
   }
 
-  start() {
+  async start() {
+    await this.player.waitForLoaded();
+    await Promise.all(this.allEnemies.map(e => e.waitForLoaded()));
+    console.log("Game engine: everything loaded");
     this.isRunning = true;
     this.gameLoop(0);
     console.log("Game started");

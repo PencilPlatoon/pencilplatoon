@@ -1,17 +1,16 @@
 import { Vector2, WeaponType } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
 import { AimLineFigure } from "./AimLineFigure";
+import { SVGInfo } from "../util/SVGLoader";
 
 export class WeaponFigure {
-  static imageCache: { [path: string]: { img: HTMLImageElement, loaded: boolean } } = {};
-
   static renderSVG({
     ctx,
     position,
     facing,
     aimAngle,
     weapon,
-    svgPath,
+    svgInfo,
     holdOffset,
     showAimLine = false,
     aimLineLength = 100
@@ -21,31 +20,22 @@ export class WeaponFigure {
     facing: number;
     aimAngle: number;
     weapon: WeaponType;
-    svgPath: string;
+    svgInfo?: SVGInfo | null;
     holdOffset: number;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
-    if (!this.imageCache[svgPath]) {
-      const img = new window.Image();
-      img.src = svgPath;
-      this.imageCache[svgPath] = { img, loaded: false };
-      img.onload = () => {
-        this.imageCache[svgPath].loaded = true;
-      };
-    }
-    const cache = this.imageCache[svgPath];
-    if (cache.loaded) {
+    if (svgInfo) {
       ctx.save();
       ctx.translate(position.x, toCanvasY(position.y));
       ctx.rotate(facing === 1 ? -aimAngle : aimAngle);
       ctx.scale(facing, 1);
-      const svgWidth = 192;
-      const svgHeight = 196;
+      const svgWidth = svgInfo.boundingBox.width;
+      const svgHeight = svgInfo.boundingBox.height;
       const scale = weapon.weaponLength / svgWidth;
       ctx.scale(scale, scale);
       // Shift by -holdOffset so the hold point aligns with the hand
-      ctx.drawImage(cache.img, -holdOffset, -svgHeight / 2, svgWidth, svgHeight);
+      ctx.drawImage(svgInfo.image, -holdOffset, -svgHeight / 2, svgWidth, svgHeight);
       ctx.restore();
       if (showAimLine) {
         const weaponEndX = position.x + Math.cos(aimAngle) * weapon.weaponLength * facing;
@@ -122,7 +112,7 @@ export class WeaponFigure {
     weapon,
     showAimLine = false,
     aimLineLength = 100,
-    svgPath,
+    svgInfo,
     holdOffset
   }: {
     ctx: CanvasRenderingContext2D;
@@ -132,11 +122,11 @@ export class WeaponFigure {
     weapon: WeaponType;
     showAimLine?: boolean;
     aimLineLength?: number;
-    svgPath?: string;
+    svgInfo?: SVGInfo;
     holdOffset: number;
   }) {
-    if (svgPath) {
-      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgPath, holdOffset, showAimLine, aimLineLength });
+    if (svgInfo) {
+      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgInfo, holdOffset, showAimLine, aimLineLength });
     } else {
       this.renderBasic({ ctx, position, facing, aimAngle, weapon, holdOffset, showAimLine, aimLineLength });
     }

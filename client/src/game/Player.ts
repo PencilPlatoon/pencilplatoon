@@ -37,7 +37,7 @@ export class Player implements GameObject {
   private jumpForce = 600;
   private gravity = 1500;
   private isGrounded = false;
-  private weapon: Weapon;
+  public weapon: Weapon;
   private facing = 1; // 1 for right, -1 for left
   private aimAngle = 0; // Weapon aim angle in radians
   private lastCollisionDebugX: number | null = null;
@@ -154,6 +154,11 @@ export class Player implements GameObject {
     if (this.health <= 0) {
       this.active = false;
     }
+  }
+
+  async waitForLoaded(): Promise<void> {
+    await this.weapon.waitForLoaded();
+    console.log(`Player loaded`);
   }
 
   render(ctx: CanvasRenderingContext2D) {
