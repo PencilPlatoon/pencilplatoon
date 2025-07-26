@@ -168,6 +168,17 @@ export class Weapon {
     console.log(`Weapon loaded: ${this.name}`);
   }
 
+  static readonly WEBLEY_REVOLVER: WeaponType = {
+    name: "Webley",
+    damage: 20,
+    fireRate: 300,
+    bulletSpeed: 600,
+    bulletColor: "orange",
+    weaponLength: 20,
+    svgPath: "svg/webley.svg",
+    holdOffset: 5
+  };
+
   static readonly RIFLE: WeaponType = {
     name: "Rifle",
     damage: 25,
@@ -197,15 +208,5 @@ export class Weapon {
     bulletColor: "red",
     weaponLength: 28,
     holdOffset: 14
-  };
-
-  static readonly PISTOL: WeaponType = {
-    name: "Pistol",
-    damage: 20,
-    fireRate: 300,
-    bulletSpeed: 600,
-    bulletColor: "orange",
-    weaponLength: 12,
-    holdOffset: 0
   };
 }

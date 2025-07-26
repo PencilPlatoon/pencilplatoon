@@ -74,7 +74,7 @@ export class Player implements GameObject {
     this.health = 100;
     this.maxHealth = 100;
     
-    this.weapon = new Weapon(Weapon.RIFLE);
+    this.weapon = new Weapon(Weapon.WEBLEY_REVOLVER);
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
