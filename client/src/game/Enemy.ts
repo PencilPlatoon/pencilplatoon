@@ -1,8 +1,8 @@
-import { GameObject, Vector2, BoundingBox } from "./types";
+import { GameObject, Vector2 } from "./types";
+import { BoundingBox } from "./BoundingBox";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
-import { WeaponFigure } from "../figures/WeaponFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
@@ -43,25 +43,12 @@ export class Enemy implements GameObject {
     };
   }
 
-  getAbsoluteBounds() {
-    return {
-      upperLeft: {
-        x: this.position.x - this.bounds.width / 2,
-        y: this.position.y + this.bounds.height
-      },
-      lowerRight: {
-        x: this.position.x + this.bounds.width / 2,
-        y: this.position.y
-      }
-    };
-  }
-
   constructor(x: number, y: number, id: string) {
     this.id = id;
     // position.y is now feet (bottom of enemy)
     this.position = { x, y };
     this.velocity = { x: 0, y: 1 };
-    this.bounds = { width: HumanFigure.getWidth(), height: HumanFigure.getHeight() };
+    this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
     this.health = 75;
     this.maxHealth = 75;
@@ -176,6 +163,10 @@ export class Enemy implements GameObject {
     }
   }
 
+  getAbsoluteBounds() {
+    return this.bounds.getAbsoluteBounds(this.position);
+  }
+
   render(ctx: CanvasRenderingContext2D, playerPos?: Vector2) {
     if (!this.active) return;
     HumanFigure.render({
@@ -207,7 +198,7 @@ export class Enemy implements GameObject {
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.render(ctx, this.getAbsoluteBounds());
+    BoundingBoxFigure.render(ctx, this.bounds.getAbsoluteBounds(this.position));
   }
 
   async waitForLoaded(): Promise<void> {

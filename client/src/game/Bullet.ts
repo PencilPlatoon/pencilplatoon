@@ -1,6 +1,6 @@
-import { GameObject, Vector2, BoundingBox } from "./types";
+import { GameObject, Vector2 } from "./types";
+import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
-import { toCanvasY } from "./Terrain";
 import { BulletFigure } from "../figures/BulletFigure";
 
 declare global {
@@ -39,7 +39,7 @@ export class Bullet implements GameObject {
       x: direction.x * speed,
       y: direction.y * speed
     };
-    this.bounds = { width: 6, height: 6 };
+    this.bounds = new BoundingBox(6, 6, 0.5, 0.5);
     this.active = true;
     this.damage = damage;
     this.color = color;
@@ -87,16 +87,8 @@ export class Bullet implements GameObject {
   }
 
   getAbsoluteBounds() {
-    return {
-      upperLeft: {
-        x: this.position.x - this.bounds.width / 2,
-        y: this.position.y + this.bounds.height
-      },
-      lowerRight: {
-        x: this.position.x + this.bounds.width / 2,
-        y: this.position.y
-      }
-    };
+    // For Bullet, position is at center, so we can use the BoundingBox method directly
+    return this.bounds.getAbsoluteBounds(this.position);
   }
 
   deactivate(reason: string, terrain?: Terrain) {

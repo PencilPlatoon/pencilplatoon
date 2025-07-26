@@ -1,4 +1,5 @@
-import { Vector2, WeaponType, BoundingBox } from "../game/types";
+import { Vector2, WeaponType } from "../game/types";
+import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
 import { AimLineFigure } from "./AimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
@@ -55,7 +56,7 @@ export class WeaponFigure {
       return;
     }
     // If not loaded, fallback to basic
-    this.renderBasic({ ctx, position, facing, aimAngle, weapon, boundingBox, showAimLine, aimLineLength });
+    this.renderBasic({ ctx, position, facing, aimAngle, weapon, showAimLine, aimLineLength });
   }
 
   static renderBasic({

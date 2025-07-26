@@ -1,13 +1,8 @@
+import { BoundingBox } from "./BoundingBox";
+
 export interface Vector2 {
   x: number;
   y: number;
-}
-
-export interface BoundingBox {
-  width: number;
-  height: number;
-  relativeReferenceX: number; // 0-1, fraction of width (e.g., 0.5 is center)
-  relativeReferenceY: number; // 0-1, fraction of height (e.g., 0.5 is center)
 }
 
 export interface GameObject {
@@ -58,9 +53,4 @@ export interface TerrainSegment {
 export interface TerrainPoint {
   x: number;
   y: number;
-}
-
-export interface AbsoluteBoundingBox {
-  upperLeft: Vector2; // x: min (left), y: min (top)
-  lowerRight: Vector2; // x: max (right), y: max (bottom)
 }

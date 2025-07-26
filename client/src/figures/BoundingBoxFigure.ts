@@ -1,4 +1,4 @@
-import { BoundingBox, Vector2, AbsoluteBoundingBox } from "../game/types";
+import { AbsoluteBoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
 
 export class BoundingBoxFigure {
@@ -8,13 +8,15 @@ export class BoundingBoxFigure {
       ctx.save();
       ctx.strokeStyle = 'red';
       ctx.lineWidth = 1;
+      const width = absBounds.lowerRight.x - absBounds.upperLeft.x;
+      const height = absBounds.upperLeft.y - absBounds.lowerRight.y;
       ctx.strokeRect(
         absBounds.upperLeft.x,
-        toCanvasY(absBounds.upperLeft.y + (absBounds.lowerRight.y - absBounds.upperLeft.y)),
-        absBounds.lowerRight.x - absBounds.upperLeft.x,
-        toCanvasY(absBounds.upperLeft.y) - toCanvasY(absBounds.upperLeft.y + (absBounds.lowerRight.y - absBounds.upperLeft.y))
+        toCanvasY(absBounds.upperLeft.y),
+        width,
+        height
       );
       ctx.restore();
     }
   }
-} 
+}

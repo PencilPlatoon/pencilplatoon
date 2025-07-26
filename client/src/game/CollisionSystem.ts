@@ -1,4 +1,5 @@
-import { BoundingBox, Vector2, AbsoluteBoundingBox } from "./types";
+import { Vector2 } from "./types";
+import { AbsoluteBoundingBox } from "./BoundingBox";
 
 export class CollisionSystem {
   checkCollision(a: AbsoluteBoundingBox, b: AbsoluteBoundingBox): boolean {

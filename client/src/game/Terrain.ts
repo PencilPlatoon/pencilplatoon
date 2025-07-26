@@ -1,4 +1,4 @@
-import { BoundingBox, TerrainSegment, TerrainPoint } from "./types";
+import { TerrainSegment, TerrainPoint } from "./types";
 import { TerrainConfig } from "./LevelConfig";
 import { TerrainFigure } from "../figures/TerrainFigure";
 

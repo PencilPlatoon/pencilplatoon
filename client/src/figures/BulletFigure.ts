@@ -1,4 +1,5 @@
-import { Vector2, BoundingBox } from "../game/types";
+import { Vector2 } from "../game/types";
+import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
 import { BoundingBoxFigure } from "./BoundingBoxFigure";
 

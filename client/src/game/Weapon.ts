@@ -1,4 +1,5 @@
-import { Vector2, WeaponType, BoundingBox } from "./types";
+import { Vector2, WeaponType } from "./types";
+import { BoundingBox } from "./BoundingBox";
 import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
 import { WeaponFigure } from "../figures/WeaponFigure";
@@ -34,7 +35,7 @@ export class Weapon {
     this._loadPromise = Promise.resolve();
     // Compute bounding box
     if (this.svgPath) {
-      this.boundingBox = { width: 192, height: 196, relativeReferenceX: 0.5, relativeReferenceY: 0.5 };
+      this.boundingBox = new BoundingBox(192, 196, 0.5, 0.5);
       const weaponLength = this.weaponLength;
       const holdOffset = this.holdOffset;
       this._loadPromise = (async () => {
@@ -46,35 +47,35 @@ export class Weapon {
           const scale = weaponLength / svgWidth;
           // Reference point as a fraction of weaponLength
           const relativeReferenceX = (holdOffset ?? weaponLength / 2) / weaponLength;
-          const relativeReferenceY = 0.5; // middle vertically
-          this.boundingBox = {
-            width: svgWidth * scale,
-            height: svgHeight * scale,
+          const relativeReferenceY = 0.5; // base of weapon (where it's held)
+          this.boundingBox = new BoundingBox(
+            svgWidth * scale,
+            svgHeight * scale,
             relativeReferenceX,
             relativeReferenceY
-          };
+          );
           this.svgInfo = info;
           this.isLoaded = true;
         } else {
           console.warn(`Weapon SVG failed to load: ${this.svgPath}`);
           // Fallback to basic weapon
-          this.boundingBox = {
-            width: weaponLength,
-            height: 1,
-            relativeReferenceX: holdOffset / weaponLength,
-            relativeReferenceY: 0.5
-          };
+          this.boundingBox = new BoundingBox(
+            weaponLength,
+            1,
+            holdOffset / weaponLength,
+            0.5
+          );
           this.isLoaded = true;
         }
       })();
     } else {
       // Basic weapon: line from (0,0) to (weaponLength,0)
-      this.boundingBox = {
-        width: this.weaponLength,
-        height: 1,
-        relativeReferenceX: this.holdOffset / this.weaponLength,
-        relativeReferenceY: 0.5
-      };
+      this.boundingBox = new BoundingBox(
+        this.weaponLength,
+        1,
+        this.holdOffset / this.weaponLength,
+        0.5
+      );
       this.isLoaded = true;
       this._loadPromise = Promise.resolve();
     }
@@ -105,33 +106,7 @@ export class Weapon {
     );
   }
 
-  getAbsoluteBounds(referencePoint: Vector2, facing: number) {
-    // Get bounding box size in local weapon space
-    const w = this.boundingBox.width;
-    const h = this.boundingBox.height;
-    const refX = w * this.boundingBox.relativeReferenceX;
-    const refY = h * (this.boundingBox.relativeReferenceY - 0.5); // center y at 0
-    // Four corners in local space (relative to reference point)
-    const corners = [
-      { x: -refX, y: -h / 2 - refY },           // left-top
-      { x: w - refX, y: -h / 2 - refY },        // right-top
-      { x: w - refX, y: h / 2 - refY },         // right-bottom
-      { x: -refX, y: h / 2 - refY },            // left-bottom
-    ];
-    // Flip x for facing
-    const worldCorners = corners.map(({ x, y }) => ({ x: referencePoint.x + x * facing, y: referencePoint.y + y }));
-    // Find axis-aligned bounding box
-    const xs = worldCorners.map(c => c.x);
-    const ys = worldCorners.map(c => c.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    return {
-      upperLeft: { x: minX, y: maxY },
-      lowerRight: { x: maxX, y: minY }
-    };
-  }
+
 
   render({
     ctx,
@@ -159,7 +134,7 @@ export class Weapon {
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
-    const absBounds = this.getAbsoluteBounds(position, facing);
+    const absBounds = this.boundingBox.getRotatedAbsoluteBounds(position, facing, aimAngle);
     BoundingBoxFigure.render(ctx, absBounds);
   }
 
