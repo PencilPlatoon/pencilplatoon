@@ -54,7 +54,7 @@ export class Enemy implements GameObject {
     this.maxHealth = 75;
     this.patrolStartX = x;
     
-    this.weapon = new Weapon(Weapon.RIFLE);
+    this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {

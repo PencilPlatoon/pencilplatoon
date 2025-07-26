@@ -154,14 +154,25 @@ export class Weapon {
     holdOffset: 5
   };
 
-  static readonly RIFLE: WeaponType = {
-    name: "Rifle",
+  static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
+    name: "Rifle a main offensive",
     damage: 25,
     fireRate: 200,
     bulletSpeed: 800,
     bulletColor: "orange",
     weaponLength: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
+    holdOffset: 25
+  };
+
+  static readonly M270_BREACHER_SHOTGUN: WeaponType = {
+    name: "M270 Breacher",
+    damage: 20,
+    fireRate: 1000,
+    bulletSpeed: 600,
+    bulletColor: "orange",
+    weaponLength: 50,
+    svgPath: "svg/m270-breacher.svg",
     holdOffset: 25
   };
 

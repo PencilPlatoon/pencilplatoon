@@ -3,7 +3,6 @@ import { BoundingBox } from "./BoundingBox";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
-import { WeaponFigure } from "../figures/WeaponFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
@@ -62,7 +61,7 @@ export class Player implements GameObject {
     this.health = 100;
     this.maxHealth = 100;
     
-    this.weapon = new Weapon(Weapon.WEBLEY_REVOLVER);
+    this.weapon = new Weapon(Weapon.M270_BREACHER_SHOTGUN);
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
