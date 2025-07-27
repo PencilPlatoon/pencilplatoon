@@ -1,7 +1,6 @@
 import { Vector2 } from "../game/types";
 import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
-import { BoundingBoxFigure } from "./BoundingBoxFigure";
 
 export class BulletFigure {
   static render({
@@ -39,17 +38,5 @@ export class BulletFigure {
       bounds.height
     );
     ctx.shadowBlur = 0;
-
-    // Draw debug bounding box using BoundingBoxFigure
-    BoundingBoxFigure.render(ctx, {
-      upperLeft: {
-        x: position.x - bounds.width / 2,
-        y: position.y + bounds.height
-      },
-      lowerRight: {
-        x: position.x + bounds.width / 2,
-        y: position.y
-      }
-    });
   }
 } 

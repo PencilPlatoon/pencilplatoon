@@ -2,6 +2,7 @@ import { GameObject, Vector2 } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
 import { BulletFigure } from "../figures/BulletFigure";
+import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 
 declare global {
   interface Window {
@@ -84,6 +85,8 @@ export class Bullet implements GameObject {
       color: this.color,
       active: this.active
     });
+
+    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.position));
   }
 
   getAbsoluteBounds() {

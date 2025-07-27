@@ -1,4 +1,4 @@
-import { AbsoluteBoundingBox, BoundingBox } from "../game/BoundingBox";
+import { AbsoluteBoundingBox, BoundingBox, BoundingPositions } from "../game/BoundingBox";
 import { Vector2 } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
 
@@ -20,6 +20,27 @@ export class BoundingBoxFigure {
       width,
       height
     );
+    
+    ctx.restore();
+  }
+
+  static renderPositions(ctx: CanvasRenderingContext2D, boundingPositions: BoundingPositions) {
+    const debugMode = typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
+    if (!debugMode) return;
+
+    ctx.save();
+    ctx.strokeStyle = 'red';
+    ctx.lineWidth = 1;
+
+    // Render rotated bounding box using the provided positions
+    const positions = boundingPositions.positions;
+    ctx.beginPath();
+    ctx.moveTo(positions[0].x, toCanvasY(positions[0].y));
+    ctx.lineTo(positions[1].x, toCanvasY(positions[1].y));
+    ctx.lineTo(positions[2].x, toCanvasY(positions[2].y));
+    ctx.lineTo(positions[3].x, toCanvasY(positions[3].y));
+    ctx.closePath();
+    ctx.stroke();
     
     ctx.restore();
   }

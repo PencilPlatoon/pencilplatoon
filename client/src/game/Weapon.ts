@@ -136,13 +136,7 @@ export class Weapon {
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
-    BoundingBoxFigure.renderRotated({
-      ctx,
-      boundingBox: this.boundingBox,
-      position,
-      facing,
-      rotation: aimAngle
-    });
+    BoundingBoxFigure.renderPositions(ctx, this.boundingBox.getRotatedBoundingPositions(position, facing, aimAngle));
   }
 
   async waitForLoaded(): Promise<void> {

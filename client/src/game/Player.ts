@@ -175,6 +175,6 @@ export class Player implements GameObject {
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.render(ctx, this.bounds.getAbsoluteBounds(this.position));
+    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.position));
   }
 }
