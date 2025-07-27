@@ -41,50 +41,7 @@ export class BoundingBox {
     return result;
   }
 
-  getRotatedAbsoluteBounds(referencePoint: Vector2, facing: number, aimAngle: number): AbsoluteBoundingBox {
-    // Get bounding box size in local weapon space
-    const w = this.width;
-    const h = this.height;
-    const refX = w * this.relativeReferenceX;
-    const refY = h * this.relativeReferenceY; // reference point is at base
-    
-    // Four corners in local space (relative to reference point)
-    const corners = [
-      { x: -refX, y: h-refY },               // left-top
-      { x: w-refX, y: h-refY },            // right-top
-      { x: w-refX, y: -refY },               // right-bottom
-      { x: -refX, y: -refY },                  // left-bottom
-    ];
 
-    // Apply rotation and facing, then translate to world space
-    const worldCorners = corners.map(({ x, y }) => {
-      // Apply rotation
-      const rotatedX = x * Math.cos(aimAngle) - y * Math.sin(aimAngle);
-      const rotatedY = x * Math.sin(aimAngle) + y * Math.cos(aimAngle);
-      // Apply facing (flip x)
-      const facedX = rotatedX * facing;
-      // Translate to world space
-      return { 
-        x: referencePoint.x + facedX, 
-        y: referencePoint.y + rotatedY 
-      };
-    });
-    
-    // Find axis-aligned bounding box
-    const xs = worldCorners.map(c => c.x);
-    const ys = worldCorners.map(c => c.y);
-    const minX = Math.min(...xs);
-    const maxX = Math.max(...xs);
-    const minY = Math.min(...ys);
-    const maxY = Math.max(...ys);
-    
-    const result = {
-      upperLeft: { x: minX, y: maxY },
-      lowerRight: { x: maxX, y: minY }
-    };
-    
-    return result;
-  }
 
   static create(
     width: number,

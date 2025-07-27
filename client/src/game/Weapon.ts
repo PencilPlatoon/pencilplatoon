@@ -136,8 +136,13 @@ export class Weapon {
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
-    const absBounds = this.boundingBox.getRotatedAbsoluteBounds(position, facing, aimAngle);
-    BoundingBoxFigure.render(ctx, absBounds);
+    BoundingBoxFigure.renderRotated({
+      ctx,
+      boundingBox: this.boundingBox,
+      position,
+      facing,
+      rotation: aimAngle
+    });
   }
 
   async waitForLoaded(): Promise<void> {
