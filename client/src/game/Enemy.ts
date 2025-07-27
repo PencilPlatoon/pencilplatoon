@@ -32,7 +32,7 @@ export class Enemy implements GameObject {
   private patrolStartX: number;
   private patrolRange = 200;
   private gravity = 1500;
-  private fireRate = 800; // ms, distinct from weapon fireRate
+  private fireInterval = 800; // ms, distinct from weapon fireInterval
 
   static readonly HEALTHBAR_OFFSET_Y = 20;
 
@@ -137,7 +137,7 @@ export class Enemy implements GameObject {
     const dy = playerPos.y - weaponY;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const now = Date.now();
-    const enemyCooldown = now - this.lastShotTime > this.fireRate;
+    const enemyCooldown = now - this.lastShotTime > this.fireInterval;
     const weaponCooldown = this.weapon.canShoot();
     return distance <= this.shootingRange && enemyCooldown && weaponCooldown;
   }

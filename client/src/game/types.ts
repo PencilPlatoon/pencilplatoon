@@ -18,7 +18,7 @@ export interface GameObject {
 export interface WeaponType {
   name: string;
   damage: number;
-  fireRate: number;
+  fireInterval: number;
   bulletSpeed: number;
   bulletColor: string;
   weaponLength: number;

@@ -61,7 +61,7 @@ export class Player implements GameObject {
     this.health = 100;
     this.maxHealth = 100;
     
-    this.weapon = new Weapon(Weapon.M270_BREACHER_SHOTGUN);
+    this.weapon = new Weapon(Weapon.PTS_27_ANTITANK_GUN);
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {

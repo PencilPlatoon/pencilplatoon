@@ -8,7 +8,7 @@ import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 export class Weapon {
   name: string;
   damage: number;
-  fireRate: number;
+  fireInterval: number;
   bulletSpeed: number;
   bulletColor: string;
   weaponLength: number;
@@ -24,7 +24,7 @@ export class Weapon {
   constructor(weaponType: WeaponType) {
     this.name = weaponType.name;
     this.damage = weaponType.damage;
-    this.fireRate = weaponType.fireRate;
+    this.fireInterval = weaponType.fireInterval;
     this.bulletSpeed = weaponType.bulletSpeed;
     this.bulletColor = weaponType.bulletColor;
     this.weaponLength = weaponType.weaponLength;
@@ -82,7 +82,7 @@ export class Weapon {
   }
 
   canShoot(): boolean {
-    return Date.now() - this.lastShotTime > this.fireRate;
+    return Date.now() - this.lastShotTime > this.fireInterval;
   }
 
   shoot(params: {
@@ -146,7 +146,7 @@ export class Weapon {
   static readonly WEBLEY_REVOLVER: WeaponType = {
     name: "Webley",
     damage: 20,
-    fireRate: 300,
+    fireInterval: 300,
     bulletSpeed: 600,
     bulletColor: "orange",
     weaponLength: 20,
@@ -157,7 +157,7 @@ export class Weapon {
   static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
     name: "Rifle a main offensive",
     damage: 25,
-    fireRate: 200,
+    fireInterval: 200,
     bulletSpeed: 800,
     bulletColor: "orange",
     weaponLength: 50,
@@ -168,7 +168,7 @@ export class Weapon {
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
     name: "M270 Breacher",
     damage: 20,
-    fireRate: 1000,
+    fireInterval: 1000,
     bulletSpeed: 600,
     bulletColor: "orange",
     weaponLength: 50,
@@ -176,10 +176,21 @@ export class Weapon {
     holdOffset: 25
   };
 
+  static readonly PTS_27_ANTITANK_GUN: WeaponType = {
+    name: "PTS-27 Antitank Gun",
+    damage: 60,
+    fireInterval: 2000,
+    bulletSpeed: 1000,
+    bulletColor: "orange",
+    weaponLength: 70,
+    svgPath: "svg/pts-27.svg",
+    holdOffset: 35
+  };
+
   static readonly MACHINE_GUN: WeaponType = {
     name: "Machine Gun",
     damage: 15,
-    fireRate: 100,
+    fireInterval: 100,
     bulletSpeed: 700,
     bulletColor: "yellow",
     weaponLength: 16,
@@ -189,7 +200,7 @@ export class Weapon {
   static readonly SNIPER: WeaponType = {
     name: "Sniper",
     damage: 50,
-    fireRate: 1000,
+    fireInterval: 1000,
     bulletSpeed: 1200,
     bulletColor: "red",
     weaponLength: 28,
