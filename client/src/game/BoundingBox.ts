@@ -61,22 +61,17 @@ export class BoundingBox {
   }
 
   getRotatedBoundingPositions(referencePoint: Vector2, facing: number, aimAngle: number): BoundingPositions {
-    // Get bounding box size in local weapon space
-    const w = this.width;
-    const h = this.height;
-    const refX = w * this.relativeReferenceX;
-    const refY = h * this.relativeReferenceY; // reference point is at base
+    // Get the base bounding positions
+    const basePositions = this.getBoundingPositions(referencePoint);
     
-    // Four corners in local space (relative to reference point)
-    const corners = [
-      { x: -refX, y: h-refY },               // top-left
-      { x: w-refX, y: h-refY },            // top-right
-      { x: w-refX, y: -refY },               // bottom-right
-      { x: -refX, y: -refY },                  // bottom-left
-    ];
+    // Convert to local space (relative to reference point)
+    const localCorners = basePositions.positions.map(pos => ({
+      x: pos.x - referencePoint.x,
+      y: pos.y - referencePoint.y
+    }));
 
     // Apply rotation and facing, then translate to world space
-    const worldCorners = corners.map(({ x, y }) => {
+    const worldCorners = localCorners.map(({ x, y }) => {
       // Apply rotation (matching SVG rotation: negative for right-facing)
       // Note: SVG rotation happens in canvas coordinates (Y flipped), so we need to flip Y for rotation
       const rotationAngle = facing === 1 ? -aimAngle : aimAngle;
