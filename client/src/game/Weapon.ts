@@ -15,6 +15,7 @@ export class Weapon {
   soundEffect?: string;
   svgPath?: string;
   holdOffset: number;
+  capacity: number;
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
   isLoaded: boolean;
@@ -31,6 +32,7 @@ export class Weapon {
     this.soundEffect = weaponType.soundEffect;
     this.svgPath = weaponType.svgPath;
     this.holdOffset = weaponType.holdOffset ?? 0;
+    this.capacity = weaponType.capacity ?? 0;
     this.isLoaded = false;
     this._loadPromise = Promise.resolve();
     // Compute bounding box
@@ -151,7 +153,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 20,
     svgPath: "svg/webley.svg",
-    holdOffset: 5
+    holdOffset: 5,
+    capacity: 7,
   };
 
   static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
@@ -162,7 +165,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
-    holdOffset: 25
+    holdOffset: 25,
+    capacity: 30,
   };
 
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
@@ -173,7 +177,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 50,
     svgPath: "svg/m270-breacher.svg",
-    holdOffset: 25
+    holdOffset: 25,
+    capacity: 8,
   };
 
   static readonly PTS_27_ANTITANK_GUN: WeaponType = {
@@ -184,7 +189,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 70,
     svgPath: "svg/pts-27.svg",
-    holdOffset: 35
+    holdOffset: 35,
+    capacity: 12,
   };
 
   static readonly MACHINE_GUN: WeaponType = {
@@ -194,7 +200,8 @@ export class Weapon {
     bulletSpeed: 700,
     bulletColor: "yellow",
     weaponLength: 16,
-    holdOffset: 8
+    holdOffset: 8,
+    capacity: 100,
   };
 
   static readonly SNIPER: WeaponType = {
@@ -204,6 +211,7 @@ export class Weapon {
     bulletSpeed: 1200,
     bulletColor: "red",
     weaponLength: 28,
-    holdOffset: 14
+    holdOffset: 14,
+    capacity: 5,
   };
 }

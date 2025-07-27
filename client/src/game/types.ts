@@ -30,6 +30,7 @@ export interface WeaponType {
    * Positive values move the weapon forward, negative values move it backward.
    */
   holdOffset?: number;
+  capacity?: number;
 }
 
 export interface Particle {
