@@ -16,17 +16,17 @@ export class CollisionSystem {
            point.y >= rect.lowerRight.y;
   }
 
-  checkLineIntersectsRect(x1: number, y1: number, x2: number, y2: number, rect: AbsoluteBoundingBox): boolean {
+  checkLineIntersectsRect(start: Vector2, end: Vector2, rect: AbsoluteBoundingBox): boolean {
     // Liang-Barsky algorithm for line-rect intersection
     let t0 = 0, t1 = 1;
-    const dx = x2 - x1;
-    const dy = y2 - y1;
+    const dx = end.x - start.x;
+    const dy = end.y - start.y;
     const left = rect.upperLeft.x;
     const right = rect.lowerRight.x;
     const top = rect.upperLeft.y;
     const bottom = rect.lowerRight.y;
     const p = [-dx, dx, -dy, dy];
-    const q = [x1 - left, right - x1, top - y1, y1 - bottom];
+    const q = [start.x - left, right - start.x, top - start.y, start.y - bottom];
     for (let i = 0; i < 4; i++) {
       if (p[i] === 0) {
         if (q[i] < 0) return false;

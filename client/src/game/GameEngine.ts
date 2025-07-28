@@ -310,8 +310,8 @@ export class GameEngine {
         if (
           this.collisionSystem.checkCollision(bulletAbs, enemyAbs) ||
           this.collisionSystem.checkLineIntersectsRect(
-            bullet.previousPosition.x, bullet.previousPosition.y,
-            bullet.transform.position.x, bullet.transform.position.y,
+            bullet.previousPosition,
+            bullet.transform.position,
             enemyAbs
           )
         ) {
@@ -334,8 +334,8 @@ export class GameEngine {
       if (
         this.collisionSystem.checkCollision(bulletAbs, playerAbs) ||
         this.collisionSystem.checkLineIntersectsRect(
-          bullet.previousPosition.x, bullet.previousPosition.y,
-          bullet.transform.position.x, bullet.transform.position.y,
+          bullet.previousPosition,
+          bullet.transform.position,
           playerAbs
         )
       ) {
