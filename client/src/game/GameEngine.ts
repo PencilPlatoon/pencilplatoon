@@ -63,8 +63,7 @@ export class GameEngine {
     this.terrain = new Terrain(config.terrainColor);
     this.terrain.generateTerrain(config.terrain);
     // After terrain is generated, reset player position to just above terrain height
-    this.player.position.x = GameEngine.PLAYER_START_X;
-    this.player.position.y = this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1;
+    this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
     this.player.velocity.x = 0;
     this.player.velocity.y = 1;
     this.player.health = this.player.maxHealth;
@@ -78,7 +77,7 @@ export class GameEngine {
     this.camera.x = 0;
     this.camera.y = 0;
     this.spawnEnemies();
-    console.log(`[initLevel] Player y set to ${this.player.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
+    console.log(`[initLevel] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
     console.log(`Level ${levelName} initialized`);
   }
 
@@ -112,8 +111,7 @@ export class GameEngine {
       this.activeEnemies.clear();
       this.particleSystem.clear();
       // Fully reset player state
-      this.player.position.x = GameEngine.PLAYER_START_X;
-      this.player.position.y = this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1;
+      this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
       this.player.velocity.x = 0;
       this.player.velocity.y = 1;
       this.player.health = this.player.maxHealth;
@@ -172,8 +170,8 @@ export class GameEngine {
         // Ensure x is within terrain range
         let x = Math.min(screen * screenWidth + 200 + (i * 200) + Math.random() * 100, levelWidth);
         // Ensure enemy never spawns to the left of the player
-        if (x <= this.player.position.x) {
-          x = this.player.position.x + 100;
+        if (x <= this.player.transform.position.x) {
+          x = this.player.transform.position.x + 100;
         }
         const y = this.terrain.getHeightAt(x) + 1;
         const enemy = new Enemy(x, y, `enemy_${screen}_${i}`);
@@ -205,11 +203,11 @@ export class GameEngine {
 
     // Update active enemies
     this.enemies.forEach(enemy => {
-      enemy.update(deltaTime, this.player.position, this.terrain);
+      enemy.update(deltaTime, this.player.transform.position, this.terrain);
       
       // Enemy shooting
-      if (enemy.canShoot(this.player.position)) {
-        const bullet = enemy.shoot(this.player.position);
+      if (enemy.canShoot(this.player.transform.position)) {
+        const bullet = enemy.shoot(this.player.transform.position);
         if (bullet) {
           this.bullets.push(bullet);
         }
@@ -229,7 +227,7 @@ export class GameEngine {
     this.particleSystem.update(deltaTime);
 
     // Update camera to follow player
-    this.camera.followTarget(this.player.position, deltaTime);
+    this.camera.followTarget(this.player.transform.position, deltaTime);
 
     // Remove dead enemies
     this.enemies = this.enemies.filter(enemy => enemy.health > 0);
@@ -244,12 +242,12 @@ export class GameEngine {
     let activatedCount = 0;
     // Activate enemies within 2 screens of the camera
     this.allEnemies.forEach(enemy => {
-      const distanceFromCamera = Math.abs(enemy.position.x - cameraX);
+      const distanceFromCamera = Math.abs(enemy.transform.position.x - cameraX);
       if (distanceFromCamera <= screenWidth * 2 && !this.activeEnemies.has(enemy.id)) {
         this.activeEnemies.add(enemy.id);
         this.enemies.push(enemy);
         activatedCount++;
-        console.log(`[activateNearbyEnemies] Activated enemy id=${enemy.id} at x=${enemy.position.x}, distanceFromCamera=${distanceFromCamera}`);
+        console.log(`[activateNearbyEnemies] Activated enemy id=${enemy.id} at x=${enemy.transform.position.x}, distanceFromCamera=${distanceFromCamera}`);
       }
     });
   }
@@ -257,7 +255,7 @@ export class GameEngine {
   private checkLevelCompletion() {
     const levelWidth = this.terrain.getLevelWidth();
     // Check if player reached the right edge of the level
-    if (this.player.position.x >= levelWidth - 100) {
+    if (this.player.transform.position.x >= levelWidth - 100) {
       if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
         this.nextLevel();
       } else {
@@ -313,7 +311,7 @@ export class GameEngine {
           this.collisionSystem.checkCollision(bulletAbs, enemyAbs) ||
           this.collisionSystem.checkLineIntersectsRect(
             bullet.previousPosition.x, bullet.previousPosition.y,
-            bullet.position.x, bullet.position.y,
+            bullet.transform.position.x, bullet.transform.position.y,
             enemyAbs
           )
         ) {
@@ -321,7 +319,7 @@ export class GameEngine {
           enemy.takeDamage(bullet.damage);
           bullet.deactivate('hit-enemy');
           // Create explosion effect
-          this.particleSystem.createExplosion(bullet.position, 'enemy');
+          this.particleSystem.createExplosion(bullet.transform.position, 'enemy');
           this.soundManager.playHit();
         }
       });
@@ -337,7 +335,7 @@ export class GameEngine {
         this.collisionSystem.checkCollision(bulletAbs, playerAbs) ||
         this.collisionSystem.checkLineIntersectsRect(
           bullet.previousPosition.x, bullet.previousPosition.y,
-          bullet.position.x, bullet.position.y,
+          bullet.transform.position.x, bullet.transform.position.y,
           playerAbs
         )
       ) {
@@ -345,7 +343,7 @@ export class GameEngine {
         this.player.takeDamage(bullet.damage);
         bullet.deactivate('hit-player');
         // Create explosion effect
-        this.particleSystem.createExplosion(bullet.position, 'player');
+        this.particleSystem.createExplosion(bullet.transform.position, 'player');
         this.soundManager.playHit();
       }
     });
@@ -357,7 +355,7 @@ export class GameEngine {
       const bulletAbs = bullet.getAbsoluteBounds();
       if (this.terrain.checkCollision(bulletAbs)) {
         bullet.deactivate('hit-terrain', this.terrain);
-        this.particleSystem.createExplosion(bullet.position, 'terrain');
+        this.particleSystem.createExplosion(bullet.transform.position, 'terrain');
       }
     });
   }
@@ -378,7 +376,7 @@ export class GameEngine {
     this.player.render(this.ctx);
 
     // Render enemies
-    this.enemies.forEach(enemy => enemy.render(this.ctx, this.player.position));
+    this.enemies.forEach(enemy => enemy.render(this.ctx, this.player.transform.position));
 
     // Render bullets
     this.bullets.forEach(bullet => bullet.render(this.ctx));
@@ -430,7 +428,7 @@ export class GameEngine {
     
     // Progress indicator
     const levelWidth = this.terrain.getLevelWidth();
-    const progressPercentage = Math.min(this.player.position.x / levelWidth, 1);
+    const progressPercentage = Math.min(this.player.transform.position.x / levelWidth, 1);
     const progressBarWidth = 200;
     const progressBarHeight = 10;
     
@@ -447,13 +445,13 @@ export class GameEngine {
     // Debug info at bottom of screen
     if (this.debugMode) {
       const player = this.player;
-      const terrainHeight = this.terrain.getHeightAt(player.position.x);
-      const playerTop = player.position.y - player.bounds.height / 2;
+      const terrainHeight = this.terrain.getHeightAt(player.transform.position.x);
+      const playerTop = player.transform.position.y - player.bounds.height / 2;
       const debugLines = [
         `Debug Info:`,
         `Terrain Height: ${terrainHeight?.toFixed(2)}`,
-        `Player X: ${player.position.x.toFixed(2)}`,
-        `Player Y: ${player.position.y.toFixed(2)}`,
+        `Player X: ${player.transform.position.x.toFixed(2)}`,
+        `Player Y: ${player.transform.position.y.toFixed(2)}`,
         `Player Top: ${playerTop.toFixed(2)}`,
         `Velocity X: ${player.velocity.x.toFixed(2)}`,
         `Velocity Y: ${player.velocity.y.toFixed(2)}`

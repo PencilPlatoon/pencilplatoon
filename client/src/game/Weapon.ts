@@ -4,6 +4,7 @@ import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
 import { WeaponFigure } from "../figures/WeaponFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
+import { EntityTransform } from "./EntityTransform";
 
 export class Weapon {
   name: string;
@@ -87,17 +88,12 @@ export class Weapon {
     return Date.now() - this.lastShotTime > this.fireInterval;
   }
 
-  shoot(params: {
-    position: Vector2;
-    facing: number;
-    aimAngle: number;
-  }): Bullet | null {
+  shoot(transform: EntityTransform): Bullet | null {
     if (!this.canShoot()) return null;
     this.lastShotTime = Date.now();
-    const { position, facing, aimAngle } = params;
-    const weaponEndX = position.x + Math.cos(aimAngle) * this.weaponLength * facing;
-    const weaponEndY = position.y + Math.sin(aimAngle) * this.weaponLength;
-    const direction = { x: Math.cos(aimAngle) * facing, y: Math.sin(aimAngle) };
+    const weaponEndX = transform.position.x + Math.cos(transform.rotation) * this.weaponLength * transform.facing;
+    const weaponEndY = transform.position.y + Math.sin(transform.rotation) * this.weaponLength;
+    const direction = { x: Math.cos(transform.rotation) * transform.facing, y: Math.sin(transform.rotation) };
     return new Bullet(
       weaponEndX,
       weaponEndY,
@@ -112,31 +108,25 @@ export class Weapon {
 
   render({
     ctx,
-    position,
-    facing,
-    aimAngle,
+    transform,
     showAimLine = false,
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
-    facing: number;
-    aimAngle: number;
+    transform: EntityTransform;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
     WeaponFigure.render({
       ctx,
-      position,
-      facing,
-      aimAngle,
+      transform,
       weapon: this,
       showAimLine,
       aimLineLength,
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
-    BoundingBoxFigure.renderPositions(ctx, this.boundingBox.getRotatedBoundingPositions(position, facing, aimAngle));
+    BoundingBoxFigure.renderPositions(ctx, this.boundingBox.getRotatedBoundingPositions(transform));
   }
 
   async waitForLoaded(): Promise<void> {

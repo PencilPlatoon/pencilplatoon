@@ -1,6 +1,7 @@
 import { AbsoluteBoundingBox, BoundingBox, BoundingPositions } from "../game/BoundingBox";
 import { Vector2 } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
+import { EntityTransform } from "../game/EntityTransform";
 
 export class BoundingBoxFigure {
   static render(ctx: CanvasRenderingContext2D, absBounds: AbsoluteBoundingBox) {
@@ -48,16 +49,13 @@ export class BoundingBoxFigure {
   static renderRotated({
     ctx,
     boundingBox,
-    position,
-    facing,
-    rotation
+    transform
   }: {
     ctx: CanvasRenderingContext2D;
     boundingBox: BoundingBox;
-    position: Vector2;
-    facing: number;
-    rotation: number;
+    transform: EntityTransform;
   }) {
+    const position = transform.position;
     const debugMode = typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
     if (!debugMode) return;
 
@@ -67,8 +65,8 @@ export class BoundingBoxFigure {
 
     // Apply the same transformations as WeaponFigure
     ctx.translate(position.x, toCanvasY(position.y));
-    ctx.rotate(facing === 1 ? -rotation : rotation);
-    ctx.scale(facing, 1);
+    ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
+    ctx.scale(transform.facing, 1);
 
     // Draw the bounding box as a rectangle
     const width = boundingBox.width;

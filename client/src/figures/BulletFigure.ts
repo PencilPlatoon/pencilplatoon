@@ -1,22 +1,23 @@
-import { Vector2 } from "../game/types";
 import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
+import { EntityTransform } from "../game/EntityTransform";
 
 export class BulletFigure {
   static render({
     ctx,
-    position,
+    transform,
     bounds,
     color,
     active = true
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
+    transform: EntityTransform;
     bounds: BoundingBox;
     color: string;
     active?: boolean;
   }) {
     if (!active) return;
+    const position = transform.position;
 
     const canvasY = toCanvasY(position.y) - bounds.height / 2;
 

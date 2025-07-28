@@ -6,6 +6,7 @@ import { HumanFigure } from "../figures/HumanFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
+import { EntityTransform } from "./EntityTransform";
 
 declare global {
   interface Window {
@@ -26,7 +27,7 @@ interface PlayerInput {
 
 export class Player implements GameObject {
   id: string;
-  position: Vector2;
+  transform: EntityTransform;
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
@@ -38,23 +39,29 @@ export class Player implements GameObject {
   private gravity = 1500;
   private isGrounded = false;
   public weapon: Weapon;
-  private facing = 1; // 1 for right, -1 for left
-  private aimAngle = 0; // Weapon aim angle in radians
+  private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
   private lastCollisionDebugX: number | null = null;
 
   static readonly HEALTHBAR_OFFSET_Y = 20;
 
-  getWeaponPosition() {
-    return {
-      x: this.position.x + (this.facing * HumanFigure.ARM_LENGTH),
-      y: this.position.y + HumanFigure.HAND_OFFSET_Y
-    };
+  getAbsoluteWeaponTransform(): EntityTransform {
+    // Calculate absolute weapon position based on player transform and weapon relative transform
+    const weaponX = this.transform.position.x + (this.transform.facing * this.weaponRelative.position.x);
+    const weaponY = this.transform.position.y + this.weaponRelative.position.y;
+    
+    // Combine player facing with weapon relative facing
+    const absoluteFacing = this.transform.facing * this.weaponRelative.facing;
+    
+    // Weapon rotation is relative to player's facing direction
+    const absoluteRotation = this.weaponRelative.rotation;
+    
+    return new EntityTransform({ x: weaponX, y: weaponY }, absoluteRotation, absoluteFacing);
   }
 
   constructor(x: number, y: number) {
     this.id = "player";
     // position.y is now feet (bottom of player)
-    this.position = { x, y };
+    this.transform = new EntityTransform({ x, y }, 0, 1);
     this.velocity = { x: 0, y: 1 };
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
@@ -62,16 +69,17 @@ export class Player implements GameObject {
     this.maxHealth = 100;
     
     this.weapon = new Weapon(Weapon.PTS_27_ANTITANK_GUN);
+    this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to player
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
     // Horizontal movement
     if (input.left) {
       this.velocity.x = -this.speed;
-      this.facing = -1;
+      this.transform.setFacing(-1);
     } else if (input.right) {
       this.velocity.x = this.speed;
-      this.facing = 1;
+      this.transform.setFacing(1);
     } else {
       this.velocity.x = 0;
     }
@@ -84,41 +92,41 @@ export class Player implements GameObject {
 
     // Weapon aiming with Y and H keys
     if (input.aimUp) {
-      this.aimAngle = Math.min(Math.PI / 3, this.aimAngle + 2 * deltaTime); // Limit upward angle
+      this.weaponRelative.setRotation(Math.min(Math.PI / 3, this.weaponRelative.rotation + 2 * deltaTime)); // Limit upward angle
     }
     if (input.aimDown) {
-      this.aimAngle = Math.max(-Math.PI / 3, this.aimAngle - 2 * deltaTime); // Limit downward angle
+      this.weaponRelative.setRotation(Math.max(-Math.PI / 3, this.weaponRelative.rotation - 2 * deltaTime)); // Limit downward angle
     }
 
     // Apply gravity
     this.velocity.y -= this.gravity * deltaTime;
 
     // Update position
-    this.position.x += this.velocity.x * deltaTime;
-    this.position.y += this.velocity.y * deltaTime;
+    this.transform.position.x += this.velocity.x * deltaTime;
+    this.transform.position.y += this.velocity.y * deltaTime;
 
     // Terrain collision
     this.handleTerrainCollision(terrain);
-    if (this.lastCollisionDebugX !== this.position.x) {
-      this.lastCollisionDebugX = this.position.x;
+    if (this.lastCollisionDebugX !== this.transform.position.x) {
+      this.lastCollisionDebugX = this.transform.position.x;
     }
   }
 
   private handleTerrainCollision(terrain: Terrain) {
     this.isGrounded = false;
-    const terrainHeight = terrain.getHeightAt(this.position.x);
+    const terrainHeight = terrain.getHeightAt(this.transform.position.x);
     if (terrainHeight !== null) {
       // If feet are at or below terrain, snap to terrain (falling down)
-      if (this.position.y <= terrainHeight && this.velocity.y <= 0) {
-        this.position.y = terrainHeight;
+      if (this.transform.position.y <= terrainHeight && this.velocity.y <= 0) {
+        this.transform.position.y = terrainHeight;
         this.velocity.y = 0;
         this.isGrounded = true;
       }
     }
     // Prevent falling below world
     const worldBottom = Terrain.WORLD_BOTTOM;
-    if (this.position.y < worldBottom) {
-      this.position.y = worldBottom;
+    if (this.transform.position.y < worldBottom) {
+      this.transform.position.y = worldBottom;
       this.velocity.y = 0;
       this.isGrounded = true;
     }
@@ -129,11 +137,8 @@ export class Player implements GameObject {
   }
 
   shoot(): Bullet | null {
-    return this.weapon.shoot({
-      position: this.getWeaponPosition(),
-      facing: this.facing,
-      aimAngle: this.aimAngle
-    });
+    const weaponTransform = this.getAbsoluteWeaponTransform();
+    return this.weapon.shoot(weaponTransform);
   }
 
   takeDamage(damage: number) {
@@ -149,32 +154,31 @@ export class Player implements GameObject {
   }
 
   getAbsoluteBounds() {
-    return this.bounds.getAbsoluteBounds(this.position);
+    return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
   render(ctx: CanvasRenderingContext2D) {
     HumanFigure.render({
       ctx,
-      position: this.position,
+      transform: this.transform,
       active: this.active
     });
+    const weaponTransform = this.getAbsoluteWeaponTransform();
     this.weapon.render({
       ctx,
-      position: this.getWeaponPosition(),
-      facing: this.facing,
-      aimAngle: this.aimAngle,
+      transform: weaponTransform,
       showAimLine: true,
       aimLineLength: 100
     });
     HealthBarFigure.render({
       ctx,
-      centerPosition: {
-        x: this.position.x,
-        y: this.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
-      },
+      transform: new EntityTransform({
+        x: this.transform.position.x,
+        y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
+      }),
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.position));
+    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }
 }

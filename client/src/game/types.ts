@@ -1,4 +1,5 @@
 import { BoundingBox } from "./BoundingBox";
+import { EntityTransform } from "./EntityTransform";
 
 export interface Vector2 {
   x: number;
@@ -7,7 +8,7 @@ export interface Vector2 {
 
 export interface GameObject {
   id: string;
-  position: Vector2;
+  transform: EntityTransform;
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
@@ -35,7 +36,7 @@ export interface WeaponType {
 
 export interface Particle {
   id: string;
-  position: Vector2;
+  transform: EntityTransform;
   velocity: Vector2;
   color: string;
   life: number;

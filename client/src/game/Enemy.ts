@@ -6,6 +6,7 @@ import { HumanFigure } from "../figures/HumanFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
+import { EntityTransform } from "./EntityTransform";
 
 declare global {
   interface Window {
@@ -15,7 +16,7 @@ declare global {
 
 export class Enemy implements GameObject {
   id: string;
-  position: Vector2;
+  transform: EntityTransform;
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
@@ -27,7 +28,7 @@ export class Enemy implements GameObject {
   private shootingRange = 300;
   private lastShotTime = 0;
   private weapon: Weapon;
-  private facing = 1;
+  private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
   private patrolDirection = 1;
   private patrolStartX: number;
   private patrolRange = 200;
@@ -36,17 +37,24 @@ export class Enemy implements GameObject {
 
   static readonly HEALTHBAR_OFFSET_Y = 20;
 
-  getWeaponPosition() {
-    return {
-      x: this.position.x + (this.facing * HumanFigure.ARM_LENGTH),
-      y: this.position.y + HumanFigure.HAND_OFFSET_Y
-    };
+  getAbsoluteWeaponTransform(): EntityTransform {
+    // Calculate absolute weapon position based on enemy transform and weapon relative transform
+    const weaponX = this.transform.position.x + (this.transform.facing * this.weaponRelative.position.x);
+    const weaponY = this.transform.position.y + this.weaponRelative.position.y;
+    
+    // Combine enemy facing with weapon relative facing
+    const absoluteFacing = this.transform.facing * this.weaponRelative.facing;
+    
+    // Weapon rotation is relative to enemy's facing direction
+    const absoluteRotation = this.weaponRelative.rotation;
+    
+    return new EntityTransform({ x: weaponX, y: weaponY }, absoluteRotation, absoluteFacing);
   }
 
   constructor(x: number, y: number, id: string) {
     this.id = id;
     // position.y is now feet (bottom of enemy)
-    this.position = { x, y };
+    this.transform = new EntityTransform({ x, y }, 0, 1);
     this.velocity = { x: 0, y: 1 };
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
@@ -55,12 +63,13 @@ export class Enemy implements GameObject {
     this.patrolStartX = x;
     
     this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
+    this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to enemy
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
     const distanceToPlayer = Math.sqrt(
-      Math.pow(playerPos.x - this.position.x, 2) + 
-      Math.pow(playerPos.y - this.position.y, 2)
+      Math.pow(playerPos.x - this.transform.position.x, 2) + 
+      Math.pow(playerPos.y - this.transform.position.y, 2)
     );
 
     if (distanceToPlayer <= this.detectionRange) {
@@ -75,25 +84,25 @@ export class Enemy implements GameObject {
     this.velocity.y -= this.gravity * deltaTime;
 
     // Update position
-    this.position.x += this.velocity.x * deltaTime;
-    this.position.y += this.velocity.y * deltaTime;
+    this.transform.position.x += this.velocity.x * deltaTime;
+    this.transform.position.y += this.velocity.y * deltaTime;
     // Clamp x to valid terrain range
-    this.position.x = Math.max(0, Math.min(this.position.x, terrain.getLevelWidth()));
+    this.transform.position.x = Math.max(0, Math.min(this.transform.position.x, terrain.getLevelWidth()));
 
     // Terrain collision with gravity
     this.handleTerrainCollision(terrain);
   }
 
   private chasePlayer(playerPos: Vector2, deltaTime: number) {
-    const dx = playerPos.x - this.position.x;
+    const dx = playerPos.x - this.transform.position.x;
     
     if (Math.abs(dx) > 50) { // Don't get too close
       if (dx > 0) {
         this.velocity.x = this.speed;
-        this.facing = 1;
+        this.transform.setFacing(1);
       } else {
         this.velocity.x = -this.speed;
-        this.facing = -1;
+        this.transform.setFacing(-1);
       }
     } else {
       this.velocity.x = 0;
@@ -102,7 +111,7 @@ export class Enemy implements GameObject {
 
   private patrol(deltaTime: number) {
     // Simple patrol behavior
-    const distanceFromStart = this.position.x - this.patrolStartX;
+    const distanceFromStart = this.transform.position.x - this.patrolStartX;
     
     if (distanceFromStart > this.patrolRange) {
       this.patrolDirection = -1;
@@ -111,30 +120,30 @@ export class Enemy implements GameObject {
     }
 
     this.velocity.x = this.patrolDirection * this.speed * 0.5;
-    this.facing = this.patrolDirection;
+    this.transform.setFacing(this.patrolDirection);
   }
 
   private handleTerrainCollision(terrain: Terrain) {
-    const terrainY = terrain.getHeightAt(this.position.x);
+    const terrainY = terrain.getHeightAt(this.transform.position.x);
     if (terrainY !== null) {
       // If feet are at or below terrain, snap to terrain (falling down)
-      if (this.position.y <= terrainY && this.velocity.y <= 0) {
-        this.position.y = terrainY;
+      if (this.transform.position.y <= terrainY && this.velocity.y <= 0) {
+        this.transform.position.y = terrainY;
         this.velocity.y = 0;
       }
     }
     // Prevent falling below world
     const worldBottom = Terrain.WORLD_BOTTOM;
-    if (this.position.y < worldBottom) {
-      this.position.y = worldBottom;
+    if (this.transform.position.y < worldBottom) {
+      this.transform.position.y = worldBottom;
       this.velocity.y = 0;
     }
   }
 
   canShoot(playerPos: Vector2): boolean {
-    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
-    const dx = playerPos.x - weaponX;
-    const dy = playerPos.y - weaponY;
+    const weaponTransform = this.getAbsoluteWeaponTransform();
+    const dx = playerPos.x - weaponTransform.position.x;
+    const dy = playerPos.y - weaponTransform.position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const now = Date.now();
     const enemyCooldown = now - this.lastShotTime > this.fireInterval;
@@ -145,15 +154,17 @@ export class Enemy implements GameObject {
   shoot(playerPos: Vector2): Bullet | null {
     this.lastShotTime = Date.now();
     // Compute aim angle toward player
-    const { x: weaponX, y: weaponY } = this.getWeaponPosition();
-    const dx = playerPos.x - weaponX;
-    const dy = playerPos.y - weaponY;
-    const aimAngle = Math.atan2(dy, dx * this.facing); // adjust for facing
-    return this.weapon.shoot({
-      position: this.getWeaponPosition(),
-      facing: this.facing,
-      aimAngle
-    });
+    const weaponTransform = this.getAbsoluteWeaponTransform();
+    const dx = playerPos.x - weaponTransform.position.x;
+    const dy = playerPos.y - weaponTransform.position.y;
+    const aimAngle = Math.atan2(dy, dx * this.transform.facing); // adjust for facing
+    
+    // Update weapon relative rotation to aim at player
+    this.weaponRelative.setRotation(aimAngle);
+    
+    // Get updated weapon transform with new aim angle
+    const updatedWeaponTransform = this.getAbsoluteWeaponTransform();
+    return this.weapon.shoot(updatedWeaponTransform);
   }
 
   takeDamage(damage: number) {
@@ -164,41 +175,43 @@ export class Enemy implements GameObject {
   }
 
   getAbsoluteBounds() {
-    return this.bounds.getAbsoluteBounds(this.position);
+    return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
   render(ctx: CanvasRenderingContext2D, playerPos?: Vector2) {
     if (!this.active) return;
     HumanFigure.render({
       ctx,
-      position: this.position,
+      transform: this.transform,
       active: this.active
     });
     // Compute aim angle toward player if playerPos is provided
-    let aimAngle = 0;
     if (playerPos) {
-      const { x: weaponX, y: weaponY } = this.getWeaponPosition();
-      const dx = playerPos.x - weaponX;
-      const dy = playerPos.y - weaponY;
-      aimAngle = Math.atan2(dy, dx * this.facing); // adjust for facing
+      const weaponTransform = this.getAbsoluteWeaponTransform();
+      const dx = playerPos.x - weaponTransform.position.x;
+      const dy = playerPos.y - weaponTransform.position.y;
+      const aimAngle = Math.atan2(dy, dx * this.transform.facing); // adjust for facing
+      
+      // Update weapon relative rotation to aim at player
+      this.weaponRelative.setRotation(aimAngle);
     }
+    
+    const weaponTransform = this.getAbsoluteWeaponTransform();
     this.weapon.render({
       ctx,
-      position: this.getWeaponPosition(),
-      facing: this.facing,
-      aimAngle,
+      transform: weaponTransform,
       showAimLine: false
     });
     HealthBarFigure.render({
       ctx,
-      centerPosition: {
-        x: this.position.x,
-        y: this.position.y + HumanFigure.FIGURE_HEIGHT + Enemy.HEALTHBAR_OFFSET_Y
-      },
+      transform: new EntityTransform({
+        x: this.transform.position.x,
+        y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Enemy.HEALTHBAR_OFFSET_Y
+      }),
       health: this.health,
       maxHealth: this.maxHealth
     });
-    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.position));
+    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }
 
   async waitForLoaded(): Promise<void> {

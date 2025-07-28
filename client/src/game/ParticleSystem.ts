@@ -1,5 +1,6 @@
 import { Particle, Vector2 } from "./types";
 import { ParticleFigure } from "../figures/ParticleFigure";
+import { EntityTransform } from "./EntityTransform";
 
 export class ParticleSystem {
   private particles: Particle[] = [];
@@ -21,7 +22,7 @@ export class ParticleSystem {
 
       const particle: Particle = {
         id: `particle_${Date.now()}_${i}`,
-        position: { x: position.x, y: position.y },
+        transform: new EntityTransform({ x: position.x, y: position.y }),
         velocity: {
           x: Math.cos(angle) * speed,
           y: Math.sin(angle) * speed
@@ -45,8 +46,8 @@ export class ParticleSystem {
       }
 
       // Update position
-      particle.position.x += particle.velocity.x * deltaTime;
-      particle.position.y += particle.velocity.y * deltaTime;
+      particle.transform.position.x += particle.velocity.x * deltaTime;
+      particle.transform.position.y += particle.velocity.y * deltaTime;
 
       // Apply gravity to some particles
       if (particle.color !== '#888888') {

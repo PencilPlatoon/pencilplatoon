@@ -9,6 +9,7 @@ export class ParticleFigure {
     ctx: CanvasRenderingContext2D;
     particle: Particle;
   }) {
+    const position = particle.transform.position;
     ctx.save();
     const alpha = particle.life / particle.maxLife;
     ctx.globalAlpha = alpha;
@@ -17,8 +18,8 @@ export class ParticleFigure {
     ctx.shadowBlur = 8;
     ctx.beginPath();
     ctx.arc(
-      particle.position.x,
-      toCanvasY(particle.position.y),
+      position.x,
+      toCanvasY(position.y),
       particle.size,
       0,
       Math.PI * 2

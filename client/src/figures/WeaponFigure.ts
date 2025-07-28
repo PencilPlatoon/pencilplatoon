@@ -3,13 +3,12 @@ import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
 import { AimLineFigure } from "./AimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
+import { EntityTransform } from "../game/EntityTransform";
 
 export class WeaponFigure {
   static renderSVG({
     ctx,
-    position,
-    facing,
-    aimAngle,
+    transform,
     weapon,
     svgInfo,
     boundingBox,
@@ -17,21 +16,20 @@ export class WeaponFigure {
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
-    facing: number;
-    aimAngle: number;
+    transform: EntityTransform;
     weapon: WeaponType;
     svgInfo?: SVGInfo | null;
     boundingBox: BoundingBox;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
+    const position = transform.position;
     if (svgInfo) {
       ctx.save();
       // The passed-in position is the world reference point; draw SVG so that the reference point aligns with (0,0)
       ctx.translate(position.x, toCanvasY(position.y));
-      ctx.rotate(facing === 1 ? -aimAngle : aimAngle);
-      ctx.scale(facing, 1);
+      ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
+      ctx.scale(transform.facing, 1);
       const svgWidth = svgInfo.boundingBox.width;
       const svgHeight = svgInfo.boundingBox.height;
       const scale = weapon.weaponLength / svgWidth;
@@ -42,49 +40,44 @@ export class WeaponFigure {
       ctx.drawImage(svgInfo.image, -anchorX, -anchorY, svgWidth, svgHeight);
       ctx.restore();
       if (showAimLine) {
-        const weaponEndX = position.x + Math.cos(aimAngle) * weapon.weaponLength * facing;
-        const weaponEndY = position.y + Math.sin(aimAngle) * weapon.weaponLength;
+        const weaponEndX = position.x + Math.cos(transform.rotation) * weapon.weaponLength * transform.facing;
+        const weaponEndY = position.y + Math.sin(transform.rotation) * weapon.weaponLength;
+        const aimLineTransform = new EntityTransform({ x: weaponEndX, y: weaponEndY }, transform.rotation, transform.facing);
         AimLineFigure.render({
           ctx,
-          weaponX: weaponEndX,
-          weaponY: weaponEndY,
-          aimAngle,
-          aimLineLength,
-          facing
+          transform: aimLineTransform,
+          aimLineLength
         });
       }
       return;
     }
     // If not loaded, fallback to basic
-    this.renderBasic({ ctx, position, facing, aimAngle, weapon, showAimLine, aimLineLength });
+    this.renderBasic({ ctx, transform, weapon, showAimLine, aimLineLength });
   }
 
   static renderBasic({
     ctx,
-    position,
-    facing,
-    aimAngle,
+    transform,
     weapon,
     showAimLine = false,
     aimLineLength = 100
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
-    facing: number;
-    aimAngle: number;
+    transform: EntityTransform;
     weapon: WeaponType;
     showAimLine?: boolean;
     aimLineLength?: number;
   }) {
+    const position = transform.position;
     // The passed-in position is already the absolute reference point
     const weaponX = position.x;
     const weaponY = position.y;
     let weaponEndX, weaponEndY;
     if (showAimLine) {
-      weaponEndX = weaponX + Math.cos(aimAngle) * weapon.weaponLength * facing;
-      weaponEndY = weaponY + Math.sin(aimAngle) * weapon.weaponLength;
+      weaponEndX = weaponX + Math.cos(transform.rotation) * weapon.weaponLength * transform.facing;
+      weaponEndY = weaponY + Math.sin(transform.rotation) * weapon.weaponLength;
     } else {
-      weaponEndX = weaponX + facing * weapon.weaponLength;
+      weaponEndX = weaponX + transform.facing * weapon.weaponLength;
       weaponEndY = weaponY;
     }
     ctx.save();
@@ -96,22 +89,18 @@ export class WeaponFigure {
     ctx.stroke();
     ctx.restore();
     if (showAimLine) {
+      const aimLineTransform = new EntityTransform({ x: weaponEndX, y: weaponEndY }, transform.rotation, transform.facing);
       AimLineFigure.render({
         ctx,
-        weaponX: weaponEndX,
-        weaponY: weaponEndY,
-        aimAngle,
-        aimLineLength,
-        facing
+        transform: aimLineTransform,
+        aimLineLength
       });
     }
   }
 
   static render({
     ctx,
-    position,
-    facing,
-    aimAngle,
+    transform,
     weapon,
     showAimLine = false,
     aimLineLength = 100,
@@ -119,9 +108,7 @@ export class WeaponFigure {
     boundingBox
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
-    facing: number;
-    aimAngle: number;
+    transform: EntityTransform;
     weapon: WeaponType;
     showAimLine?: boolean;
     aimLineLength?: number;
@@ -129,9 +116,9 @@ export class WeaponFigure {
     boundingBox: BoundingBox;
   }) {
     if (svgInfo) {
-      this.renderSVG({ ctx, position, facing, aimAngle, weapon, svgInfo, boundingBox, showAimLine, aimLineLength });
+      this.renderSVG({ ctx, transform, weapon, svgInfo, boundingBox, showAimLine, aimLineLength });
     } else {
-      this.renderBasic({ ctx, position, facing, aimAngle, weapon, showAimLine, aimLineLength });
+      this.renderBasic({ ctx, transform, weapon, showAimLine, aimLineLength });
     }
   }
 } 

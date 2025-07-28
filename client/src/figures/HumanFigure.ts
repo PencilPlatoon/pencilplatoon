@@ -1,5 +1,5 @@
-import { Vector2 } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
+import { EntityTransform } from "../game/EntityTransform";
 
 export class HumanFigure {
   static readonly LEG_HEIGHT = 10;
@@ -42,14 +42,15 @@ export class HumanFigure {
 
   static render({
     ctx,
-    position,
+    transform,
     active
   }: {
     ctx: CanvasRenderingContext2D;
-    position: Vector2;
+    transform: EntityTransform;
     active: boolean;
   }) {
     if (!active) return;
+    const position = transform.position;
     ctx.save();
     ctx.lineWidth = 2;
     // Head

@@ -3,6 +3,7 @@ import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
 import { BulletFigure } from "../figures/BulletFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
+import { EntityTransform } from "./EntityTransform";
 
 declare global {
   interface Window {
@@ -12,7 +13,7 @@ declare global {
 
 export class Bullet implements GameObject {
   id: string;
-  position: Vector2;
+  transform: EntityTransform;
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
@@ -33,7 +34,7 @@ export class Bullet implements GameObject {
     color: string
   ) {
     this.id = `bullet_${Date.now()}_${Math.random()}`;
-    this.position = { x, y };
+    this.transform = new EntityTransform({ x, y }, 0, 1);
     this.initialPosition = { x, y };
     this.previousPosition = { x, y };
     this.velocity = {
@@ -49,10 +50,10 @@ export class Bullet implements GameObject {
   update(deltaTime: number) {
     if (!this.active) return;
 
-    this.previousPosition = { x: this.position.x, y: this.position.y };
+    this.previousPosition = { x: this.transform.position.x, y: this.transform.position.y };
     // Update position
-    this.position.x += this.velocity.x * deltaTime;
-    this.position.y += this.velocity.y * deltaTime;
+    this.transform.position.x += this.velocity.x * deltaTime;
+    this.transform.position.y += this.velocity.y * deltaTime;
 
     // Update lifetime
     this.lifeTime += deltaTime;
@@ -61,16 +62,16 @@ export class Bullet implements GameObject {
     }
 
     // Deactivate if traveled more than maxTravelDistance
-    const dx = this.position.x - this.initialPosition.x;
-    const dy = this.position.y - this.initialPosition.y;
+    const dx = this.transform.position.x - this.initialPosition.x;
+    const dy = this.transform.position.y - this.initialPosition.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     if (distance > this.maxTravelDistance) {
       this.deactivate('max-distance');
     }
 
     // Check bounds (optional, can keep for extreme out-of-bounds cases)
-    if (this.position.x < -100 || this.position.x > Terrain.LEVEL_WIDTH + 100 || 
-        this.position.y < Terrain.WORLD_BOTTOM || this.position.y > Terrain.WORLD_TOP + 100) {
+    if (this.transform.position.x < -100 || this.transform.position.x > Terrain.LEVEL_WIDTH + 100 || 
+        this.transform.position.y < Terrain.WORLD_BOTTOM || this.transform.position.y > Terrain.WORLD_TOP + 100) {
       this.deactivate('out-of-bounds');
     }
   }
@@ -80,30 +81,30 @@ export class Bullet implements GameObject {
 
     BulletFigure.render({
       ctx,
-      position: this.position,
+      transform: this.transform,
       bounds: this.bounds,
       color: this.color,
       active: this.active
     });
 
-    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.position));
+    BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }
 
   getAbsoluteBounds() {
     // For Bullet, position is at center, so we can use the BoundingBox method directly
-    return this.bounds.getAbsoluteBounds(this.position);
+    return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
   deactivate(reason: string, terrain?: Terrain) {
     let terrainY = '(n/a)';
     if (terrain) {
       try {
-        terrainY = String(terrain.getHeightAt(this.position.x));
+        terrainY = String(terrain.getHeightAt(this.transform.position.x));
       } catch (e) {
         terrainY = '(out of bounds)';
       }
     }
-    console.log(`[BULLET] deactivated:`, reason, 'x =', this.position.x, 'y =', this.position.y, 'terrainY:', terrainY);
+    console.log(`[BULLET] deactivated:`, reason, 'x =', this.transform.position.x, 'y =', this.transform.position.y, 'terrainY:', terrainY);
     this.active = false;
   }
 }

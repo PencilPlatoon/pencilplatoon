@@ -1,4 +1,5 @@
 import { Vector2 } from "./types";
+import { EntityTransform } from "./EntityTransform";
 
 export interface AbsoluteBoundingBox {
   upperLeft: Vector2; // x: min (left), y: min (top)
@@ -60,29 +61,29 @@ export class BoundingBox {
     return { positions };
   }
 
-  getRotatedBoundingPositions(referencePoint: Vector2, facing: number, aimAngle: number): BoundingPositions {
+  getRotatedBoundingPositions(transform: EntityTransform): BoundingPositions {
     // Get the base bounding positions
-    const basePositions = this.getBoundingPositions(referencePoint);
+    const basePositions = this.getBoundingPositions(transform.position);
     
     // Convert to local space (relative to reference point)
     const localCorners = basePositions.positions.map(pos => ({
-      x: pos.x - referencePoint.x,
-      y: pos.y - referencePoint.y
+      x: pos.x - transform.position.x,
+      y: pos.y - transform.position.y
     }));
 
     // Apply rotation and facing, then translate to world space
     const worldCorners = localCorners.map(({ x, y }) => {
       // Apply rotation (matching SVG rotation: negative for right-facing)
       // Note: SVG rotation happens in canvas coordinates (Y flipped), so we need to flip Y for rotation
-      const rotationAngle = facing === 1 ? -aimAngle : aimAngle;
+      const rotationAngle = transform.facing === 1 ? -transform.rotation : transform.rotation;
       const rotatedX = x * Math.cos(rotationAngle) - (-y) * Math.sin(rotationAngle);
       const rotatedY = x * Math.sin(rotationAngle) + (-y) * Math.cos(rotationAngle);
       // Apply facing (flip x)
-      const facedX = rotatedX * facing;
+      const facedX = rotatedX * transform.facing;
       // Translate to world space
       return { 
-        x: referencePoint.x + facedX, 
-        y: referencePoint.y - (facing === 1 ? rotatedY : -rotatedY) // Flip Y based on facing
+        x: transform.position.x + facedX, 
+        y: transform.position.y - (transform.facing === 1 ? rotatedY : -rotatedY) // Flip Y based on facing
       };
     });
     
