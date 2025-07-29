@@ -15,7 +15,6 @@ export default function Game() {
   useEffect(() => {
     if (canvasRef.current && !gameEngineRef.current) {
       gameEngineRef.current = new GameEngine(canvasRef.current);
-      gameEngineRef.current.init();
       setIsGameInitialized(true);
     }
   }, []);
@@ -42,10 +41,19 @@ export default function Game() {
     }
   };
 
+  const handleRestartLevel = () => {
+    if (gameEngineRef.current) {
+      restart();
+      gameEngineRef.current.restartLevel();
+      start();
+      gameEngineRef.current.start();
+    }
+  };
+
   const handleRestartGame = () => {
     if (gameEngineRef.current) {
       restart();
-      gameEngineRef.current.restart();
+      gameEngineRef.current.restartGame();
       start();
       gameEngineRef.current.start();
     }
@@ -55,6 +63,7 @@ export default function Game() {
     if (gameEngineRef.current) {
       gameEngineRef.current.nextLevel();
       start();
+      gameEngineRef.current.start();
     }
   };
 
@@ -64,7 +73,8 @@ export default function Game() {
       <GameUI
         phase={phase}
         onStart={handleStartGame}
-        onRestart={handleRestartGame}
+        onRestartLevel={handleRestartLevel}
+        onRestartGame={handleRestartGame}
         onNextLevel={handleNextLevel}
         isInitialized={isGameInitialized}
       />

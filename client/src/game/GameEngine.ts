@@ -48,37 +48,13 @@ export class GameEngine {
     this.collisionSystem = new CollisionSystem();
     // Create player at far left spawn position, at the top of the world
     this.player = new Player(GameEngine.PLAYER_START_X, Terrain.WORLD_TOP);
-    this.setupEventListeners();
-  }
-
-  init() {
-    this.initLevel(this.currentLevelIndex);
-    console.log("Game engine initialized");
-  }
-
-  initLevel(levelIndex: number) {
-    this.currentLevelIndex = levelIndex;
-    const levelName = this.currentLevelName;
-    const config = this.currentLevelConfig;
-    this.terrain = new Terrain(config.terrainColor);
-    this.terrain.generateTerrain(config.terrain);
-    // After terrain is generated, reset player position to just above terrain height
-    this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
-    this.player.velocity.x = 0;
-    this.player.velocity.y = 1;
-    this.player.health = Player.MAX_HEALTH;
-    this.player.active = true;
-    this.bullets = [];
-    this.activeEnemies.clear();
-    this.enemies = [];
-    this.allEnemies = [];
-    this.particleSystem.clear();
-    // Reset camera to start
-    this.camera.x = 0;
-    this.camera.y = 0;
+    this.initLevelTerrain(this.currentLevelIndex);
+    this.reset();
     this.spawnEnemies();
-    console.log(`[initLevel] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
-    console.log(`Level ${levelName} initialized`);
+
+    this.setupEventListeners();
+
+    console.log("Game engine initialized");
   }
 
   async start() {
@@ -90,37 +66,28 @@ export class GameEngine {
     console.log("Game started");
   }
 
-  restart() {
-    this.bullets = [];
-    this.enemies = [];
-    this.allEnemies = [];
-    this.activeEnemies.clear();
-    this.particleSystem.clear();
+  restartGame() {
     this.currentLevelIndex = 0;
-    this.initLevel(this.currentLevelIndex);
+    this.initLevelTerrain(0);
+    this.reset();
+    this.spawnEnemies();
     this.isRunning = true;
-    console.log("Game restarted");
+    console.log("Game restarted from beginning");
+  }
+
+  restartLevel() {
+    //this.initLevelTerrain(this.currentLevelIndex);
+    this.reset();
+    this.spawnEnemies();
+    this.isRunning = true;
+    console.log(`Level ${this.currentLevelName} restarted`);
   }
 
   nextLevel() {
     if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
-      this.currentLevelIndex++;
-      this.bullets = [];
-      this.enemies = [];
-      this.allEnemies = [];
-      this.activeEnemies.clear();
-      this.particleSystem.clear();
-      // Fully reset player state
-      this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
-      this.player.velocity.x = 0;
-      this.player.velocity.y = 1;
-      this.player.health = Player.MAX_HEALTH;
-      this.player.active = true;
-      // Reset camera to start
-      this.camera.x = 0;
-      this.camera.y = 0;
-      this.initLevel(this.currentLevelIndex);
-      this.isRunning = true;
+      this.initLevelTerrain(this.currentLevelIndex+1);
+      this.reset();
+      this.spawnEnemies();
       console.log("Next level started");
     } else {
       this.stop();
@@ -141,6 +108,30 @@ export class GameEngine {
   togglePause() {
     this.paused = !this.paused;
     console.log('Game paused:', this.paused);
+  }
+
+  private reset() {
+    this.bullets = [];
+    this.enemies = [];
+    this.allEnemies = [];
+    this.activeEnemies.clear();
+    this.particleSystem.clear();
+
+    this.camera.x = 0;
+    this.camera.y = 0;
+
+    this.player.reset(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
+  }
+
+  private initLevelTerrain(levelIndex: number) {
+    this.currentLevelIndex = levelIndex;
+    const levelName = this.currentLevelName;
+    const config = this.currentLevelConfig;
+    this.terrain = new Terrain(config.terrainColor);
+    this.terrain.generateTerrain(config.terrain);
+    
+    console.log(`[initLevel] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
+    console.log(`Level ${levelName} initialized`);
   }
 
   private setupEventListeners() {
@@ -257,10 +248,10 @@ export class GameEngine {
     const levelWidth = this.terrain.getLevelWidth();
     // Check if player reached the right edge of the level
     if (this.player.transform.position.x >= levelWidth - 100) {
+      this.stop();
       if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
-        this.nextLevel();
+        useGameStore.getState().completeLevel();
       } else {
-        this.stop();
         useGameStore.getState().end();
       }
     }

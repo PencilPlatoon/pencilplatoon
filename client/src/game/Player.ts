@@ -54,15 +54,24 @@ export class Player implements GameObject {
 
   constructor(x: number, y: number) {
     this.id = "player";
-    // position.y is now feet (bottom of player)
-    this.transform = new EntityTransform({ x, y }, 0, 1);
-    this.velocity = { x: 0, y: 1 };
+    this.transform = new EntityTransform({ x: 0, y: 0 }, 0, 1);
+    this.velocity = { x: 0, y: 0 };
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
-    this.active = true;
-    this.health = Player.MAX_HEALTH;
+    this.active = false;
+    this.health = 0;
     
     this.weapon = new Weapon(Weapon.FNAF_BATTLE_RIFLE);
     this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to player
+    
+    // Initialize with proper state
+    this.reset(x, y);
+  }
+
+  reset(x: number, y: number) {
+    this.transform.setPosition(x, y);
+    this.velocity = { x: 0, y: 1 };
+    this.health = Player.MAX_HEALTH;
+    this.active = true;
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {

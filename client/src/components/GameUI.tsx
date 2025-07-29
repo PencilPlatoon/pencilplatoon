@@ -8,12 +8,13 @@ import { useGameStore } from "../lib/stores/useGameStore";
 interface GameUIProps {
   phase: GamePhase;
   onStart: () => void;
-  onRestart: () => void;
+  onRestartLevel: () => void;
+  onRestartGame: () => void;
   onNextLevel: () => void;
   isInitialized: boolean;
 }
 
-export default function GameUI({ phase, onStart, onRestart, onNextLevel, isInitialized }: GameUIProps) {
+export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, isInitialized }: GameUIProps) {
   const { isSoundMuted, isMusicMuted, toggleSoundMute, toggleMusicMute } = useAudio();
   const debugMode = useGameStore((state) => state.debugMode);
   const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
@@ -110,11 +111,18 @@ export default function GameUI({ phase, onStart, onRestart, onNextLevel, isIniti
               Next Level
             </Button>
             <Button 
-              onClick={onRestart} 
+              onClick={onRestartLevel} 
               variant="outline" 
               className="w-full mb-4"
             >
-              Restart Game
+              Replay Level
+            </Button>
+            <Button 
+              onClick={onRestartGame} 
+              variant="outline" 
+              className="w-full mb-4"
+            >
+              Restart Game From Beginning
             </Button>
             {CheckboxGroup}
           </CardContent>
@@ -129,8 +137,11 @@ export default function GameUI({ phase, onStart, onRestart, onNextLevel, isIniti
         <Card className="w-96">
           <CardContent className="p-6 text-center">
             <h2 className="text-xl font-bold mb-4 text-black">Game Over</h2>
-            <Button onClick={onRestart} variant="default" className="w-full mb-4 border border-primary">
-              Play Again
+            <Button onClick={onRestartLevel} variant="default" className="w-full mb-4 border border-primary">
+              Replay Level
+            </Button>
+            <Button onClick={onRestartGame} variant="outline" className="w-full mb-4">
+              Restart Game From Beginning
             </Button>
             {CheckboxGroup}
           </CardContent>
