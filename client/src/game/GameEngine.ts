@@ -203,11 +203,12 @@ export class GameEngine {
 
     // Update active enemies
     this.enemies.forEach(enemy => {
-      enemy.update(deltaTime, this.player.transform.position, this.terrain);
+      const playerCOG = this.player.getCenterOfGravity();
+      enemy.update(deltaTime, playerCOG, this.terrain);
       
       // Enemy shooting
-      if (enemy.canShoot(this.player.transform.position)) {
-        const bullet = enemy.shoot(this.player.transform.position);
+      if (enemy.canShoot(playerCOG)) {
+        const bullet = enemy.shoot(playerCOG);
         if (bullet) {
           this.bullets.push(bullet);
         }
@@ -376,7 +377,7 @@ export class GameEngine {
     this.player.render(this.ctx);
 
     // Render enemies
-    this.enemies.forEach(enemy => enemy.render(this.ctx, this.player.transform.position));
+    this.enemies.forEach(enemy => enemy.render(this.ctx));
 
     // Render bullets
     this.bullets.forEach(bullet => bullet.render(this.ctx));

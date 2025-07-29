@@ -43,4 +43,19 @@ export class EntityTransform {
       y: this.position.y
     };
   }
+
+  // Apply a relative transform onto this transform
+  applyTransform(relativeTransform: EntityTransform): EntityTransform {
+    // Calculate absolute position based on this transform and relative transform
+    const absoluteX = this.position.x + (this.facing * relativeTransform.position.x);
+    const absoluteY = this.position.y + relativeTransform.position.y;
+    
+    // Combine this facing with relative facing
+    const absoluteFacing = this.facing * relativeTransform.facing;
+    
+    // Accumulate rotation (add relative rotation to this transform's rotation)
+    const absoluteRotation = this.rotation + relativeTransform.rotation;
+    
+    return new EntityTransform({ x: absoluteX, y: absoluteY }, absoluteRotation, absoluteFacing);
+  }
 } 

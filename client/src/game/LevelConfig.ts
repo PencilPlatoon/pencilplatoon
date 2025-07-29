@@ -49,7 +49,7 @@ export const LEVEL_DEFINITIONS: Record<string, LevelConfig> = {
 
 // The order and selection of levels for the game
 export const LEVEL_ORDER: string[] = [
-  "Grasslands",
+  // "Grasslands",
 //   "Desert",
-//   "Mountains",
+  "Mountains",
 ]; 

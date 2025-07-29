@@ -1,4 +1,4 @@
-import { GameObject, Vector2, WeaponType } from "./types";
+import { GameObject, Vector2 } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
@@ -45,17 +45,11 @@ export class Player implements GameObject {
   static readonly HEALTHBAR_OFFSET_Y = 20;
 
   getAbsoluteWeaponTransform(): EntityTransform {
-    // Calculate absolute weapon position based on player transform and weapon relative transform
-    const weaponX = this.transform.position.x + (this.transform.facing * this.weaponRelative.position.x);
-    const weaponY = this.transform.position.y + this.weaponRelative.position.y;
-    
-    // Combine player facing with weapon relative facing
-    const absoluteFacing = this.transform.facing * this.weaponRelative.facing;
-    
-    // Weapon rotation is relative to player's facing direction
-    const absoluteRotation = this.weaponRelative.rotation;
-    
-    return new EntityTransform({ x: weaponX, y: weaponY }, absoluteRotation, absoluteFacing);
+    return this.transform.applyTransform(this.weaponRelative);
+  }
+
+  getCenterOfGravity(): Vector2 {
+    return this.bounds.getAbsoluteCenter(this.transform.position);
   }
 
   constructor(x: number, y: number) {
@@ -163,10 +157,9 @@ export class Player implements GameObject {
       transform: this.transform,
       active: this.active
     });
-    const weaponTransform = this.getAbsoluteWeaponTransform();
     this.weapon.render({
       ctx,
-      transform: weaponTransform,
+      transform: this.getAbsoluteWeaponTransform(),
       showAimLine: true,
       aimLineLength: 100
     });

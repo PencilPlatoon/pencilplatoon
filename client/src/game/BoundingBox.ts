@@ -28,6 +28,13 @@ export class BoundingBox {
     this.relativeReferenceY = relativeReferenceY;
   }
 
+  getAbsoluteCenter(referencePoint: Vector2): Vector2 {
+    return {
+      x: referencePoint.x + this.width * (0.5 - this.relativeReferenceX),
+      y: referencePoint.y + this.height * (0.5 - this.relativeReferenceY)
+    };
+  }
+
   getAbsoluteBounds(referencePoint: Vector2): AbsoluteBoundingBox {
     const refX = this.width * this.relativeReferenceX;
     const refY = this.height * this.relativeReferenceY;
