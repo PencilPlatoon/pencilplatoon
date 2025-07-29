@@ -12,13 +12,12 @@ export class HumanFigure {
   static readonly BODY_TOP_OFFSET_Y = HumanFigure.BODY_BOTTOM_OFFSET + HumanFigure.BODY_LENGTH;
 
   static readonly ARM_LENGTH = 12;
+  static readonly ARM_X_OFFSET = 0; // Arm base is at center of figure
   static readonly ARM_Y_OFFSET = HumanFigure.BODY_TOP_OFFSET_Y;
 
   static readonly NECK_LENGTH = 8;
   static readonly NECK_BOTTOM_OFFSET_Y = HumanFigure.BODY_TOP_OFFSET_Y;
   static readonly NECK_TOP_OFFSET_Y = HumanFigure.NECK_BOTTOM_OFFSET_Y + HumanFigure.NECK_LENGTH;
-
-  static readonly HAND_OFFSET_Y = HumanFigure.ARM_Y_OFFSET;
 
   static readonly HEAD_RADIUS = 8;
   static readonly HEAD_BOTTOM_OFFSET_Y = HumanFigure.NECK_TOP_OFFSET_Y;
@@ -40,19 +39,43 @@ export class HumanFigure {
     return HumanFigure.FIGURE_HEIGHT;
   }
 
+  static getForwardHandTransform(aimAngle: number): EntityTransform {
+    // Calculate the hand position by extending the arm at the aim angle
+    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle) * HumanFigure.ARM_LENGTH;
+    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle) * HumanFigure.ARM_LENGTH;
+    
+    return new EntityTransform({ x: handX, y: handY }, aimAngle, 1);
+  }
+
+  static getBackHandTransform(aimAngle: number): EntityTransform {
+    // Calculate the hand position by extending the arm at the aim angle
+    // Back hand is on the opposite side of the body
+    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle + Math.PI) * HumanFigure.ARM_LENGTH;
+    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle + Math.PI) * HumanFigure.ARM_LENGTH;
+    
+    return new EntityTransform({ x: handX, y: handY }, aimAngle + Math.PI, 1);
+  }
+
   static render({
     ctx,
     transform,
-    active
+    active,
+    aimAngle = 0
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
     active: boolean;
+    aimAngle?: number;
   }) {
     if (!active) return;
     const position = transform.position;
     ctx.save();
     ctx.lineWidth = 2;
+    
+    // Debug mode: draw in blue
+    if (window.__DEBUG_MODE__) {
+      ctx.strokeStyle = 'blue';
+    }
     // Head
     ctx.beginPath();
     ctx.arc(position.x,
@@ -70,15 +93,21 @@ export class HumanFigure {
     ctx.lineTo(position.x, toCanvasY(position.y + HumanFigure.NECK_TOP_OFFSET_Y));
     ctx.stroke();
     // Arms
-    // Left arm
+    
+    // Backward arm (opposite to facing direction)
+    const backHandTransform = HumanFigure.getBackHandTransform(0);
+    const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
     ctx.beginPath();
     ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
-    ctx.lineTo(position.x - HumanFigure.ARM_LENGTH, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
+    ctx.lineTo(absoluteBackHandTransform.position.x, toCanvasY(absoluteBackHandTransform.position.y));
     ctx.stroke();
-    // Right arm
+    
+    // Forward arm (same as facing direction) - aiming
+    const forwardHandTransform = HumanFigure.getForwardHandTransform(aimAngle);
+    const absoluteForwardHandTransform = transform.applyTransform(forwardHandTransform);
     ctx.beginPath();
     ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
-    ctx.lineTo(position.x + HumanFigure.ARM_LENGTH, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
+    ctx.lineTo(absoluteForwardHandTransform.position.x, toCanvasY(absoluteForwardHandTransform.position.y));
     ctx.stroke();
     // Legs
     ctx.beginPath();

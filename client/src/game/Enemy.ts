@@ -33,20 +33,10 @@ export class Enemy implements GameObject {
 
   private lastShotTime = 0;
   private weapon: Weapon;
-  private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
+  private weaponRelative: EntityTransform; // Relative weapon transform
   private patrolDirection = 1;
   private patrolStartX: number;
-
-  getAbsoluteWeaponTransform(): EntityTransform {
-    return this.transform.applyTransform(this.weaponRelative);
-  }
-
-  private computeAimAngle(target: Vector2): number {
-    const weaponTransform = this.getAbsoluteWeaponTransform();
-    const dx = target.x - weaponTransform.position.x;
-    const dy = target.y - weaponTransform.position.y;
-    return Math.atan2(dy, dx * this.transform.facing); // adjust for facing
-  }
+  private aimAngle: number = 0; // Angle of the arm/aim
 
   constructor(x: number, y: number, id: string) {
     this.id = id;
@@ -59,7 +49,20 @@ export class Enemy implements GameObject {
     this.patrolStartX = x;
     
     this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
-    this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to enemy
+    this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
+  }
+
+  private getAbsoluteWeaponTransform(): EntityTransform {
+    const handTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
+    return this.transform.applyTransform(handTransform).applyTransform(this.weaponRelative);
+  }
+
+  private computeAimAngle(target: Vector2): number {
+    const handTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
+    const absoluteHandTransform = this.transform.applyTransform(handTransform);
+    const dx = target.x - absoluteHandTransform.position.x;
+    const dy = target.y - absoluteHandTransform.position.y;
+    return Math.atan2(dy, dx * this.transform.facing); // adjust for facing
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
@@ -84,10 +87,8 @@ export class Enemy implements GameObject {
     // Terrain collision with gravity
     this.handleTerrainCollision(terrain);
 
-    // Compute aim angle toward player
-    const aimAngle = this.computeAimAngle(playerPos);
-    // Update weapon relative rotation to aim at player
-    this.weaponRelative.setRotation(aimAngle);
+    // Update aim angle to aim at player
+    this.aimAngle = this.computeAimAngle(playerPos);
   }
 
   private chasePlayer(playerPos: Vector2, deltaTime: number) {
@@ -150,10 +151,8 @@ export class Enemy implements GameObject {
 
   shoot(playerPos: Vector2): Bullet | null {
     this.lastShotTime = Date.now();
-    // Compute aim angle toward player
-    const aimAngle = this.computeAimAngle(playerPos);
-    // Update weapon relative rotation to aim at player
-    this.weaponRelative.setRotation(aimAngle);
+    // Update aim angle to aim at player
+    this.aimAngle = this.computeAimAngle(playerPos);
     
     // Get updated weapon transform with new aim angle
     const updatedWeaponTransform = this.getAbsoluteWeaponTransform();
@@ -173,11 +172,6 @@ export class Enemy implements GameObject {
 
   render(ctx: CanvasRenderingContext2D) {
     if (!this.active) return;
-    HumanFigure.render({
-      ctx,
-      transform: this.transform,
-      active: this.active
-    });
     
     this.weapon.render({
       ctx,
@@ -194,6 +188,12 @@ export class Enemy implements GameObject {
       maxHealth: Enemy.MAX_HEALTH
     });
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
+    HumanFigure.render({
+      ctx,
+      transform: this.transform,
+      active: this.active,
+      aimAngle: this.aimAngle
+    });
   }
 
   async waitForLoaded(): Promise<void> {

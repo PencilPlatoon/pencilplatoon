@@ -41,16 +41,9 @@ export class Player implements GameObject {
 
   private isGrounded = false;
   public weapon: Weapon;
-  private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
+  private weaponRelative: EntityTransform; // Relative weapon transform
   private lastCollisionDebugX: number | null = null;
-
-  getAbsoluteWeaponTransform(): EntityTransform {
-    return this.transform.applyTransform(this.weaponRelative);
-  }
-
-  getCenterOfGravity(): Vector2 {
-    return this.bounds.getAbsoluteCenter(this.transform.position);
-  }
+  private aimAngle: number = 0; // Angle of the arm/aim
 
   constructor(x: number, y: number) {
     this.id = "player";
@@ -60,11 +53,20 @@ export class Player implements GameObject {
     this.active = false;
     this.health = 0;
     
-    this.weapon = new Weapon(Weapon.FNAF_BATTLE_RIFLE);
-    this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to player
+    this.weapon = new Weapon(Weapon.WEBLEY_REVOLVER);
+    this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
     
     // Initialize with proper state
     this.reset(x, y);
+  }
+
+  private getAbsoluteWeaponTransform(): EntityTransform {
+    const handTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
+    return this.transform.applyTransform(handTransform).applyTransform(this.weaponRelative);
+  }
+
+  getCenterOfGravity(): Vector2 {
+    return this.bounds.getAbsoluteCenter(this.transform.position);
   }
 
   reset(x: number, y: number) {
@@ -72,6 +74,7 @@ export class Player implements GameObject {
     this.velocity = { x: 0, y: 1 };
     this.health = Player.MAX_HEALTH;
     this.active = true;
+    this.aimAngle = 0;
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
@@ -92,12 +95,12 @@ export class Player implements GameObject {
       this.isGrounded = false;
     }
 
-    // Weapon aiming with Y and H keys
+    // Weapon aiming with Y and H keys - update aimAngle instead of weaponRelative
     if (input.aimUp) {
-      this.weaponRelative.setRotation(Math.min(Math.PI / 3, this.weaponRelative.rotation + 2 * deltaTime)); // Limit upward angle
+      this.aimAngle = Math.min(Math.PI / 3, this.aimAngle + 2 * deltaTime); // Limit upward angle
     }
     if (input.aimDown) {
-      this.weaponRelative.setRotation(Math.max(-Math.PI / 3, this.weaponRelative.rotation - 2 * deltaTime)); // Limit downward angle
+      this.aimAngle = Math.max(-Math.PI / 3, this.aimAngle - 2 * deltaTime); // Limit downward angle
     }
 
     // Apply gravity and update position
@@ -156,11 +159,6 @@ export class Player implements GameObject {
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    HumanFigure.render({
-      ctx,
-      transform: this.transform,
-      active: this.active
-    });
     this.weapon.render({
       ctx,
       transform: this.getAbsoluteWeaponTransform(),
@@ -177,5 +175,11 @@ export class Player implements GameObject {
       maxHealth: Player.MAX_HEALTH
     });
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
+    HumanFigure.render({
+      ctx,
+      transform: this.transform,
+      active: this.active,
+      aimAngle: this.aimAngle
+    });
   }
 }
