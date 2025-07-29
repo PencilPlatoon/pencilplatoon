@@ -66,7 +66,7 @@ export class GameEngine {
     this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
     this.player.velocity.x = 0;
     this.player.velocity.y = 1;
-    this.player.health = this.player.maxHealth;
+    this.player.health = Player.MAX_HEALTH;
     this.player.active = true;
     this.bullets = [];
     this.activeEnemies.clear();
@@ -114,7 +114,7 @@ export class GameEngine {
       this.player.transform.setPosition(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
       this.player.velocity.x = 0;
       this.player.velocity.y = 1;
-      this.player.health = this.player.maxHealth;
+      this.player.health = Player.MAX_HEALTH;
       this.player.active = true;
       // Reset camera to start
       this.camera.x = 0;
@@ -409,7 +409,7 @@ export class GameEngine {
     // Health bar
     const healthBarWidth = 200;
     const healthBarHeight = 20;
-    const healthPercentage = this.player.health / this.player.maxHealth;
+    const healthPercentage = this.player.health / Player.MAX_HEALTH;
 
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
     this.ctx.fillRect(20, 20, healthBarWidth + 4, healthBarHeight + 4);
@@ -423,7 +423,7 @@ export class GameEngine {
     // Game info text
     this.ctx.fillStyle = "black";
     this.ctx.font = "16px Arial";
-    this.ctx.fillText(`Health: ${this.player.health}/${this.player.maxHealth}`, 22, 60);
+    this.ctx.fillText(`Health: ${this.player.health}/${Player.MAX_HEALTH}`, 22, 60);
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 80);
     this.ctx.fillText(`Enemies: ${this.enemies.length}`, 22, 100);
     

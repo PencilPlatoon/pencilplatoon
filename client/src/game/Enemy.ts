@@ -21,21 +21,21 @@ export class Enemy implements GameObject {
   bounds: BoundingBox;
   active: boolean;
   health: number;
-  maxHealth: number;
   
-  private speed = 150;
-  private detectionRange = 400;
-  private shootingRange = 300;
+  public static readonly MAX_HEALTH = 75;
+  private static readonly SPEED = 150;
+  private static readonly DETECTION_RANGE = 400;
+  private static readonly SHOOTING_RANGE = 300;
+  private static readonly PATROL_RANGE = 200;
+  private static readonly FIRE_INTERVAL = 800; // ms, distinct from weapon fireInterval
+  private static readonly HEALTHBAR_OFFSET_Y = 20;
+
   private lastShotTime = 0;
   private weapon: Weapon;
   private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
   private patrolDirection = 1;
   private patrolStartX: number;
-  private patrolRange = 200;
   private gravity = 1500;
-  private fireInterval = 800; // ms, distinct from weapon fireInterval
-
-  static readonly HEALTHBAR_OFFSET_Y = 20;
 
   getAbsoluteWeaponTransform(): EntityTransform {
     return this.transform.applyTransform(this.weaponRelative);
@@ -55,8 +55,7 @@ export class Enemy implements GameObject {
     this.velocity = { x: 0, y: 1 };
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
-    this.health = 75;
-    this.maxHealth = 75;
+    this.health = Enemy.MAX_HEALTH;
     this.patrolStartX = x;
     
     this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
@@ -69,7 +68,7 @@ export class Enemy implements GameObject {
       Math.pow(playerPos.y - this.transform.position.y, 2)
     );
 
-    if (distanceToPlayer <= this.detectionRange) {
+    if (distanceToPlayer <= Enemy.DETECTION_RANGE) {
       // Chase player
       this.chasePlayer(playerPos, deltaTime);
     } else {
@@ -100,10 +99,10 @@ export class Enemy implements GameObject {
     
     if (Math.abs(dx) > 50) { // Don't get too close
       if (dx > 0) {
-        this.velocity.x = this.speed;
+        this.velocity.x = Enemy.SPEED;
         this.transform.setFacing(1);
       } else {
-        this.velocity.x = -this.speed;
+        this.velocity.x = -Enemy.SPEED;
         this.transform.setFacing(-1);
       }
     } else {
@@ -115,13 +114,13 @@ export class Enemy implements GameObject {
     // Simple patrol behavior
     const distanceFromStart = this.transform.position.x - this.patrolStartX;
     
-    if (distanceFromStart > this.patrolRange) {
+    if (distanceFromStart > Enemy.PATROL_RANGE) {
       this.patrolDirection = -1;
-    } else if (distanceFromStart < -this.patrolRange) {
+    } else if (distanceFromStart < -Enemy.PATROL_RANGE) {
       this.patrolDirection = 1;
     }
 
-    this.velocity.x = this.patrolDirection * this.speed * 0.5;
+    this.velocity.x = this.patrolDirection * Enemy.SPEED * 0.5;
     this.transform.setFacing(this.patrolDirection);
   }
 
@@ -148,9 +147,9 @@ export class Enemy implements GameObject {
     const dy = playerPos.y - weaponTransform.position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
     const now = Date.now();
-    const enemyCooldown = now - this.lastShotTime > this.fireInterval;
+    const enemyCooldown = now - this.lastShotTime > Enemy.FIRE_INTERVAL;
     const weaponCooldown = this.weapon.canShoot();
-    return distance <= this.shootingRange && enemyCooldown && weaponCooldown;
+    return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown;
   }
 
   shoot(playerPos: Vector2): Bullet | null {
@@ -196,7 +195,7 @@ export class Enemy implements GameObject {
         y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Enemy.HEALTHBAR_OFFSET_Y
       }),
       health: this.health,
-      maxHealth: this.maxHealth
+      maxHealth: Enemy.MAX_HEALTH
     });
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }

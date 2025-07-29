@@ -32,17 +32,17 @@ export class Player implements GameObject {
   bounds: BoundingBox;
   active: boolean;
   health: number;
-  maxHealth: number;
   
-  private speed = 300;
-  private jumpForce = 600;
+  public static readonly MAX_HEALTH = 100;
+  private static readonly SPEED = 300;
+  private static readonly JUMP_FORCE = 600;
+  private static readonly HEALTHBAR_OFFSET_Y = 20;
+
   private gravity = 1500;
   private isGrounded = false;
   public weapon: Weapon;
   private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
   private lastCollisionDebugX: number | null = null;
-
-  static readonly HEALTHBAR_OFFSET_Y = 20;
 
   getAbsoluteWeaponTransform(): EntityTransform {
     return this.transform.applyTransform(this.weaponRelative);
@@ -59,8 +59,7 @@ export class Player implements GameObject {
     this.velocity = { x: 0, y: 1 };
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
-    this.health = 100;
-    this.maxHealth = 100;
+    this.health = Player.MAX_HEALTH;
     
     this.weapon = new Weapon(Weapon.FNAF_BATTLE_RIFLE);
     this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to player
@@ -69,10 +68,10 @@ export class Player implements GameObject {
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
     // Horizontal movement
     if (input.left) {
-      this.velocity.x = -this.speed;
+      this.velocity.x = -Player.SPEED;
       this.transform.setFacing(-1);
     } else if (input.right) {
-      this.velocity.x = this.speed;
+      this.velocity.x = Player.SPEED;
       this.transform.setFacing(1);
     } else {
       this.velocity.x = 0;
@@ -80,7 +79,7 @@ export class Player implements GameObject {
 
     // Jumping
     if (input.jump && this.isGrounded) {
-      this.velocity.y = this.jumpForce;
+      this.velocity.y = Player.JUMP_FORCE;
       this.isGrounded = false;
     }
 
@@ -170,7 +169,7 @@ export class Player implements GameObject {
         y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
       }),
       health: this.health,
-      maxHealth: this.maxHealth
+      maxHealth: Player.MAX_HEALTH
     });
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }

@@ -13,7 +13,6 @@ export interface GameObject {
   bounds: BoundingBox;
   active: boolean;
   health?: number;
-  maxHealth?: number;
 }
 
 export interface WeaponType {
