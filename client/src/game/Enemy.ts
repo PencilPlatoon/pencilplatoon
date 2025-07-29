@@ -7,6 +7,7 @@ import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
 import { EntityTransform } from "./EntityTransform";
+import { Physics } from "./Physics";
 
 declare global {
   interface Window {
@@ -35,7 +36,6 @@ export class Enemy implements GameObject {
   private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
   private patrolDirection = 1;
   private patrolStartX: number;
-  private gravity = 1500;
 
   getAbsoluteWeaponTransform(): EntityTransform {
     return this.transform.applyTransform(this.weaponRelative);
@@ -76,12 +76,8 @@ export class Enemy implements GameObject {
       this.patrol(deltaTime);
     }
 
-    // Apply gravity
-    this.velocity.y -= this.gravity * deltaTime;
-
-    // Update position
-    this.transform.position.x += this.velocity.x * deltaTime;
-    this.transform.position.y += this.velocity.y * deltaTime;
+    // Apply gravity and update position
+    Physics.applyGravity(this, deltaTime);
     // Clamp x to valid terrain range
     this.transform.position.x = Math.max(0, Math.min(this.transform.position.x, terrain.getLevelWidth()));
 

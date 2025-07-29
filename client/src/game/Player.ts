@@ -7,6 +7,7 @@ import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { Weapon } from "./Weapon";
 import { EntityTransform } from "./EntityTransform";
+import { Physics } from "./Physics";
 
 declare global {
   interface Window {
@@ -38,7 +39,6 @@ export class Player implements GameObject {
   private static readonly JUMP_FORCE = 600;
   private static readonly HEALTHBAR_OFFSET_Y = 20;
 
-  private gravity = 1500;
   private isGrounded = false;
   public weapon: Weapon;
   private weaponRelative: EntityTransform; // Relative weapon transform (aim angle, facing)
@@ -91,12 +91,8 @@ export class Player implements GameObject {
       this.weaponRelative.setRotation(Math.max(-Math.PI / 3, this.weaponRelative.rotation - 2 * deltaTime)); // Limit downward angle
     }
 
-    // Apply gravity
-    this.velocity.y -= this.gravity * deltaTime;
-
-    // Update position
-    this.transform.position.x += this.velocity.x * deltaTime;
-    this.transform.position.y += this.velocity.y * deltaTime;
+    // Apply gravity and update position
+    Physics.applyGravity(this, deltaTime);
 
     // Terrain collision
     this.handleTerrainCollision(terrain);
