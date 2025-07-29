@@ -1,4 +1,4 @@
-import { Vector2, WeaponType } from "./types";
+import { WeaponType } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
@@ -15,7 +15,8 @@ export class Weapon {
   weaponLength: number;
   soundEffect?: string;
   svgPath?: string;
-  holdOffset: number;
+  holdRelativeX: number;
+  holdRelativeY: number;
   capacity: number;
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
@@ -32,15 +33,22 @@ export class Weapon {
     this.weaponLength = weaponType.weaponLength;
     this.soundEffect = weaponType.soundEffect;
     this.svgPath = weaponType.svgPath;
-    this.holdOffset = weaponType.holdOffset ?? 0;
+    this.holdRelativeX = weaponType.holdRelativeX;
+    this.holdRelativeY = weaponType.holdRelativeY;
     this.capacity = weaponType.capacity ?? 0;
     this.isLoaded = false;
     this._loadPromise = Promise.resolve();
-    // Compute bounding box
+    // Default to basic weapon
+    this.boundingBox = new BoundingBox(
+      this.weaponLength,
+      1,
+      this.holdRelativeX,
+      this.holdRelativeY
+    );
     if (this.svgPath) {
-      this.boundingBox = new BoundingBox(192, 196, 0.5, 0.5);
+      const holdRelativeX = this.holdRelativeX;
+      const holdRelativeY = this.holdRelativeY;
       const weaponLength = this.weaponLength;
-      const holdOffset = this.holdOffset;
       this._loadPromise = (async () => {
         const info = await SVGLoader.get(this.svgPath!);
         if (info) {
@@ -48,37 +56,22 @@ export class Weapon {
           const svgWidth = info.boundingBox.width;
           const svgHeight = info.boundingBox.height;
           const scale = weaponLength / svgWidth;
-          // Reference point as a fraction of weaponLength
-          const relativeReferenceX = (holdOffset ?? weaponLength / 2) / weaponLength;
-          const relativeReferenceY = 0.5; // base of weapon (where it's held)
           this.boundingBox = new BoundingBox(
             svgWidth * scale,
             svgHeight * scale,
-            relativeReferenceX,
-            relativeReferenceY
+            holdRelativeX,
+            holdRelativeY
           );
           this.svgInfo = info;
           this.isLoaded = true;
         } else {
           console.warn(`Weapon SVG failed to load: ${this.svgPath}`);
-          // Fallback to basic weapon
-          this.boundingBox = new BoundingBox(
-            weaponLength,
-            1,
-            holdOffset / weaponLength,
-            0.5
-          );
+          // Fall back to basic weapon
           this.isLoaded = true;
         }
       })();
     } else {
       // Basic weapon: line from (0,0) to (weaponLength,0)
-      this.boundingBox = new BoundingBox(
-        this.weaponLength,
-        1,
-        this.holdOffset / this.weaponLength,
-        0.5
-      );
       this.isLoaded = true;
       this._loadPromise = Promise.resolve();
     }
@@ -103,8 +96,6 @@ export class Weapon {
       this.bulletColor
     );
   }
-
-
 
   render({
     ctx,
@@ -142,7 +133,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 20,
     svgPath: "svg/webley.svg",
-    holdOffset: 5,
+    holdRelativeX: 0.25,
+    holdRelativeY: 0.5,
     capacity: 7,
   };
 
@@ -154,7 +146,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
-    holdOffset: 25,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 30,
   };
 
@@ -166,7 +159,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 70,
     svgPath: "svg/fnaf-battle-rifle.svg",
-    holdOffset: 35,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 20,
   };
 
@@ -178,7 +172,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 50,
     svgPath: "svg/m270-breacher.svg",
-    holdOffset: 25,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 8,
   };
 
@@ -190,7 +185,8 @@ export class Weapon {
     bulletColor: "orange",
     weaponLength: 70,
     svgPath: "svg/pts-27.svg",
-    holdOffset: 35,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 12,
   };
 
@@ -201,7 +197,8 @@ export class Weapon {
     bulletSpeed: 700,
     bulletColor: "yellow",
     weaponLength: 16,
-    holdOffset: 8,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 100,
   };
 
@@ -212,7 +209,8 @@ export class Weapon {
     bulletSpeed: 1200,
     bulletColor: "red",
     weaponLength: 28,
-    holdOffset: 14,
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
     capacity: 5,
   };
 }

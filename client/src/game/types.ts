@@ -26,11 +26,17 @@ export interface WeaponType {
   soundEffect?: string;
   svgPath?: string;
   /**
-   * The offset (in weapon SVG or line coordinates) from the weapon's base to the hand position.
-   * A value of 0 means the weapon base is aligned with the hand (current behavior).
-   * Positive values move the weapon forward, negative values move it backward.
+   * The relative X coordinate of the hand position along the weapon, as a fraction of weapon length.
+   * A value of 0.5 means the hand is at the middle of the weapon.
+   * Values range from 0 (base of weapon) to 1 (tip of weapon).
    */
-  holdOffset?: number;
+  holdRelativeX: number;
+  /**
+   * The relative Y coordinate of the hand position across the weapon, as a fraction of weapon height.
+   * A value of 0.5 means the hand is at the center of the weapon.
+   * Values range from 0 (bottom of weapon) to 1 (top of weapon).
+   */
+  holdRelativeY: number;
   capacity?: number;
 }
 
