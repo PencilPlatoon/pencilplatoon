@@ -68,7 +68,7 @@ export class Player implements GameObject {
     this.health = 100;
     this.maxHealth = 100;
     
-    this.weapon = new Weapon(Weapon.PTS_27_ANTITANK_GUN);
+    this.weapon = new Weapon(Weapon.FNAF_BATTLE_RIFLE);
     this.weaponRelative = new EntityTransform({ x: HumanFigure.ARM_LENGTH, y: HumanFigure.HAND_OFFSET_Y }, 0, 1); // Relative to player
   }
 

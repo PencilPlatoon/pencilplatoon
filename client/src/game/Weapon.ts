@@ -158,6 +158,18 @@ export class Weapon {
     capacity: 30,
   };
 
+  static readonly FNAF_BATTLE_RIFLE: WeaponType = {
+    name: "FNAF Battle Rifle",
+    damage: 25,
+    fireInterval: 200,
+    bulletSpeed: 800,
+    bulletColor: "orange",
+    weaponLength: 70,
+    svgPath: "svg/fnaf-battle-rifle.svg",
+    holdOffset: 35,
+    capacity: 20,
+  };
+
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
     name: "M270 Breacher",
     damage: 20,
