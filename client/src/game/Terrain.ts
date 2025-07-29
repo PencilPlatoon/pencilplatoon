@@ -11,7 +11,6 @@ export class Terrain {
   private terrainPoints: TerrainPoint[] = [];
   private groundLevel = Terrain.WORLD_BOTTOM + 100;
   private terrainColor: string = "rgba(0, 0, 0, 0.1)";
-
   constructor(terrainColor?: string) {
     if (terrainColor) {
       this.terrainColor = terrainColor;

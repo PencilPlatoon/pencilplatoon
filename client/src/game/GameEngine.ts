@@ -8,6 +8,7 @@ import { Bullet } from "./Bullet";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
+import { toCanvasY } from "../game/Terrain";
 
 export class GameEngine {
   static readonly SCREEN_WIDTH = 800;
@@ -27,7 +28,27 @@ export class GameEngine {
   private collisionSystem: CollisionSystem;
   private isRunning = false;
   private lastTime = 0;
+  private lastLogTime = 0;
   private keys: Set<string> = new Set();
+  private mobileInput: {
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    jump: boolean;
+    shoot: boolean;
+    aimUp: boolean;
+    aimDown: boolean;
+  } = {
+    left: false,
+    right: false,
+    up: false,
+    down: false,
+    jump: false,
+    shoot: false,
+    aimUp: false,
+    aimDown: false
+  };
   private currentLevelIndex = 0;
   private get currentLevelName() {
     return LEVEL_ORDER[this.currentLevelIndex];
@@ -110,6 +131,19 @@ export class GameEngine {
     console.log('Game paused:', this.paused);
   }
 
+  updateMobileInput(input: {
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    jump: boolean;
+    shoot: boolean;
+    aimUp: boolean;
+    aimDown: boolean;
+  }) {
+    this.mobileInput = input;
+  }
+
   private reset() {
     this.bullets = [];
     this.enemies = [];
@@ -117,8 +151,8 @@ export class GameEngine {
     this.activeEnemies.clear();
     this.particleSystem.clear();
 
-    this.camera.x = 0;
-    this.camera.y = 0;
+    this.camera.bottomLeftWorldX = 0;
+    this.camera.bottomLeftWorldY = 0;
 
     this.player.reset(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
   }
@@ -129,6 +163,9 @@ export class GameEngine {
     const config = this.currentLevelConfig;
     this.terrain = new Terrain(config.terrainColor);
     this.terrain.generateTerrain(config.terrain);
+    
+    // Set terrain reference in camera
+    this.camera.setTerrain(this.terrain);
     
     console.log(`[initLevel] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
     console.log(`Level ${levelName} initialized`);
@@ -230,7 +267,7 @@ export class GameEngine {
 
   private activateNearbyEnemies() {
     const screenWidth = GameEngine.SCREEN_WIDTH;
-    const cameraX = this.camera.x;
+    const cameraX = this.camera.bottomLeftWorldX;
     let activatedCount = 0;
     // Activate enemies within 2 screens of the camera
     this.allEnemies.forEach(enemy => {
@@ -258,16 +295,16 @@ export class GameEngine {
   }
 
   private updatePlayer(deltaTime: number) {
-    // Handle player input
+    // Handle player input - combine keyboard and mobile input
     const input = {
-      left: this.keys.has("KeyA") || this.keys.has("ArrowLeft"),
-      right: this.keys.has("KeyD") || this.keys.has("ArrowRight"),
-      up: this.keys.has("KeyW") || this.keys.has("ArrowUp"),
-      down: this.keys.has("KeyS") || this.keys.has("ArrowDown"),
-      jump: this.keys.has("Space"),
-      shoot: this.keys.has("KeyJ"),
-      aimUp: this.keys.has("KeyI"),
-      aimDown: this.keys.has("KeyK")
+      left: this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.mobileInput.left,
+      right: this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.mobileInput.right,
+      up: this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.mobileInput.up,
+      down: this.keys.has("KeyS") || this.keys.has("ArrowDown") || this.mobileInput.down,
+      jump: this.keys.has("Space") || this.mobileInput.jump,
+      shoot: this.keys.has("KeyJ") || this.mobileInput.shoot,
+      aimUp: this.keys.has("KeyI") || this.mobileInput.aimUp,
+      aimDown: this.keys.has("KeyK") || this.mobileInput.aimDown
     };
 
     this.player.update(deltaTime, input, this.terrain);
@@ -353,13 +390,23 @@ export class GameEngine {
   }
 
   private render() {
+    // Log camera position once per second
+    const now = Date.now();
+    if (!this.lastLogTime || now - this.lastLogTime > 1000) {
+      console.log(`Camera bottom-left: (${this.camera.bottomLeftWorldX.toFixed(1)}, ${this.camera.bottomLeftWorldY.toFixed(1)})`);
+      console.log(`Canvas size: ${this.canvas.width} x ${this.canvas.height}`);
+      console.log(`Camera transform: translate(${-this.camera.bottomLeftWorldX}, ${-this.camera.bottomLeftWorldY})`);
+      console.log(`Camera transform with toScreenY: translate(${-this.camera.bottomLeftWorldX}, ${this.camera.toScreenY(-this.camera.bottomLeftWorldY)}`);
+      this.lastLogTime = now;
+    }
+
     // Clear canvas with white background
     this.ctx.fillStyle = "white";
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
 
     // Save context and apply camera transform
     this.ctx.save();
-    this.ctx.translate(-this.camera.x, -this.camera.y);
+    this.ctx.translate(-this.camera.bottomLeftWorldX, this.camera.toScreenY(-this.camera.bottomLeftWorldY));
 
     // Render terrain
     this.terrain.render(this.ctx);

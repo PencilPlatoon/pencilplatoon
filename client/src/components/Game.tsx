@@ -1,9 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import GameCanvas from "./GameCanvas";
 import GameUI from "./GameUI";
+import MobileControls from "./MobileControls";
 import { GameEngine } from "../game/GameEngine";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { useAudio } from "../lib/stores/useAudio";
+import { useIsMobile } from "../hooks/use-is-mobile";
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -11,6 +13,7 @@ export default function Game() {
   const [isGameInitialized, setIsGameInitialized] = useState(false);
   const { phase, start, end, debugMode, restart } = useGameStore();
   const { backgroundMusic, isMusicMuted } = useAudio();
+  const isMobile = useIsMobile();
 
   useEffect(() => {
     if (canvasRef.current && !gameEngineRef.current) {
@@ -33,6 +36,8 @@ export default function Game() {
     }
     window.__DEBUG_MODE__ = debugMode;
   }, [debugMode]);
+
+
 
   const handleStartGame = () => {
     if (gameEngineRef.current) {
@@ -67,6 +72,21 @@ export default function Game() {
     }
   };
 
+  const handleMobileInput = (input: {
+    left: boolean;
+    right: boolean;
+    up: boolean;
+    down: boolean;
+    jump: boolean;
+    shoot: boolean;
+    aimUp: boolean;
+    aimDown: boolean;
+  }) => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.updateMobileInput(input);
+    }
+  };
+
   return (
     <div className="relative w-full h-full">
       <GameCanvas ref={canvasRef} />
@@ -78,6 +98,9 @@ export default function Game() {
         onNextLevel={handleNextLevel}
         isInitialized={isGameInitialized}
       />
+      {(isMobile || debugMode) && phase === "playing" && (
+        <MobileControls onInput={handleMobileInput} />
+      )}
     </div>
   );
 }

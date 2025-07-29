@@ -66,6 +66,22 @@ You have two options:
 - `server/` - Express backend (static files)
 - `shared/` - Shared types and schema
 
+## Mobile Controls
+
+The game is fully playable on mobile devices! When playing on a mobile device, touch controls will automatically appear:
+
+**Left Side (Movement):**
+- **Left Arrow (←)**: Move left
+- **Right Arrow (→)**: Move right  
+- **Up Arrow (↑)**: Jump
+
+**Right Side (Combat):**
+- **Shoot Button (🔫)**: Fire weapon
+- **Aim Up (↑)**: Aim upward
+- **Aim Down (↓)**: Aim downward
+
+The controls are positioned for comfortable thumb access and provide visual feedback when pressed.
+
 ## Notes
 - Setup is required; all game logic runs client-side.
 - Static assets (sounds, textures, models) are served from the `public` directory.
