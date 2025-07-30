@@ -129,6 +129,11 @@ export class GameEngine {
   togglePause() {
     this.paused = !this.paused;
     console.log('Game paused:', this.paused);
+    if (!this.paused && this.isRunning) {
+      // Reset lastTime to avoid large deltaTime jump
+      this.lastTime = performance.now();
+      this.gameLoop(this.lastTime);
+    }
   }
 
   getPaused(): boolean {
@@ -229,9 +234,12 @@ export class GameEngine {
       const deltaTime = (currentTime - this.lastTime) / 1000;
       this.lastTime = currentTime;
       this.update(deltaTime);
+      this.render();
+      requestAnimationFrame((time) => this.gameLoop(time));
+    } else {
+      // Still render the paused frame once, but do not continue the loop
+      this.render();
     }
-    this.render();
-    requestAnimationFrame((time) => this.gameLoop(time));
   }
 
   private update(deltaTime: number) {
