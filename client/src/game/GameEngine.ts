@@ -159,8 +159,7 @@ export class GameEngine {
     this.activeEnemies.clear();
     this.particleSystem.clear();
 
-    this.camera.bottomLeftWorldX = 0;
-    this.camera.bottomLeftWorldY = 0;
+    this.camera.reset();
 
     this.player.reset(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
   }
