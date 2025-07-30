@@ -82,7 +82,7 @@ export class Enemy implements GameObject {
     // Apply gravity and update position
     Physics.applyGravity(this, deltaTime);
     // Clamp x to valid terrain range
-    this.transform.position.x = Math.max(0, Math.min(this.transform.position.x, terrain.getLevelWidth()));
+    this.transform.position.x = Math.max(50, Math.min(this.transform.position.x, terrain.getLevelWidth()));
 
     // Terrain collision with gravity
     this.handleTerrainCollision(terrain);

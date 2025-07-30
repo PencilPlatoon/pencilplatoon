@@ -71,7 +71,7 @@ export class Player implements GameObject {
   }
 
   reset(x: number, y: number) {
-    this.transform.setPosition(x, y);
+    this.transform.setPosition(Math.max(50, x), y);
     this.velocity = { x: 0, y: 1 };
     this.health = Player.MAX_HEALTH;
     this.active = true;
@@ -106,6 +106,9 @@ export class Player implements GameObject {
 
     // Apply gravity and update position
     Physics.applyGravity(this, deltaTime);
+
+    // Clamp x position to at least 50
+    this.transform.position.x = Math.max(50, this.transform.position.x);
 
     // Terrain collision
     this.handleTerrainCollision(terrain);
