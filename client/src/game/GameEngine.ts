@@ -462,7 +462,7 @@ export class GameEngine {
     this.ctx.font = "16px Arial";
     this.ctx.fillText(`Health: ${this.player.health}/${Player.MAX_HEALTH}`, 22, 60);
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 80);
-    this.ctx.fillText(`Enemies: ${this.enemies.length}`, 22, 100);
+    this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 100);
     
     // Progress indicator
     const levelWidth = this.terrain.getLevelWidth();
