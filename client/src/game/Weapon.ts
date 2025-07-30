@@ -190,27 +190,35 @@ export class Weapon {
     capacity: 12,
   };
 
-  static readonly MACHINE_GUN: WeaponType = {
-    name: "Machine Gun",
-    damage: 15,
-    fireInterval: 100,
-    bulletSpeed: 700,
-    bulletColor: "yellow",
-    weaponLength: 16,
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
-    capacity: 100,
-  };
+  // static readonly MACHINE_GUN: WeaponType = {
+  //   name: "Machine Gun",
+  //   damage: 15,
+  //   fireInterval: 100,
+  //   bulletSpeed: 700,
+  //   bulletColor: "yellow",
+  //   weaponLength: 16,
+  //   holdRelativeX: 0.5,
+  //   holdRelativeY: 0.5,
+  //   capacity: 100,
+  // };
 
-  static readonly SNIPER: WeaponType = {
-    name: "Sniper",
-    damage: 50,
-    fireInterval: 1000,
-    bulletSpeed: 1200,
-    bulletColor: "red",
-    weaponLength: 28,
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
-    capacity: 5,
-  };
+  // static readonly SNIPER: WeaponType = {
+  //   name: "Sniper",
+  //   damage: 50,
+  //   fireInterval: 1000,
+  //   bulletSpeed: 1200,
+  //   bulletColor: "red",
+  //   weaponLength: 28,
+  //   holdRelativeX: 0.5,
+  //   holdRelativeY: 0.5,
+  //   capacity: 5,
+  // };
+
+  static readonly ALL_WEAPONS: WeaponType[] = [
+    Weapon.WEBLEY_REVOLVER,
+    Weapon.RIFLE_A_MAIN_OFFENSIVE,
+    Weapon.FNAF_BATTLE_RIFLE,
+    Weapon.M270_BREACHER_SHOTGUN,
+    Weapon.PTS_27_ANTITANK_GUN,
+  ];
 }

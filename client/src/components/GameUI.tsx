@@ -11,10 +11,13 @@ interface GameUIProps {
   onRestartLevel: () => void;
   onRestartGame: () => void;
   onNextLevel: () => void;
+  onSwitchWeapon?: () => void;
+  onPause?: () => void;
+  isPaused?: boolean;
   isInitialized: boolean;
 }
 
-export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, isInitialized }: GameUIProps) {
+export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onPause, isPaused, isInitialized }: GameUIProps) {
   const { isSoundMuted, isMusicMuted, toggleSoundMute, toggleMusicMute } = useAudio();
   const debugMode = useGameStore((state) => state.debugMode);
   const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
@@ -82,6 +85,7 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
               <p>Use WASD or Arrow Keys to move</p>
               <p>Space to jump</p>
               <p>J to shoot, I/K to aim up/down</p>
+              <p>C to switch weapon</p>
             </div>
             <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
               Start Game
@@ -152,9 +156,29 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
 
   // Playing phase - show minimal UI
   return (
-    <div className="absolute top-4 right-4 z-10 flex flex-col gap-2 items-end">
+    <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
       {MusicIconCheckbox}
       {SoundIconCheckbox}
+      {onPause && (
+        <Button 
+          onClick={onPause} 
+          variant="outline" 
+          size="sm"
+          className="text-xs px-2 py-1"
+        >
+          {isPaused ? "▶️ Resume" : "⏸️ Pause"}
+        </Button>
+      )}
+      {onSwitchWeapon && (
+        <Button 
+          onClick={onSwitchWeapon} 
+          variant="outline" 
+          size="sm"
+          className="text-xs px-2 py-1"
+        >
+          🔄 Weapon
+        </Button>
+      )}
     </div>
   );
 }

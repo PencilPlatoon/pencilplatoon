@@ -44,6 +44,7 @@ export class Player implements GameObject {
   private weaponRelative: EntityTransform; // Relative weapon transform
   private lastCollisionDebugX: number | null = null;
   private aimAngle: number = 0; // Angle of the arm/aim
+  private currentWeaponIndex: number = 0;
 
   constructor(x: number, y: number) {
     this.id = "player";
@@ -135,6 +136,12 @@ export class Player implements GameObject {
 
   canShoot(): boolean {
     return this.weapon.canShoot();
+  }
+
+  switchToNextWeapon(): void {
+    this.currentWeaponIndex = (this.currentWeaponIndex + 1) % Weapon.ALL_WEAPONS.length;
+    this.weapon = new Weapon(Weapon.ALL_WEAPONS[this.currentWeaponIndex]);
+    console.log(`Switched to weapon: ${this.weapon.name}`);
   }
 
   shoot(): Bullet | null {

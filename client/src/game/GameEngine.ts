@@ -131,6 +131,10 @@ export class GameEngine {
     console.log('Game paused:', this.paused);
   }
 
+  getPaused(): boolean {
+    return this.paused;
+  }
+
   updateMobileInput(input: {
     left: boolean;
     right: boolean;
@@ -142,6 +146,10 @@ export class GameEngine {
     aimDown: boolean;
   }) {
     this.mobileInput = input;
+  }
+
+  switchWeapon(): void {
+    this.player.switchToNextWeapon();
   }
 
   private reset() {
@@ -177,6 +185,9 @@ export class GameEngine {
       this.keys.add(e.code);
       if (e.code === 'KeyP') {
         this.togglePause();
+      }
+      if (e.code === 'KeyC') {
+        this.player.switchToNextWeapon();
       }
     });
 
@@ -431,19 +442,6 @@ export class GameEngine {
   }
 
   private renderUI() {
-    // Pause button
-    const buttonWidth = 80;
-    const buttonHeight = 32;
-    const buttonX = 22;
-    const buttonY = 160;
-    this.ctx.fillStyle = this.paused ? '#aaa' : '#222';
-    this.ctx.fillRect(buttonX, buttonY, buttonWidth, buttonHeight);
-    this.ctx.fillStyle = 'white';
-    this.ctx.font = '18px Arial';
-    this.ctx.fillText(this.paused ? 'Resume' : 'Pause', buttonX + 10, buttonY + 22);
-    // Listen for click
-    this.canvas.addEventListener('click', this.handlePauseButtonClick);
-
     // Health bar
     const healthBarWidth = 200;
     const healthBarHeight = 20;
@@ -507,16 +505,4 @@ export class GameEngine {
     }
   }
 
-  handlePauseButtonClick = (e: MouseEvent) => {
-    const rect = this.canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-    const buttonX = 22;
-    const buttonY = 160;
-    const buttonWidth = 80;
-    const buttonHeight = 32;
-    if (x >= buttonX && x <= buttonX + buttonWidth && y >= buttonY && y <= buttonY + buttonHeight) {
-      this.togglePause();
-    }
-  }
 }

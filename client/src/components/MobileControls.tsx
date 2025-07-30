@@ -67,15 +67,16 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
   };
 
   const handleTouchStart = (e: TouchEvent) => {
-    e.preventDefault();
     const newActiveTouches = new Set(activeTouches);
     const newInput = { ...input };
+    let handledTouch = false;
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const area = getTouchArea(touch.clientX, touch.clientY);
       
       if (area) {
+        handledTouch = true;
         newActiveTouches.add(area.id);
         switch (area.action) {
           case 'left':
@@ -84,7 +85,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
           case 'right':
             newInput.right = true;
             break;
-          case 'jump':
+            case 'jump':
             newInput.jump = true;
             break;
           case 'shoot':
@@ -100,21 +101,27 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
       }
     }
 
+    // Only prevent default if we handled the touch
+    if (handledTouch) {
+      e.preventDefault();
+    }
+
     setActiveTouches(newActiveTouches);
     setInput(newInput);
     onInput(newInput);
   };
 
   const handleTouchEnd = (e: TouchEvent) => {
-    e.preventDefault();
     const newActiveTouches = new Set(activeTouches);
     const newInput = { ...input };
+    let handledTouch = false;
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const area = getTouchArea(touch.clientX, touch.clientY);
       
       if (area) {
+        handledTouch = true;
         newActiveTouches.delete(area.id);
         switch (area.action) {
           case 'left':
@@ -139,23 +146,34 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
       }
     }
 
+    // Only prevent default if we handled the touch
+    if (handledTouch) {
+      e.preventDefault();
+    }
+
     setActiveTouches(newActiveTouches);
     setInput(newInput);
     onInput(newInput);
   };
 
   const handleTouchMove = (e: TouchEvent) => {
-    e.preventDefault();
     // Handle continuous touch movement for aiming
     const newInput = { ...input };
+    let handledTouch = false;
 
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const area = getTouchArea(touch.clientX, touch.clientY);
       
       if (area && area.action === 'shoot') {
+        handledTouch = true;
         newInput.shoot = true;
       }
+    }
+
+    // Only prevent default if we handled the touch
+    if (handledTouch) {
+      e.preventDefault();
     }
 
     setInput(newInput);

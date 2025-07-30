@@ -11,6 +11,7 @@ export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const gameEngineRef = useRef<GameEngine | null>(null);
   const [isGameInitialized, setIsGameInitialized] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const { phase, start, end, debugMode, restart } = useGameStore();
   const { backgroundMusic, isMusicMuted } = useAudio();
   const isMobile = useIsMobile();
@@ -42,6 +43,7 @@ export default function Game() {
   const handleStartGame = () => {
     if (gameEngineRef.current) {
       gameEngineRef.current.start();
+      setIsPaused(false);
       start();
     }
   };
@@ -50,6 +52,7 @@ export default function Game() {
     if (gameEngineRef.current) {
       restart();
       gameEngineRef.current.restartLevel();
+      setIsPaused(false);
       start();
       gameEngineRef.current.start();
     }
@@ -59,6 +62,7 @@ export default function Game() {
     if (gameEngineRef.current) {
       restart();
       gameEngineRef.current.restartGame();
+      setIsPaused(false);
       start();
       gameEngineRef.current.start();
     }
@@ -67,6 +71,7 @@ export default function Game() {
   const handleNextLevel = () => {
     if (gameEngineRef.current) {
       gameEngineRef.current.nextLevel();
+      setIsPaused(false);
       start();
       gameEngineRef.current.start();
     }
@@ -87,6 +92,19 @@ export default function Game() {
     }
   };
 
+  const handleSwitchWeapon = () => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.switchWeapon();
+    }
+  };
+
+  const handlePause = () => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.togglePause();
+      setIsPaused(gameEngineRef.current.getPaused());
+    }
+  };
+
   return (
     <div className="relative w-full h-full">
       <GameCanvas ref={canvasRef} />
@@ -96,6 +114,9 @@ export default function Game() {
         onRestartLevel={handleRestartLevel}
         onRestartGame={handleRestartGame}
         onNextLevel={handleNextLevel}
+        onSwitchWeapon={handleSwitchWeapon}
+        onPause={handlePause}
+        isPaused={isPaused}
         isInitialized={isGameInitialized}
       />
       {(isMobile || debugMode) && phase === "playing" && (
