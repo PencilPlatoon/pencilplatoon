@@ -181,6 +181,7 @@ export class GameEngine {
   private setupEventListeners() {
     // Keyboard events
     window.addEventListener("keydown", (e) => {
+      e.stopPropagation();
       this.keys.add(e.code);
       if (e.code === 'KeyP') {
         this.togglePause();
@@ -191,6 +192,7 @@ export class GameEngine {
     });
 
     window.addEventListener("keyup", (e) => {
+      e.stopPropagation();
       this.keys.delete(e.code);
     });
   }
