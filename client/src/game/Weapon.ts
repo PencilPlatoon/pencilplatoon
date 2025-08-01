@@ -190,17 +190,18 @@ export class Weapon {
     capacity: 12,
   };
 
-  // static readonly MACHINE_GUN: WeaponType = {
-  //   name: "Machine Gun",
-  //   damage: 15,
-  //   fireInterval: 100,
-  //   bulletSpeed: 700,
-  //   bulletColor: "yellow",
-  //   weaponLength: 16,
-  //   holdRelativeX: 0.5,
-  //   holdRelativeY: 0.5,
-  //   capacity: 100,
-  // };
+  static readonly BROWNING_MK3_MACHINE_GUN: WeaponType = {
+    name: "Browning Mk3",
+    damage: 15,
+    fireInterval: 100,
+    bulletSpeed: 700,
+    bulletColor: "yellow",
+    weaponLength: 60,
+    svgPath: "svg/browning-mk3.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.25,
+    capacity: 100,
+  };
 
   // static readonly SNIPER: WeaponType = {
   //   name: "Sniper",
@@ -220,5 +221,6 @@ export class Weapon {
     Weapon.FNAF_BATTLE_RIFLE,
     Weapon.M270_BREACHER_SHOTGUN,
     Weapon.PTS_27_ANTITANK_GUN,
+    Weapon.BROWNING_MK3_MACHINE_GUN,
   ];
 }
