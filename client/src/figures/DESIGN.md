@@ -15,3 +15,10 @@ See generally-applicable principles in client/src/DESIGN.md.
   - Sub principle: Define body parts as relative offsets from central coordinate system
     - Implementation: Build up figure from legs → body → neck → head
     - Implementation: Position arms relative to body bottom
+
+- Principle: Make figure animation easy to reason about
+  - Sub principle: Model joint constraints realistically
+    - Implementation: Prevent joints from moving to impossible positions (e.g., knee bending angles)
+  - Sub principle: Use phase-based animation for coordinated movement
+    - Implementation: Use sine/cosine functions for smooth cyclic motion
+    - Implementation: Coordinate opposite phases for natural movement (e.g., left/right legs)
