@@ -2,7 +2,7 @@
 
 This document outlines the design principles specific to the game classes for the game's logic and state management.
 
-See generally-applicable principles in client/src/DESIGN_PRINCIPLES.md.
+See generally-applicable principles in client/src/DESIGN.md.
 
 ## Design Principles for client/src/game
 

@@ -2,6 +2,8 @@
 
 This document outlines the design principles used in the figure classes for the game's rendering system.
 
+See generally-applicable principles in client/src/DESIGN.md.
+
 ## Shared Design Principles
 
 - Principle: Make program state easy to reason about
