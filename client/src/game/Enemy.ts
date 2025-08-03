@@ -24,7 +24,7 @@ export class Enemy implements GameObject {
   health: number;
   
   public static readonly MAX_HEALTH = 75;
-  private static readonly SPEED = 150;
+  private static readonly SPEED = 125;
   private static readonly DETECTION_RANGE = 400;
   private static readonly SHOOTING_RANGE = 300;
   private static readonly PATROL_RANGE = 200;
@@ -37,6 +37,9 @@ export class Enemy implements GameObject {
   private patrolDirection = 1;
   private patrolStartX: number;
   private aimAngle: number = 0; // Angle of the arm/aim
+  private walkCycle: number = 0; // Walking animation cycle
+  private isWalking: boolean = false;
+  private lastX: number = 0;
 
   constructor(x: number, y: number, id: string) {
     this.id = id;
@@ -47,6 +50,7 @@ export class Enemy implements GameObject {
     this.active = true;
     this.health = Enemy.MAX_HEALTH;
     this.patrolStartX = x;
+    this.lastX = x;
     
     this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
     this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
@@ -66,6 +70,16 @@ export class Enemy implements GameObject {
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
+    this.isWalking = Math.abs(this.velocity.x) > 0;
+    
+    // Update walk cycle for animation
+    if (this.isWalking) {
+      this.walkCycle = HumanFigure.updateWalkCycle(this.lastX, this.transform.position.x, this.walkCycle);
+    } else {
+      this.walkCycle = 0;
+    }
+    this.lastX = this.transform.position.x;
+
     const distanceToPlayer = Math.sqrt(
       Math.pow(playerPos.x - this.transform.position.x, 2) + 
       Math.pow(playerPos.y - this.transform.position.y, 2)
@@ -192,7 +206,9 @@ export class Enemy implements GameObject {
       ctx,
       transform: this.transform,
       active: this.active,
-      aimAngle: this.aimAngle
+      aimAngle: this.aimAngle,
+      isWalking: this.isWalking,
+      walkCycle: this.walkCycle
     });
   }
 

@@ -35,7 +35,7 @@ export class Player implements GameObject {
   health: number;
   
   public static readonly MAX_HEALTH = 100;
-  private static readonly SPEED = 300;
+  private static readonly SPEED = 200;
   private static readonly JUMP_FORCE = 600;
   private static readonly HEALTHBAR_OFFSET_Y = 20;
 
@@ -45,6 +45,9 @@ export class Player implements GameObject {
   private lastCollisionDebugX: number | null = null;
   private aimAngle: number = 0; // Angle of the arm/aim
   private currentWeaponIndex: number = 0;
+  private walkCycle: number = 0; // Walking animation cycle
+  private isWalking: boolean = false;
+  private lastX: number = 0;
 
   constructor(x: number, y: number) {
     this.id = "player";
@@ -72,6 +75,7 @@ export class Player implements GameObject {
 
   reset(x: number, y: number) {
     this.transform.setPosition(Math.max(50, x), y);
+    this.lastX = this.transform.position.x;
     this.velocity = { x: 0, y: 1 };
     this.health = Player.MAX_HEALTH;
     this.active = true;
@@ -79,6 +83,16 @@ export class Player implements GameObject {
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
+    this.isWalking = input.left || input.right;
+    
+    // Update walk cycle for animation
+    if (this.isWalking) {
+      this.walkCycle = HumanFigure.updateWalkCycle(this.lastX, this.transform.position.x, this.walkCycle);
+    } else {
+      this.walkCycle = 0;
+    }
+    this.lastX = this.transform.position.x;
+
     // Horizontal movement
     if (input.left) {
       this.velocity.x = -Player.SPEED;
@@ -189,7 +203,9 @@ export class Player implements GameObject {
       ctx,
       transform: this.transform,
       active: this.active,
-      aimAngle: this.aimAngle
+      aimAngle: this.aimAngle,
+      isWalking: this.isWalking,
+      walkCycle: this.walkCycle
     });
   }
 }
