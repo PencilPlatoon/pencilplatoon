@@ -157,6 +157,10 @@ export class GameEngine {
     this.player.switchToNextWeapon();
   }
 
+  reloadWeapon(): void {
+    this.player.reloadWeapon();
+  }
+
   private reset() {
     this.bullets = [];
     this.enemies = [];
@@ -193,6 +197,9 @@ export class GameEngine {
       }
       if (e.code === 'KeyC') {
         this.player.switchToNextWeapon();
+      }
+      if (e.code === 'KeyR') {
+        this.player.reloadWeapon();
       }
     });
 
@@ -474,6 +481,7 @@ export class GameEngine {
     this.ctx.fillStyle = "black";
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 60);
     this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 80);
+    this.ctx.fillText(`Ammo: ${this.player.weapon.getBulletsLeft()}/${this.player.weapon.getCapacity()}`, 22, 100);
     
     // Progress indicator
     if (this.debugMode) {

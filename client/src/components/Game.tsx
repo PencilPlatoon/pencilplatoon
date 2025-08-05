@@ -98,6 +98,12 @@ export default function Game() {
     }
   };
 
+  const handleReload = () => {
+    if (gameEngineRef.current) {
+      gameEngineRef.current.reloadWeapon();
+    }
+  };
+
   const handlePause = () => {
     if (gameEngineRef.current) {
       gameEngineRef.current.togglePause();
@@ -115,6 +121,7 @@ export default function Game() {
         onRestartGame={handleRestartGame}
         onNextLevel={handleNextLevel}
         onSwitchWeapon={handleSwitchWeapon}
+        onReload={handleReload}
         onPause={handlePause}
         isPaused={isPaused}
         isInitialized={isGameInitialized}

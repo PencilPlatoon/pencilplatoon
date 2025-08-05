@@ -21,6 +21,7 @@ export class Weapon {
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
   isLoaded: boolean;
+  bulletsLeft: number;
   private lastShotTime = 0;
   private _loadPromise: Promise<void>;
 
@@ -36,6 +37,7 @@ export class Weapon {
     this.holdRelativeX = weaponType.holdRelativeX;
     this.holdRelativeY = weaponType.holdRelativeY;
     this.capacity = weaponType.capacity ?? 0;
+    this.bulletsLeft = this.capacity;
     this.isLoaded = false;
     this._loadPromise = Promise.resolve();
     // Default to basic weapon
@@ -78,12 +80,13 @@ export class Weapon {
   }
 
   canShoot(): boolean {
-    return Date.now() - this.lastShotTime > this.fireInterval;
+    return Date.now() - this.lastShotTime > this.fireInterval && this.bulletsLeft > 0;
   }
 
   shoot(transform: EntityTransform): Bullet | null {
     if (!this.canShoot()) return null;
     this.lastShotTime = Date.now();
+    this.bulletsLeft--;
     const weaponEndX = transform.position.x + Math.cos(transform.rotation) * this.weaponLength * transform.facing;
     const weaponEndY = transform.position.y + Math.sin(transform.rotation) * this.weaponLength;
     const direction = { x: Math.cos(transform.rotation) * transform.facing, y: Math.sin(transform.rotation) };
@@ -95,6 +98,18 @@ export class Weapon {
       this.damage,
       this.bulletColor
     );
+  }
+
+  reload(): void {
+    this.bulletsLeft = this.capacity;
+  }
+
+  getBulletsLeft(): number {
+    return this.bulletsLeft;
+  }
+
+  getCapacity(): number {
+    return this.capacity;
   }
 
   render({

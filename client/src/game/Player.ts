@@ -161,6 +161,11 @@ export class Player implements GameObject {
     console.log(`Switched to weapon: ${this.weapon.name}`);
   }
 
+  reloadWeapon(): void {
+    this.weapon.reload();
+    console.log(`Reloaded weapon: ${this.weapon.name}`);
+  }
+
   shoot(): Bullet | null {
     const weaponTransform = this.getAbsoluteWeaponTransform();
     return this.weapon.shoot(weaponTransform);

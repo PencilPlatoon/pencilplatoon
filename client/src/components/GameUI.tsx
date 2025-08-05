@@ -12,12 +12,13 @@ interface GameUIProps {
   onRestartGame: () => void;
   onNextLevel: () => void;
   onSwitchWeapon?: () => void;
+  onReload?: () => void;
   onPause?: () => void;
   isPaused?: boolean;
   isInitialized: boolean;
 }
 
-export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onPause, isPaused, isInitialized }: GameUIProps) {
+export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onReload, onPause, isPaused, isInitialized }: GameUIProps) {
   const { isSoundMuted, isMusicMuted, toggleSoundMute, toggleMusicMute } = useAudio();
   const debugMode = useGameStore((state) => state.debugMode);
   const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
@@ -85,7 +86,7 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
               <p>Use WASD or Arrow Keys to move</p>
               <p>Space to jump</p>
               <p>J to shoot, I/K to aim up/down</p>
-              <p>C to switch weapon</p>
+              <p>C to switch weapon, R to reload</p>
             </div>
             <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
               Start Game
@@ -177,6 +178,16 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
           className="text-xs px-2 py-1"
         >
           🔄 Weapon
+        </Button>
+      )}
+      {onReload && (
+        <Button 
+          onClick={onReload} 
+          variant="outline" 
+          size="sm"
+          className="text-xs px-2 py-1"
+        >
+          🔄 Reload
         </Button>
       )}
     </div>
