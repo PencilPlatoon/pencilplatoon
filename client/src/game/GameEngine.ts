@@ -465,53 +465,73 @@ export class GameEngine {
     this.ctx.fillStyle = "green";
     this.ctx.fillRect(22, 22, healthBarWidth * healthPercentage, healthBarHeight);
 
-    // Game info text
-    this.ctx.fillStyle = "black";
+    // Overlay health text in white on top of the health bar
+    this.ctx.fillStyle = "white";
     this.ctx.font = "16px Arial";
-    this.ctx.fillText(`Health: ${this.player.health}/${Player.MAX_HEALTH}`, 22, 60);
-    this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 80);
-    this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 100);
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(`Health: ${this.player.health}/${Player.MAX_HEALTH}`, 22 + healthBarWidth / 2, 22 + healthBarHeight / 2 + 6);
+    this.ctx.textAlign = "left"; // Reset text alignment
+    this.ctx.fillStyle = "black";
+    this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 60);
+    this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 80);
     
     // Progress indicator
+    if (this.debugMode) {
+      this.renderProgressBar();
+    }
+
+    // Debug info at bottom of screen
+    if (this.debugMode) {
+      this.renderDebugInfo();
+    }
+  }
+
+  private renderProgressBar() {
     const levelWidth = this.terrain.getLevelWidth();
     const progressPercentage = Math.min(this.player.transform.position.x / levelWidth, 1);
     const progressBarWidth = 200;
     const progressBarHeight = 10;
     
+    // Position at bottom left with padding
+    const padding = 20;
+    const progressBarY = this.canvas.height - padding - progressBarHeight;
+    
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
-    this.ctx.fillRect(20, 110, progressBarWidth + 4, progressBarHeight + 4);
+    this.ctx.fillRect(padding, progressBarY, progressBarWidth + 4, progressBarHeight + 4);
     
     this.ctx.fillStyle = "lightblue";
-    this.ctx.fillRect(22, 112, progressBarWidth * progressPercentage, progressBarHeight);
+    this.ctx.fillRect(padding + 2, progressBarY + 2, progressBarWidth * progressPercentage, progressBarHeight);
     
-    this.ctx.fillStyle = "black";
+    // Overlay percentage text in white on top of the bar
+    this.ctx.fillStyle = "white";
     this.ctx.font = "12px Arial";
-    this.ctx.fillText(`Progress: ${Math.round(progressPercentage * 100)}%`, 22, 135);
+    this.ctx.textAlign = "center";
+    this.ctx.fillText(`${Math.round(progressPercentage * 100)}%`, padding + progressBarWidth / 2, progressBarY + progressBarHeight / 2 + 6);
+    this.ctx.textAlign = "left"; // Reset text alignment
+  }
 
-    // Debug info at bottom of screen
-    if (this.debugMode) {
-      const player = this.player;
-      const terrainHeight = this.terrain.getHeightAt(player.transform.position.x);
-      const playerTop = player.transform.position.y - player.bounds.height / 2;
-      const debugLines = [
-        `Debug Info:`,
-        `Terrain Height: ${terrainHeight?.toFixed(2)}`,
-        `Player X: ${player.transform.position.x.toFixed(2)}`,
-        `Player Y: ${player.transform.position.y.toFixed(2)}`,
-        `Player Top: ${playerTop.toFixed(2)}`,
-        `Velocity X: ${player.velocity.x.toFixed(2)}`,
-        `Velocity Y: ${player.velocity.y.toFixed(2)}`
-      ];
-      this.ctx.font = "14px monospace";
-      this.ctx.fillStyle = "#222";
-      // Position debug info above the bottom edge, with padding
-      const padding = 20;
-      const lineHeight = 20;
-      const startY = this.canvas.height - padding - debugLines.length * lineHeight;
-      debugLines.forEach((line, i) => {
-        this.ctx.fillText(line, 30, startY + i * lineHeight);
-      });
-    }
+  private renderDebugInfo() {
+    const player = this.player;
+    const terrainHeight = this.terrain.getHeightAt(player.transform.position.x);
+    const playerTop = player.transform.position.y - player.bounds.height / 2;
+    const debugLines = [
+      `Debug Info:`,
+      `Terrain Height: ${terrainHeight?.toFixed(2)}`,
+      `Player X: ${player.transform.position.x.toFixed(2)}`,
+      `Player Y: ${player.transform.position.y.toFixed(2)}`,
+      `Player Top: ${playerTop.toFixed(2)}`,
+      `Velocity X: ${player.velocity.x.toFixed(2)}`,
+      `Velocity Y: ${player.velocity.y.toFixed(2)}`
+    ];
+    this.ctx.font = "14px monospace";
+    this.ctx.fillStyle = "#222";
+    // Position debug info above the bottom edge, with padding
+    const padding = 20;
+    const lineHeight = 20;
+    const startY = this.canvas.height - padding - debugLines.length * lineHeight;
+    debugLines.forEach((line, i) => {
+      this.ctx.fillText(line, 30, startY + i * lineHeight);
+    });
   }
 
 }

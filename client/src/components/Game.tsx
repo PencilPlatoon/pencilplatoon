@@ -119,7 +119,7 @@ export default function Game() {
         isPaused={isPaused}
         isInitialized={isGameInitialized}
       />
-      {(isMobile || debugMode) && phase === "playing" && (
+      {isMobile && phase === "playing" && (
         <MobileControls onInput={handleMobileInput} />
       )}
     </div>
