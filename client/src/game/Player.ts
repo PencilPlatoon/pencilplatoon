@@ -57,7 +57,7 @@ export class Player implements GameObject {
     this.active = false;
     this.health = 0;
     
-    this.weapon = new Weapon(Weapon.WEBLEY_REVOLVER);
+    this.weapon = new Weapon(Weapon.ALL_WEAPONS[0]);
     this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
     
     // Initialize with proper state

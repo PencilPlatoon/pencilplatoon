@@ -169,7 +169,7 @@ export class Weapon {
   static readonly FNAF_BATTLE_RIFLE: WeaponType = {
     name: "FNAF Battle Rifle",
     damage: 25,
-    fireInterval: 200,
+    fireInterval: 150,
     bulletSpeed: 800,
     bulletColor: "orange",
     weaponLength: 70,
@@ -181,7 +181,7 @@ export class Weapon {
 
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
     name: "M270 Breacher",
-    damage: 20,
+    damage: 40,
     fireInterval: 1000,
     bulletSpeed: 600,
     bulletColor: "orange",
@@ -190,6 +190,19 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 8,
+  };
+
+  static readonly R_200_SHOTGUN: WeaponType = {
+    name: "R-200",
+    damage: 20,
+    fireInterval: 1000,
+    bulletSpeed: 600,
+    bulletColor: "orange",
+    weaponLength: 60,
+    svgPath: "svg/r-200.svg",
+    holdRelativeX: 0.4,
+    holdRelativeY: 0.25,
+    capacity: 15,
   };
 
   static readonly PTS_27_ANTITANK_GUN: WeaponType = {
@@ -210,12 +223,25 @@ export class Weapon {
     damage: 15,
     fireInterval: 100,
     bulletSpeed: 700,
-    bulletColor: "yellow",
+    bulletColor: "orange",
     weaponLength: 60,
     svgPath: "svg/browning-mk3.svg",
     holdRelativeX: 0.5,
     holdRelativeY: 0.25,
     capacity: 100,
+  };
+
+  static readonly VP_37_SUBMACHINE_GUN: WeaponType = {
+    name: "VP-37",
+    damage: 7,
+    fireInterval: 50,
+    bulletSpeed: 700,
+    bulletColor: "orange",
+    weaponLength: 45,
+    svgPath: "svg/vp-37.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 20,
   };
 
   // static readonly SNIPER: WeaponType = {
@@ -235,7 +261,9 @@ export class Weapon {
     Weapon.RIFLE_A_MAIN_OFFENSIVE,
     Weapon.FNAF_BATTLE_RIFLE,
     Weapon.M270_BREACHER_SHOTGUN,
+    Weapon.R_200_SHOTGUN,
     Weapon.PTS_27_ANTITANK_GUN,
     Weapon.BROWNING_MK3_MACHINE_GUN,
+    Weapon.VP_37_SUBMACHINE_GUN,
   ];
 }
