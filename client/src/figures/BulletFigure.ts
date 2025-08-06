@@ -7,13 +7,11 @@ export class BulletFigure {
     ctx,
     transform,
     bounds,
-    color,
     active = true
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
     bounds: BoundingBox;
-    color: string;
     active?: boolean;
   }) {
     if (!active) return;
@@ -21,23 +19,12 @@ export class BulletFigure {
 
     const canvasY = toCanvasY(position.y) - bounds.height / 2;
 
-    ctx.fillStyle = color;
+    ctx.fillStyle = "black";
     ctx.fillRect(
       position.x - bounds.width / 2,
       canvasY,
       bounds.width,
       bounds.height
     );
-
-    // Add glow effect
-    ctx.shadowColor = color;
-    ctx.shadowBlur = 4;
-    ctx.fillRect(
-      position.x - bounds.width / 2,
-      canvasY,
-      bounds.width,
-      bounds.height
-    );
-    ctx.shadowBlur = 0;
   }
 } 

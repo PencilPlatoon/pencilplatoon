@@ -11,7 +11,7 @@ export class Weapon {
   damage: number;
   fireInterval: number;
   bulletSpeed: number;
-  bulletColor: string;
+  bulletSize: number;
   weaponLength: number;
   soundEffect?: string;
   svgPath?: string;
@@ -30,7 +30,7 @@ export class Weapon {
     this.damage = weaponType.damage;
     this.fireInterval = weaponType.fireInterval;
     this.bulletSpeed = weaponType.bulletSpeed;
-    this.bulletColor = weaponType.bulletColor;
+    this.bulletSize = weaponType.bulletSize;
     this.weaponLength = weaponType.weaponLength;
     this.soundEffect = weaponType.soundEffect;
     this.svgPath = weaponType.svgPath;
@@ -96,7 +96,7 @@ export class Weapon {
       direction,
       this.bulletSpeed,
       this.damage,
-      this.bulletColor
+      this.bulletSize
     );
   }
 
@@ -145,7 +145,7 @@ export class Weapon {
     damage: 20,
     fireInterval: 300,
     bulletSpeed: 600,
-    bulletColor: "orange",
+    bulletSize: 2,
     weaponLength: 20,
     svgPath: "svg/webley.svg",
     holdRelativeX: 0.25,
@@ -158,7 +158,7 @@ export class Weapon {
     damage: 25,
     fireInterval: 200,
     bulletSpeed: 800,
-    bulletColor: "orange",
+    bulletSize: 3,
     weaponLength: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
     holdRelativeX: 0.5,
@@ -171,7 +171,7 @@ export class Weapon {
     damage: 25,
     fireInterval: 150,
     bulletSpeed: 800,
-    bulletColor: "orange",
+    bulletSize: 3,
     weaponLength: 70,
     svgPath: "svg/fnaf-battle-rifle.svg",
     holdRelativeX: 0.5,
@@ -184,7 +184,7 @@ export class Weapon {
     damage: 40,
     fireInterval: 1000,
     bulletSpeed: 600,
-    bulletColor: "orange",
+    bulletSize: 4,
     weaponLength: 50,
     svgPath: "svg/m270-breacher.svg",
     holdRelativeX: 0.5,
@@ -197,7 +197,7 @@ export class Weapon {
     damage: 20,
     fireInterval: 1000,
     bulletSpeed: 600,
-    bulletColor: "orange",
+    bulletSize: 4,
     weaponLength: 60,
     svgPath: "svg/r-200.svg",
     holdRelativeX: 0.4,
@@ -210,7 +210,7 @@ export class Weapon {
     damage: 60,
     fireInterval: 2000,
     bulletSpeed: 1000,
-    bulletColor: "orange",
+    bulletSize: 5,
     weaponLength: 70,
     svgPath: "svg/pts-27.svg",
     holdRelativeX: 0.5,
@@ -223,7 +223,7 @@ export class Weapon {
     damage: 15,
     fireInterval: 100,
     bulletSpeed: 700,
-    bulletColor: "orange",
+    bulletSize: 3,
     weaponLength: 60,
     svgPath: "svg/browning-mk3.svg",
     holdRelativeX: 0.5,
@@ -236,7 +236,7 @@ export class Weapon {
     damage: 7,
     fireInterval: 50,
     bulletSpeed: 700,
-    bulletColor: "orange",
+    bulletSize: 3,
     weaponLength: 45,
     svgPath: "svg/vp-37.svg",
     holdRelativeX: 0.5,
@@ -249,7 +249,6 @@ export class Weapon {
   //   damage: 50,
   //   fireInterval: 1000,
   //   bulletSpeed: 1200,
-  //   bulletColor: "red",
   //   weaponLength: 28,
   //   holdRelativeX: 0.5,
   //   holdRelativeY: 0.5,

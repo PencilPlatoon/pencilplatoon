@@ -20,7 +20,7 @@ export interface WeaponType {
   damage: number;
   fireInterval: number;
   bulletSpeed: number;
-  bulletColor: string;
+  bulletSize: number;
   weaponLength: number;
   soundEffect?: string;
   svgPath?: string;

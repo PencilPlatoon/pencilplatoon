@@ -18,11 +18,9 @@ export class Bullet implements GameObject {
   bounds: BoundingBox;
   active: boolean;
   damage: number;
-  color: string;
   private lifeTime = 0;
-  private maxLifeTime = 3; // seconds
   private initialPosition: Vector2;
-  private maxTravelDistance = 1000;
+  private maxTravelDistance = 1500;
   public previousPosition: Vector2;
 
   constructor(
@@ -31,7 +29,7 @@ export class Bullet implements GameObject {
     direction: Vector2,
     speed: number,
     damage: number,
-    color: string
+    bulletSize: number
   ) {
     this.id = `bullet_${Date.now()}_${Math.random()}`;
     this.transform = new EntityTransform({ x, y }, 0, 1);
@@ -41,10 +39,9 @@ export class Bullet implements GameObject {
       x: direction.x * speed,
       y: direction.y * speed
     };
-    this.bounds = new BoundingBox(6, 6, 0.5, 0.5);
+    this.bounds = new BoundingBox(bulletSize, bulletSize, 0.5, 0.5);
     this.active = true;
     this.damage = damage;
-    this.color = color;
   }
 
   update(deltaTime: number) {
@@ -57,9 +54,6 @@ export class Bullet implements GameObject {
 
     // Update lifetime
     this.lifeTime += deltaTime;
-    if (this.lifeTime > this.maxLifeTime) {
-      this.deactivate('lifetime');
-    }
 
     // Deactivate if traveled more than maxTravelDistance
     const dx = this.transform.position.x - this.initialPosition.x;
@@ -83,7 +77,6 @@ export class Bullet implements GameObject {
       ctx,
       transform: this.transform,
       bounds: this.bounds,
-      color: this.color,
       active: this.active
     });
 
