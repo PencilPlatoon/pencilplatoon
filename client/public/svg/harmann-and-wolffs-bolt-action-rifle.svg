@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg1"
+   width="312.26599"
+   height="77.191299"
+   viewBox="0 0 312.26599 77.1913"
+   sodipodi:docname="harmann-and-wolffs-bolt-action-rifle.svg"
+   inkscape:version="1.4.2 (ebf0e940, 2025-05-08)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="2.8528434"
+     inkscape:cx="167.37687"
+     inkscape:cy="50.475957"
+     inkscape:window-width="1456"
+     inkscape:window-height="817"
+     inkscape:window-x="0"
+     inkscape:window-y="38"
+     inkscape:window-maximized="0"
+     inkscape:current-layer="g1" />
+  <g
+     inkscape:groupmode="layer"
+     inkscape:label="Image"
+     id="g1"
+     transform="translate(-69.086164,-133.73548)">
+    <path
+       style="display:inline;fill:#000000"
+       d="m 168.19953,168.57414 49.82302,2.99687 0.37461,-5.99374 c 0,0 -3.87458,-0.62039 -5.24453,-1.87305 -1.31943,-1.20647 -2.40223,-3.08875 -2.24765,-4.86992 0.1707,-1.96697 1.71648,-3.79332 3.37148,-4.86992 2.23763,-1.45561 5.33703,-2.3505 7.8668,-1.49844 1.59207,0.53623 2.76962,2.17766 3.37148,3.7461 0.4921,1.28239 0,4.1207 0,4.1207 l 19.10507,0.74922 -2.24766,-3.7461 4.49531,-8.2414 7.49219,5.24453 h 28.84491 l 4.86991,7.49218 16.48281,0.37461 29.59413,6.36836 5.24453,-34.83866 4.1207,1.12383 -4.86992,34.83866 2.62226,4.49531 40.08319,1.12383 v 5.24452 l -152.46595,-0.3746 c 0,0 0.57018,5.24533 -0.44673,7.55347 -1.07619,2.44269 -3.21196,4.51144 -5.5797,5.74381 -3.04735,1.5861 -6.76183,2.03366 -10.17474,1.64109 -3.58263,-0.41209 -7.29091,-1.73458 -10.01064,-4.10272 -2.62516,-2.28579 -5.25149,-9.02599 -5.25149,-9.02599 l -59.55628,-0.41624 -62.666656,29.34633 -6.11382,-3.66829 15.895932,-34.84877 45.853644,4.89105 8.86504,-1.22276 v -3.66829 l 28.12357,0.30569 z"
+       id="path1"
+       sodipodi:nodetypes="cccsssssccccccccccccccccsssscccccccccc" />
+    <path
+       style="fill:#ffffff"
+       d="m 88.289868,178.8519 39.600602,2.75906 -49.987645,21.74787 z"
+       id="path2" />
+    <path
+       style="fill:#ffffff"
+       d="m 224.94441,165.8681 18.50192,0.16229 v 5.03123 l -18.17733,0.1623 z"
+       id="path3" />
+    <path
+       style="fill:#ffffff"
+       d="m 203.52113,179.82569 h 6.8165 l 4.86892,7.62798 3.73285,-2.59676 -3.40825,-5.51812 h 8.43947 c 0,0 0.98385,4.48923 0.1623,6.49191 -0.79866,1.94686 -2.59994,3.57737 -4.54433,4.38203 -2.84974,1.17934 -6.3405,1.18264 -9.25096,0.1623 -2.32052,-0.81352 -4.42575,-2.59182 -5.68042,-4.70663 -1.01234,-1.70635 -1.13608,-5.84271 -1.13608,-5.84271 z"
+       id="path4"
+       sodipodi:nodetypes="ccccccssssc" />
+  </g>
+</svg>
