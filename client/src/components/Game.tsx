@@ -12,7 +12,7 @@ export default function Game() {
   const gameEngineRef = useRef<GameEngine | null>(null);
   const [isGameInitialized, setIsGameInitialized] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const { phase, start, end, debugMode, restart } = useGameStore();
+  const { phase, start, end, debugMode, restart, seed } = useGameStore();
   const { backgroundMusic, isMusicMuted } = useAudio();
   const isMobile = useIsMobile();
 
@@ -42,6 +42,8 @@ export default function Game() {
 
   const handleStartGame = () => {
     if (gameEngineRef.current) {
+      // Set the seed before starting the game
+      gameEngineRef.current.setSeed(seed);
       gameEngineRef.current.start();
       setIsPaused(false);
       start();
@@ -51,6 +53,7 @@ export default function Game() {
   const handleRestartLevel = () => {
     if (gameEngineRef.current) {
       restart();
+      gameEngineRef.current.setSeed(seed);
       gameEngineRef.current.restartLevel();
       setIsPaused(false);
       start();
@@ -61,6 +64,7 @@ export default function Game() {
   const handleRestartGame = () => {
     if (gameEngineRef.current) {
       restart();
+      gameEngineRef.current.setSeed(seed);
       gameEngineRef.current.restartGame();
       setIsPaused(false);
       start();
@@ -70,6 +74,7 @@ export default function Game() {
 
   const handleNextLevel = () => {
     if (gameEngineRef.current) {
+      gameEngineRef.current.setSeed(seed);
       gameEngineRef.current.nextLevel();
       setIsPaused(false);
       start();

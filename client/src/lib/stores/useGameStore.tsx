@@ -8,6 +8,7 @@ interface GameState {
   score: number;
   enemiesKilled: number;
   currentLevel: number;
+  seed: number;
   
   // Debug mode
   debugMode: boolean;
@@ -21,6 +22,12 @@ interface GameState {
   nextLevel: () => void;
   addScore: (points: number) => void;
   incrementEnemiesKilled: () => void;
+  setSeed: (seed: number) => void;
+  generateRandomSeed: () => void;
+}
+
+function generateRandomSeed(): number {
+  return Math.floor(Math.random() * 100000);
 }
 
 export const useGameStore = create<GameState>()(
@@ -29,6 +36,7 @@ export const useGameStore = create<GameState>()(
     score: 0,
     enemiesKilled: 0,
     currentLevel: 1,
+    seed: generateRandomSeed(),
     debugMode: false,
     toggleDebugMode: () => set((state) => ({ debugMode: !state.debugMode })),
     
@@ -91,6 +99,14 @@ export const useGameStore = create<GameState>()(
       set((state) => ({
         enemiesKilled: state.enemiesKilled + 1
       }));
+    },
+
+    setSeed: (seed: number) => {
+      set({ seed });
+    },
+
+    generateRandomSeed: () => {
+      set({ seed: generateRandomSeed() });
     }
   }))
 );

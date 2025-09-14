@@ -1,6 +1,7 @@
 import { TerrainSegment, TerrainPoint } from "./types";
 import { TerrainConfig } from "./LevelConfig";
 import { TerrainFigure } from "../figures/TerrainFigure";
+import { seededRandom } from "../lib/utils";
 
 export class Terrain {
   static readonly WORLD_TOP = 600; // The top of the world/screen for all entities

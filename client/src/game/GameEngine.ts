@@ -8,7 +8,7 @@ import { Bullet } from "./Bullet";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
-import { toCanvasY } from "../game/Terrain";
+import { setGlobalSeed, seededRandom } from "../lib/utils";
 
 export class GameEngine {
   static readonly SCREEN_WIDTH = 800;
@@ -58,6 +58,7 @@ export class GameEngine {
   }
   private debugMode = false;
   private paused = false;
+  private seed: number = 12345;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -69,6 +70,9 @@ export class GameEngine {
     this.collisionSystem = new CollisionSystem();
     // Create player at far left spawn position, at the top of the world
     this.player = new Player(GameEngine.PLAYER_START_X, Terrain.WORLD_TOP);
+    
+    setGlobalSeed(this.seed);
+    
     this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
     this.spawnEnemies();
@@ -76,6 +80,13 @@ export class GameEngine {
     this.setupEventListeners();
 
     console.log("Game engine initialized");
+  }
+
+  setSeed(seed: number): void {
+    this.seed = seed;
+    setGlobalSeed(seed);
+    this.initLevelTerrain(this.currentLevelIndex);
+    this.spawnEnemies();
   }
 
   async start() {
@@ -89,6 +100,7 @@ export class GameEngine {
 
   restartGame() {
     this.currentLevelIndex = 0;
+    setGlobalSeed(this.seed);
     this.initLevelTerrain(0);
     this.reset();
     this.spawnEnemies();
@@ -97,6 +109,7 @@ export class GameEngine {
   }
 
   restartLevel() {
+    setGlobalSeed(this.seed);
     //this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
     this.spawnEnemies();
@@ -106,6 +119,7 @@ export class GameEngine {
 
   nextLevel() {
     if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
+      setGlobalSeed(this.seed);
       this.initLevelTerrain(this.currentLevelIndex+1);
       this.reset();
       this.spawnEnemies();
@@ -220,7 +234,7 @@ export class GameEngine {
     for (let screen = 1; screen < numScreens; screen++) {
       for (let i = 0; i < enemiesPerScreen; i++) {
         // Ensure x is within terrain range
-        let x = Math.min(screen * screenWidth + 200 + (i * 200) + Math.random() * 100, levelWidth);
+        let x = Math.min(screen * screenWidth + 200 + (i * 200) + seededRandom(0, 100), levelWidth);
         // Ensure enemy never spawns to the left of the player
         if (x <= this.player.transform.position.x) {
           x = this.player.transform.position.x + 100;
