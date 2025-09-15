@@ -155,7 +155,7 @@ export class Weapon {
 
   static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
     name: "Rifle a main offensive",
-    damage: 25,
+    damage: 30,
     fireInterval: 200,
     bulletSpeed: 800,
     bulletSize: 3,
@@ -177,6 +177,60 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 20,
+  };
+
+  static readonly AK200_ASSAULT_RIFLE: WeaponType = {
+    name: "AK-200 Assault Rifle",
+    damage: 20,
+    fireInterval: 150,
+    bulletSpeed: 800,
+    bulletSize: 3,
+    weaponLength: 70,
+    svgPath: "svg/ak-200.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 32,
+  };
+
+  static readonly M9_JOHNSON: WeaponType = {
+    name: "M9 Johnson",
+    damage: 45,
+    fireInterval: 500,
+    bulletSpeed: 800,
+    bulletSize: 3,
+    weaponLength: 70,
+    svgPath: "svg/m9-johnson.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 10,
+  };
+
+  // TODO this should be a semi-auto gun, not auto
+  static readonly M7_CARBINE: WeaponType = {
+    name: "M7 Carbine",
+    damage: 36,
+    fireInterval: 300,
+    bulletSpeed: 800,
+    bulletSize: 3,
+    weaponLength: 70,
+    svgPath: "svg/m7-carbine.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 15,
+  };
+
+  // TODO this should be a semi-auto gun, not auto
+  static readonly HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: WeaponType = {
+    name: "Harmann and Wolffs Bolt Action Rifle",
+    damage: 20,
+    fireInterval: 750,
+    bulletSpeed: 800,
+    bulletSize: 3,
+    weaponLength: 70,
+    svgPath: "svg/harmann-and-wolffs-bolt-action-rifle.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 5,
   };
 
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
@@ -203,6 +257,19 @@ export class Weapon {
     holdRelativeX: 0.4,
     holdRelativeY: 0.25,
     capacity: 15,
+  };
+
+  static readonly MR_27_DRUMBEAT_SHOTGUN: WeaponType = {
+    name: "MR-27 Drumbeat",
+    damage: 60,
+    fireInterval: 1500,
+    bulletSpeed: 600,
+    bulletSize: 4,
+    weaponLength: 80,
+    svgPath: "svg/mr-27-drumbeat.svg",
+    holdRelativeX: 0.4,
+    holdRelativeY: 0.25,
+    capacity: 30,
   };
 
   static readonly PTS_27_ANTITANK_GUN: WeaponType = {
@@ -244,25 +311,34 @@ export class Weapon {
     capacity: 20,
   };
 
-  // static readonly SNIPER: WeaponType = {
-  //   name: "Sniper",
-  //   damage: 50,
-  //   fireInterval: 1000,
-  //   bulletSpeed: 1200,
-  //   weaponLength: 28,
-  //   holdRelativeX: 0.5,
-  //   holdRelativeY: 0.5,
-  //   capacity: 5,
-  // };
+  // TODO this should be a semi-auto gun, not auto
+  static readonly MK_200_SNIPER_RIFLE: WeaponType = {
+    name: "MK. 200 Sniper Rifle",
+    damage: 36,
+    fireInterval: 500,
+    bulletSpeed: 1200,
+    bulletSize: 3,
+    weaponLength: 70,
+    svgPath: "svg/mk-200.svg",
+    holdRelativeX: 0.35,
+    holdRelativeY: 0.5,
+    capacity: 6,
+  };
 
   static readonly ALL_WEAPONS: WeaponType[] = [
     Weapon.WEBLEY_REVOLVER,
     Weapon.RIFLE_A_MAIN_OFFENSIVE,
     Weapon.FNAF_BATTLE_RIFLE,
+    Weapon.AK200_ASSAULT_RIFLE,
+    Weapon.M9_JOHNSON,
+    Weapon.M7_CARBINE,
+    Weapon.HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE,
     Weapon.M270_BREACHER_SHOTGUN,
     Weapon.R_200_SHOTGUN,
+    Weapon.MR_27_DRUMBEAT_SHOTGUN,
     Weapon.PTS_27_ANTITANK_GUN,
     Weapon.BROWNING_MK3_MACHINE_GUN,
     Weapon.VP_37_SUBMACHINE_GUN,
+    Weapon.MK_200_SNIPER_RIFLE,
   ];
 }
