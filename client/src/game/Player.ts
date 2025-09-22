@@ -151,8 +151,8 @@ export class Player implements GameObject {
     }
   }
 
-  canShoot(): boolean {
-    return this.weapon.canShoot();
+  canShoot(newTriggerPress: boolean): boolean {
+    return this.weapon.canShoot(newTriggerPress);
   }
 
   switchToNextWeapon(): void {
@@ -166,9 +166,9 @@ export class Player implements GameObject {
     console.log(`Reloaded weapon: ${this.weapon.name}`);
   }
 
-  shoot(): Bullet | null {
+  shoot(newTriggerPress: boolean): Bullet | null {
     const weaponTransform = this.getAbsoluteWeaponTransform();
-    return this.weapon.shoot(weaponTransform);
+    return this.weapon.shoot(weaponTransform, newTriggerPress);
   }
 
   takeDamage(damage: number) {

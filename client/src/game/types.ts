@@ -36,7 +36,8 @@ export interface WeaponType {
    * Values range from 0 (bottom of weapon) to 1 (top of weapon).
    */
   holdRelativeY: number;
-  capacity?: number;
+  capacity: number;
+  autoFiringType: 'auto' | 'semi-auto';
 }
 
 export interface Particle {

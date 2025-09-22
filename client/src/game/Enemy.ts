@@ -159,7 +159,8 @@ export class Enemy implements GameObject {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const now = Date.now();
     const enemyCooldown = now - this.lastShotTime > Enemy.FIRE_INTERVAL;
-    const weaponCooldown = this.weapon.canShoot();
+    // Enemies always fire in auto mode (they don't have semi-auto behavior)
+    const weaponCooldown = this.weapon.canShoot(false);
     return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown;
   }
 
@@ -170,7 +171,8 @@ export class Enemy implements GameObject {
     
     // Get updated weapon transform with new aim angle
     const updatedWeaponTransform = this.getAbsoluteWeaponTransform();
-    return this.weapon.shoot(updatedWeaponTransform);
+    // Enemies always fire in auto mode (they don't have semi-auto behavior)
+    return this.weapon.shoot(updatedWeaponTransform, false);
   }
 
   takeDamage(damage: number) {

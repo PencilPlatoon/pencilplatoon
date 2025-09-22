@@ -18,6 +18,7 @@ export class Weapon {
   holdRelativeX: number;
   holdRelativeY: number;
   capacity: number;
+  autoFiringType: 'auto' | 'semi-auto';
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
   isLoaded: boolean;
@@ -36,7 +37,8 @@ export class Weapon {
     this.svgPath = weaponType.svgPath;
     this.holdRelativeX = weaponType.holdRelativeX;
     this.holdRelativeY = weaponType.holdRelativeY;
-    this.capacity = weaponType.capacity ?? 0;
+    this.capacity = weaponType.capacity;
+    this.autoFiringType = weaponType.autoFiringType;
     this.bulletsLeft = this.capacity;
     this.isLoaded = false;
     this._loadPromise = Promise.resolve();
@@ -79,12 +81,20 @@ export class Weapon {
     }
   }
 
-  canShoot(): boolean {
-    return Date.now() - this.lastShotTime > this.fireInterval && this.bulletsLeft > 0;
+  canShoot(newTriggerPress: boolean): boolean {
+    const hasAmmo = this.bulletsLeft > 0;
+    const fireIntervalPassed = Date.now() - this.lastShotTime > this.fireInterval;
+
+    const canFire = fireIntervalPassed && hasAmmo;
+    if (this.autoFiringType === 'auto') {
+      return canFire;
+    } else { // semi-auto
+      return canFire && newTriggerPress;
+    }
   }
 
-  shoot(transform: EntityTransform): Bullet | null {
-    if (!this.canShoot()) return null;
+  shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet | null {
+    if (!this.canShoot(newTriggerPress)) return null;
     this.lastShotTime = Date.now();
     this.bulletsLeft--;
     const weaponEndX = transform.position.x + Math.cos(transform.rotation) * this.weaponLength * transform.facing;
@@ -151,6 +161,7 @@ export class Weapon {
     holdRelativeX: 0.25,
     holdRelativeY: 0.5,
     capacity: 7,
+    autoFiringType: 'auto',
   };
 
   static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
@@ -164,6 +175,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 30,
+    autoFiringType: 'auto',
   };
 
   static readonly FNAF_BATTLE_RIFLE: WeaponType = {
@@ -177,6 +189,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 20,
+    autoFiringType: 'auto',
   };
 
   static readonly AK200_ASSAULT_RIFLE: WeaponType = {
@@ -190,6 +203,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 32,
+    autoFiringType: 'auto',
   };
 
   static readonly M9_JOHNSON: WeaponType = {
@@ -203,9 +217,9 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 10,
+    autoFiringType: 'auto',
   };
 
-  // TODO this should be a semi-auto gun, not auto
   static readonly M7_CARBINE: WeaponType = {
     name: "M7 Carbine",
     damage: 36,
@@ -217,9 +231,9 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 15,
+    autoFiringType: 'semi-auto',
   };
 
-  // TODO this should be a semi-auto gun, not auto
   static readonly HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: WeaponType = {
     name: "Harmann and Wolffs Bolt Action Rifle",
     damage: 20,
@@ -231,6 +245,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 5,
+    autoFiringType: 'semi-auto',
   };
 
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
@@ -244,6 +259,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 8,
+    autoFiringType: 'auto',
   };
 
   static readonly R_200_SHOTGUN: WeaponType = {
@@ -257,6 +273,7 @@ export class Weapon {
     holdRelativeX: 0.4,
     holdRelativeY: 0.25,
     capacity: 15,
+    autoFiringType: 'auto',
   };
 
   static readonly MR_27_DRUMBEAT_SHOTGUN: WeaponType = {
@@ -270,6 +287,7 @@ export class Weapon {
     holdRelativeX: 0.4,
     holdRelativeY: 0.25,
     capacity: 30,
+    autoFiringType: 'auto',
   };
 
   static readonly PTS_27_ANTITANK_GUN: WeaponType = {
@@ -283,6 +301,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 12,
+    autoFiringType: 'auto',
   };
 
   static readonly BROWNING_MK3_MACHINE_GUN: WeaponType = {
@@ -296,6 +315,7 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.25,
     capacity: 100,
+    autoFiringType: 'auto',
   };
 
   static readonly VP_37_SUBMACHINE_GUN: WeaponType = {
@@ -309,9 +329,9 @@ export class Weapon {
     holdRelativeX: 0.5,
     holdRelativeY: 0.5,
     capacity: 20,
+    autoFiringType: 'auto',
   };
 
-  // TODO this should be a semi-auto gun, not auto
   static readonly MK_200_SNIPER_RIFLE: WeaponType = {
     name: "MK. 200 Sniper Rifle",
     damage: 36,
@@ -323,6 +343,7 @@ export class Weapon {
     holdRelativeX: 0.35,
     holdRelativeY: 0.5,
     capacity: 6,
+    autoFiringType: 'semi-auto',
   };
 
   static readonly ALL_WEAPONS: WeaponType[] = [

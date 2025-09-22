@@ -49,6 +49,7 @@ export class GameEngine {
     aimUp: false,
     aimDown: false
   };
+  private hasThisTriggeringShot = false;
   private currentLevelIndex = 0;
   private get currentLevelName() {
     return LEVEL_ORDER[this.currentLevelIndex];
@@ -220,6 +221,10 @@ export class GameEngine {
     window.addEventListener("keyup", (e) => {
       e.stopPropagation();
       this.keys.delete(e.code);
+
+      if (e.code === 'KeyJ') {
+        this.hasThisTriggeringShot = false;
+      }
     });
   }
 
@@ -350,12 +355,15 @@ export class GameEngine {
 
     this.player.update(deltaTime, input, this.terrain);
 
-    // Player shooting
-    if (input.shoot && this.player.canShoot()) {
-      const bullet = this.player.shoot();
-      if (bullet) {
-        this.bullets.push(bullet);
-        this.soundManager.playShoot();
+    if (input.shoot) {
+      const newTriggerPress = !this.hasThisTriggeringShot;
+      if (this.player.canShoot(newTriggerPress)) {
+        const bullet = this.player.shoot(newTriggerPress);
+        if (bullet) {
+          this.bullets.push(bullet);
+          this.soundManager.playShoot();
+          this.hasThisTriggeringShot = true;
+        }
       }
     }
 
