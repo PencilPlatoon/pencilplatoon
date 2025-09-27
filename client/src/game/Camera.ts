@@ -14,7 +14,6 @@ export class Camera {
   constructor(width: number, height: number) {
     this.width = width;
     this.height = height;
-    console.log("Camera constructor", this.width, this.height);
   }
 
   setTerrain(terrain: Terrain) {

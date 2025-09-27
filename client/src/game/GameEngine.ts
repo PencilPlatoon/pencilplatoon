@@ -62,6 +62,7 @@ export class GameEngine {
   private seed: number = 12345;
 
   constructor(canvas: HTMLCanvasElement) {
+    console.log("GameEngine constructor");
     this.canvas = canvas;
     this.ctx = canvas.getContext("2d")!;
     this.camera = new Camera(canvas.width, canvas.height);
@@ -72,22 +73,9 @@ export class GameEngine {
     // Create player at far left spawn position, at the top of the world
     this.player = new Player(GameEngine.PLAYER_START_X, Terrain.WORLD_TOP);
     
-    setGlobalSeed(this.seed);
-    
-    this.initLevelTerrain(this.currentLevelIndex);
-    this.reset();
-    this.spawnEnemies();
-
     this.setupEventListeners();
 
     console.log("Game engine initialized");
-  }
-
-  setSeed(seed: number): void {
-    this.seed = seed;
-    setGlobalSeed(seed);
-    this.initLevelTerrain(this.currentLevelIndex);
-    this.spawnEnemies();
   }
 
   async start() {
@@ -99,8 +87,21 @@ export class GameEngine {
     console.log("Game started");
   }
 
-  restartGame() {
+  startGame(seed: number) {
+    console.log("GameEngine.startGame");
+    this.seed = seed;
+    setGlobalSeed(this.seed);
+    this.initLevelTerrain(this.currentLevelIndex);
+    this.reset();
+    this.spawnEnemies();
+    this.isRunning = true;
+    console.log("Game started");
+  }
+
+  restartGame(seed: number) {
+    console.log("GameEngine.restartGame");
     this.currentLevelIndex = 0;
+    this.seed = seed;
     setGlobalSeed(this.seed);
     this.initLevelTerrain(0);
     this.reset();
@@ -109,7 +110,9 @@ export class GameEngine {
     console.log("Game restarted from beginning");
   }
 
-  restartLevel() {
+  restartLevel(seed: number) {
+    console.log("GameEngine.restartLevel");
+    this.seed = seed;
     setGlobalSeed(this.seed);
     //this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
@@ -118,8 +121,10 @@ export class GameEngine {
     console.log(`Level ${this.currentLevelName} restarted`);
   }
 
-  nextLevel() {
+  nextLevel(seed: number) {
+    console.log("GameEngine.nextLevel");
     if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
+      this.seed = seed;
       setGlobalSeed(this.seed);
       this.initLevelTerrain(this.currentLevelIndex+1);
       this.reset();
@@ -198,7 +203,7 @@ export class GameEngine {
     // Set terrain reference in camera
     this.camera.setTerrain(this.terrain);
     
-    console.log(`[initLevel] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
+    console.log(`[initLevelTerrain] Player y set to ${this.player.transform.position.y} at x=${GameEngine.PLAYER_START_X}, terrain height: ${this.terrain.getHeightAt(GameEngine.PLAYER_START_X)}`);
     console.log(`Level ${levelName} initialized`);
   }
 
@@ -442,10 +447,10 @@ export class GameEngine {
     // Log camera position once per second
     const now = Date.now();
     if (!this.lastLogTime || now - this.lastLogTime > 1000) {
-      console.log(`Camera bottom-left: (${this.camera.bottomLeftWorldX.toFixed(1)}, ${this.camera.bottomLeftWorldY.toFixed(1)})`);
-      console.log(`Canvas size: ${this.canvas.width} x ${this.canvas.height}`);
-      console.log(`Camera transform: translate(${-this.camera.bottomLeftWorldX}, ${-this.camera.bottomLeftWorldY})`);
-      console.log(`Camera transform with toScreenY: translate(${-this.camera.bottomLeftWorldX}, ${this.camera.toScreenY(-this.camera.bottomLeftWorldY)}`);
+      // console.log(`Camera bottom-left: (${this.camera.bottomLeftWorldX.toFixed(1)}, ${this.camera.bottomLeftWorldY.toFixed(1)})`);
+      // console.log(`Canvas size: ${this.canvas.width} x ${this.canvas.height}`);
+      // console.log(`Camera transform: translate(${-this.camera.bottomLeftWorldX}, ${-this.camera.bottomLeftWorldY})`);
+      // console.log(`Camera transform with toScreenY: translate(${-this.camera.bottomLeftWorldX}, ${this.camera.toScreenY(-this.camera.bottomLeftWorldY)}`);
       this.lastLogTime = now;
     }
 

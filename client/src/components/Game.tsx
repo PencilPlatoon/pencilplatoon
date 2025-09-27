@@ -42,19 +42,17 @@ export default function Game() {
 
   const handleStartGame = () => {
     if (gameEngineRef.current) {
-      // Set the seed before starting the game
-      gameEngineRef.current.setSeed(seed);
-      gameEngineRef.current.start();
+      gameEngineRef.current.startGame(seed);
       setIsPaused(false);
       start();
+      gameEngineRef.current.start();
     }
   };
 
   const handleRestartLevel = () => {
     if (gameEngineRef.current) {
       restart();
-      gameEngineRef.current.setSeed(seed);
-      gameEngineRef.current.restartLevel();
+      gameEngineRef.current.restartLevel(seed);
       setIsPaused(false);
       start();
       gameEngineRef.current.start();
@@ -64,8 +62,7 @@ export default function Game() {
   const handleRestartGame = () => {
     if (gameEngineRef.current) {
       restart();
-      gameEngineRef.current.setSeed(seed);
-      gameEngineRef.current.restartGame();
+      gameEngineRef.current.restartGame(seed);
       setIsPaused(false);
       start();
       gameEngineRef.current.start();
@@ -74,8 +71,7 @@ export default function Game() {
 
   const handleNextLevel = () => {
     if (gameEngineRef.current) {
-      gameEngineRef.current.setSeed(seed);
-      gameEngineRef.current.nextLevel();
+      gameEngineRef.current.nextLevel(seed);
       setIsPaused(false);
       start();
       gameEngineRef.current.start();
