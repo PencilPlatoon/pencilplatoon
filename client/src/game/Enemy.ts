@@ -95,8 +95,13 @@ export class Enemy implements GameObject {
 
     // Apply gravity and update position
     Physics.applyGravity(this, deltaTime);
-    // Clamp x to valid terrain range
+    
+    var oldX = this.transform.position.x;
     this.transform.position.x = Math.max(50, Math.min(this.transform.position.x, terrain.getLevelWidth()));
+    var newX = this.transform.position.x;
+    if (oldX !== newX) {
+      console.log(`[TERRAIN CLAMP] Enemy ${this.id} moved from ${oldX} to ${newX}`);
+    }
 
     // Terrain collision with gravity
     this.handleTerrainCollision(terrain);

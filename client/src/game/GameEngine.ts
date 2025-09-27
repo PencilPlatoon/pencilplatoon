@@ -60,6 +60,7 @@ export class GameEngine {
   private debugMode = false;
   private paused = false;
   private seed: number = 12345;
+  private levelStartCounter = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     console.log("GameEngine constructor");
@@ -83,7 +84,8 @@ export class GameEngine {
     await Promise.all(this.allEnemies.map(e => e.waitForLoaded()));
     console.log("Game engine: everything loaded");
     this.isRunning = true;
-    this.gameLoop(0);
+    this.lastTime = performance.now();
+    this.gameLoop(this.lastTime);
     console.log("Game started");
   }
 
@@ -91,6 +93,7 @@ export class GameEngine {
     console.log("GameEngine.startGame");
     this.seed = seed;
     setGlobalSeed(this.seed);
+    this.levelStartCounter++;
     this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
     this.spawnEnemies();
@@ -103,6 +106,7 @@ export class GameEngine {
     this.currentLevelIndex = 0;
     this.seed = seed;
     setGlobalSeed(this.seed);
+    this.levelStartCounter++;
     this.initLevelTerrain(0);
     this.reset();
     this.spawnEnemies();
@@ -114,6 +118,7 @@ export class GameEngine {
     console.log("GameEngine.restartLevel");
     this.seed = seed;
     setGlobalSeed(this.seed);
+    this.levelStartCounter++;
     //this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
     this.spawnEnemies();
@@ -126,6 +131,7 @@ export class GameEngine {
     if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
       this.seed = seed;
       setGlobalSeed(this.seed);
+      this.levelStartCounter++;
       this.initLevelTerrain(this.currentLevelIndex+1);
       this.reset();
       this.spawnEnemies();
@@ -191,6 +197,7 @@ export class GameEngine {
     this.camera.reset();
 
     this.player.reset(GameEngine.PLAYER_START_X, this.terrain.getHeightAt(GameEngine.PLAYER_START_X) + 1);
+    this.lastTime = performance.now()
   }
 
   private initLevelTerrain(levelIndex: number) {
@@ -250,7 +257,7 @@ export class GameEngine {
           x = this.player.transform.position.x + 100;
         }
         const y = this.terrain.getHeightAt(x) + 1;
-        const enemy = new Enemy(x, y, `enemy_${screen}_${i}`);
+        const enemy = new Enemy(x, y, `enemy_gen${this.levelStartCounter}_sc${screen}_num${i}`);
         this.allEnemies.push(enemy);
         console.log(`[spawnEnemies] Spawned enemy id=${enemy.id} at x=${x}, y=${y}`);
       }
