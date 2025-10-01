@@ -38,14 +38,17 @@ export class Player implements GameObject {
   private static readonly SPEED = 200;
   private static readonly JUMP_FORCE = 600;
   private static readonly HEALTHBAR_OFFSET_Y = 20;
+  private static readonly AIM_ACCELERATION = 4;
+  private static readonly MAX_AIM_SPEED = 3;
 
   private isGrounded = false;
   public weapon: Weapon;
-  private weaponRelative: EntityTransform; // Relative weapon transform
+  private weaponRelative: EntityTransform;
   private lastCollisionDebugX: number | null = null;
-  private aimAngle: number = 0; // Angle of the arm/aim
+  private aimAngle: number = 0;
+  private aimSpeed: number = 0;
   private currentWeaponIndex: number = 0;
-  private walkCycle: number = 0; // Walking animation cycle
+  private walkCycle: number = 0;
   private isWalking: boolean = false;
   private lastX: number = 0;
 
@@ -104,27 +107,26 @@ export class Player implements GameObject {
       this.velocity.x = 0;
     }
 
-    // Jumping
     if (input.jump && this.isGrounded) {
       this.velocity.y = Player.JUMP_FORCE;
       this.isGrounded = false;
     }
 
-    // Weapon aiming with Y and H keys - update aimAngle instead of weaponRelative
     if (input.aimUp) {
-      this.aimAngle = Math.min(Math.PI / 3, this.aimAngle + 2 * deltaTime); // Limit upward angle
-    }
-    if (input.aimDown) {
-      this.aimAngle = Math.max(-Math.PI / 3, this.aimAngle - 2 * deltaTime); // Limit downward angle
+      this.aimSpeed = Math.min(Player.MAX_AIM_SPEED, this.aimSpeed + Player.AIM_ACCELERATION * deltaTime);
+      this.aimAngle = Math.min(Math.PI / 3, this.aimAngle + this.aimSpeed * deltaTime); // Limit upward angle
+    } else if (input.aimDown) {
+      this.aimSpeed = Math.min(Player.MAX_AIM_SPEED, this.aimSpeed + Player.AIM_ACCELERATION * deltaTime);
+      this.aimAngle = Math.max(-Math.PI / 3, this.aimAngle - this.aimSpeed * deltaTime); // Limit downward angle
+    } else {
+      this.aimSpeed = 0;
     }
 
-    // Apply gravity and update position
     Physics.applyGravity(this, deltaTime);
 
     // Clamp x position to at least 50
     this.transform.position.x = Math.max(50, this.transform.position.x);
 
-    // Terrain collision
     this.handleTerrainCollision(terrain);
     if (this.lastCollisionDebugX !== this.transform.position.x) {
       this.lastCollisionDebugX = this.transform.position.x;
