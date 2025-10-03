@@ -38,7 +38,7 @@ export class SVGLoader {
     // Create image
     const image = new window.Image();
     image.src = path;
-    const info: SVGInfo = { image, boundingBox: new BoundingBox(width, height, 0.5, 0.5) };
+    const svgInfo: SVGInfo = { image, boundingBox: new BoundingBox(width, height, 0.5, 0.5) };
     // Wait for image to be loaded if not already
     if (!image.complete) {
       const loaded = await new Promise<boolean>((resolve) => {
@@ -51,7 +51,7 @@ export class SVGLoader {
         return null;
       }
     }
-    this.cache[path] = info;
-    return info;
+    this.cache[path] = svgInfo;
+    return svgInfo;
   }
 } 

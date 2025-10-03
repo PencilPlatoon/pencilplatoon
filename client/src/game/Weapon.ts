@@ -52,21 +52,17 @@ export class Weapon {
     if (this.svgPath) {
       const holdRelativeX = this.holdRelativeX;
       const holdRelativeY = this.holdRelativeY;
-      const weaponLength = this.weaponLength;
       this._loadPromise = (async () => {
-        const info = await SVGLoader.get(this.svgPath!);
-        if (info) {
-          // Scale bounding box to match weaponLength (like WeaponFigure)
-          const svgWidth = info.boundingBox.width;
-          const svgHeight = info.boundingBox.height;
-          const scale = weaponLength / svgWidth;
+        const svgInfo = await SVGLoader.get(this.svgPath!);
+        if (svgInfo) {
+          const { displayWidth, displayHeight } = Weapon.calculateDisplaySize(weaponType, svgInfo);
           this.boundingBox = new BoundingBox(
-            svgWidth * scale,
-            svgHeight * scale,
+            displayWidth,
+            displayHeight,
             holdRelativeX,
             holdRelativeY
           );
-          this.svgInfo = info;
+          this.svgInfo = svgInfo;
           this.isLoaded = true;
         } else {
           console.warn(`Weapon SVG failed to load: ${this.svgPath}`);
@@ -148,6 +144,16 @@ export class Weapon {
   async waitForLoaded(): Promise<void> {
     await this._loadPromise;
     console.log(`Weapon loaded: ${this.name}`);
+  }
+
+  static calculateDisplaySize(weapon: WeaponType, svgInfo: SVGInfo): { displayWidth: number; displayHeight: number } {
+    const { boundingBox } = svgInfo;
+    const scale = weapon.weaponLength / boundingBox.width;
+    
+    return {
+      displayWidth: boundingBox.width * scale,
+      displayHeight: boundingBox.height * scale
+    };
   }
 
   static readonly WEBLEY_REVOLVER: WeaponType = {

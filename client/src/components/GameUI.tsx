@@ -5,6 +5,8 @@ import { Card, CardContent } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
 import { useGameStore } from "../lib/stores/useGameStore";
+import { useAssetLoader } from "../hooks/useAssetLoader";
+import AssetGrid from "./AssetGrid";
 
 interface GameUIProps {
   phase: GamePhase;
@@ -26,6 +28,7 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
   const seed = useGameStore((state) => state.seed);
   const setSeed = useGameStore((state) => state.setSeed);
   const generateRandomSeed = useGameStore((state) => state.generateRandomSeed);
+  const { loadedAssets, isLoading } = useAssetLoader();
 
   const SoundCheckbox = (
     <div className="flex items-center justify-center gap-2 mb-2">
@@ -83,60 +86,63 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
   if (phase === "ready") {
     return (
       <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
-            <div className="text-sm text-gray-600 mb-6">
-              <p>Use WASD or Arrow Keys to move</p>
-              <p>Space to jump</p>
-              <p>J to shoot, I/K to aim up/down</p>
-              <p>C to switch weapon, R to reload</p>
-            </div>
-            <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
-              Start Game
-            </Button>
-            {CheckboxGroup}
-            
-            {/* Seed Input Section */}
-            <div className="mb-4 text-left">
-              <label htmlFor="seed-input" className="block text-sm font-medium text-gray-700 mb-2">
-                Random Seed
-              </label>
-              <div className="flex gap-2">
-                <Input
-                  id="seed-input"
-                  type="number"
-                  value={seed}
-                  onChange={(e) => {
-                    const value = parseInt(e.target.value);
-                    if (!isNaN(value)) {
-                      setSeed(value);
-                    }
-                  }}
-                  className="flex-1"
-                  placeholder="Enter seed number"
-                />
-                <Button
-                  onClick={generateRandomSeed}
-                  variant="outline"
-                  size="sm"
-                  className="px-3"
-                  title="Generate new random seed"
-                >
-                  🎲
-                </Button>
+        <div className="flex flex-col items-center">
+          <Card className="w-96">
+            <CardContent className="p-6 text-center">
+              <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
+              <div className="text-sm text-gray-600 mb-6">
+                <p>Use WASD or Arrow Keys to move</p>
+                <p>Space to jump</p>
+                <p>J to shoot, I/K to aim up/down</p>
+                <p>C to switch weapon, R to reload</p>
               </div>
-              <p className="text-xs text-gray-500 mt-1">
-                Same seed = same level layout every time
-              </p>
-            </div>
+              <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
+                Start Game
+              </Button>
+              {CheckboxGroup}
+              
+              {/* Seed Input Section */}
+              <div className="mb-4 text-left">
+                <label htmlFor="seed-input" className="block text-sm font-medium text-gray-700 mb-2">
+                  Random Seed
+                </label>
+                <div className="flex gap-2">
+                  <Input
+                    id="seed-input"
+                    type="number"
+                    value={seed}
+                    onChange={(e) => {
+                      const value = parseInt(e.target.value);
+                      if (!isNaN(value)) {
+                        setSeed(value);
+                      }
+                    }}
+                    className="flex-1"
+                    placeholder="Enter seed number"
+                  />
+                  <Button
+                    onClick={generateRandomSeed}
+                    variant="outline"
+                    size="sm"
+                    className="px-3"
+                    title="Generate new random seed"
+                  >
+                    🎲
+                  </Button>
+                </div>
+                <p className="text-xs text-gray-500 mt-1">
+                  Same seed = same level layout every time
+                </p>
+              </div>
 
-            <div className="mt-8 text-xs text-gray-500">
-              <div>Developed by Garrett Jones</div>
-              <div className="mt-1">Artwork by Juancho Jones</div>
-            </div>
-          </CardContent>
-        </Card>
+              <div className="mt-8 text-xs text-gray-500">
+                <div>Developed by Garrett Jones</div>
+                <div className="mt-1">Artwork by Juancho Jones</div>
+              </div>
+            </CardContent>
+          </Card>
+          <AssetGrid assets={loadedAssets} isLoading={isLoading} />
+        </div>
       </div>
     );
   }
