@@ -76,8 +76,7 @@ export class Bullet implements GameObject {
     BulletFigure.render({
       ctx,
       transform: this.transform,
-      bounds: this.bounds,
-      active: this.active
+      bounds: this.bounds
     });
 
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));

@@ -1,4 +1,4 @@
-import { WeaponType } from "./types";
+import { WeaponType, Vector2 } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
@@ -19,6 +19,7 @@ export class Weapon {
   holdRelativeY: number;
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
+  weaponCategory: 'gun' | 'grenade';
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
   isLoaded: boolean;
@@ -39,6 +40,7 @@ export class Weapon {
     this.holdRelativeY = weaponType.holdRelativeY;
     this.capacity = weaponType.capacity;
     this.autoFiringType = weaponType.autoFiringType;
+    this.weaponCategory = weaponType.weaponCategory;
     this.bulletsLeft = this.capacity;
     this.isLoaded = false;
     this._loadPromise = Promise.resolve();
@@ -118,23 +120,38 @@ export class Weapon {
     return this.capacity;
   }
 
+  /**
+   * Returns true if the weapon owns the aim line, false if the aim line is owned by the player.
+   * 
+   * Guns own aim lines because the start of the aim line depends on the tip of the weapon.
+   * Human figures (e.g. the Player) own aim lines for grenades because the human
+   * figure performs the throw and release of the grenade.
+   * @returns 
+   */
+  ownsAimLine(): boolean {
+    if (this.weaponCategory === 'gun') {
+      return true;
+    } else if (this.weaponCategory === 'grenade') {
+      return false;
+    } else {
+      throw new Error(`Unhandled weapon category for 'ownsAimLine': ${this.weaponCategory}`);
+    }
+  }
+
   render({
     ctx,
     transform,
-    showAimLine = false,
-    aimLineLength = 100
+    showAimLine = false
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
     showAimLine?: boolean;
-    aimLineLength?: number;
   }) {
     WeaponFigure.render({
       ctx,
       transform,
       weapon: this,
       showAimLine,
-      aimLineLength,
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
@@ -168,6 +185,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 7,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly RIFLE_A_MAIN_OFFENSIVE: WeaponType = {
@@ -182,6 +200,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 30,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly FNAF_BATTLE_RIFLE: WeaponType = {
@@ -196,6 +215,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 20,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly AK200_ASSAULT_RIFLE: WeaponType = {
@@ -210,6 +230,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 32,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly M9_JOHNSON: WeaponType = {
@@ -224,6 +245,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 10,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly M7_CARBINE: WeaponType = {
@@ -238,6 +260,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 15,
     autoFiringType: 'semi-auto',
+    weaponCategory: 'gun',
   };
 
   static readonly HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: WeaponType = {
@@ -252,6 +275,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 5,
     autoFiringType: 'semi-auto',
+    weaponCategory: 'gun',
   };
 
   static readonly M270_BREACHER_SHOTGUN: WeaponType = {
@@ -266,6 +290,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 8,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly R_200_SHOTGUN: WeaponType = {
@@ -280,6 +305,7 @@ export class Weapon {
     holdRelativeY: 0.25,
     capacity: 15,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly MR_27_DRUMBEAT_SHOTGUN: WeaponType = {
@@ -294,6 +320,7 @@ export class Weapon {
     holdRelativeY: 0.25,
     capacity: 30,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly PTS_27_ANTITANK_GUN: WeaponType = {
@@ -308,6 +335,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 12,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly BROWNING_MK3_MACHINE_GUN: WeaponType = {
@@ -322,6 +350,7 @@ export class Weapon {
     holdRelativeY: 0.25,
     capacity: 100,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly VP_37_SUBMACHINE_GUN: WeaponType = {
@@ -336,6 +365,7 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 20,
     autoFiringType: 'auto',
+    weaponCategory: 'gun',
   };
 
   static readonly MK_200_SNIPER_RIFLE: WeaponType = {
@@ -350,6 +380,22 @@ export class Weapon {
     holdRelativeY: 0.5,
     capacity: 6,
     autoFiringType: 'semi-auto',
+    weaponCategory: 'gun',
+  };
+
+  static readonly HAND_GRENADE: WeaponType = {
+    name: "Hand Grenade",
+    damage: 150,
+    fireInterval: 1000,
+    bulletSpeed: 300,
+    bulletSize: 8,
+    weaponLength: 10,
+    svgPath: "svg/grenade.svg",
+    holdRelativeX: 0.5,
+    holdRelativeY: 0.5,
+    capacity: 50, // FIXME remove altogether
+    autoFiringType: 'semi-auto',
+    weaponCategory: 'grenade',
   };
 
   static readonly ALL_WEAPONS: WeaponType[] = [
@@ -367,5 +413,6 @@ export class Weapon {
     Weapon.BROWNING_MK3_MACHINE_GUN,
     Weapon.VP_37_SUBMACHINE_GUN,
     Weapon.MK_200_SNIPER_RIFLE,
+    Weapon.HAND_GRENADE,
   ];
 }

@@ -5,6 +5,7 @@ import { ParticleSystem } from "./ParticleSystem";
 import { Camera } from "./Camera";
 import { CollisionSystem } from "./CollisionSystem";
 import { Bullet } from "./Bullet";
+import { Grenade } from "./Grenade";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
@@ -21,6 +22,7 @@ export class GameEngine {
   private allEnemies: Enemy[] = []; // All enemies for the level
   private activeEnemies: Set<string> = new Set(); // Track which enemies are active
   private bullets: Bullet[] = [];
+  private grenades: Grenade[] = [];
   private terrain: Terrain;
   private particleSystem: ParticleSystem;
   private camera: Camera;
@@ -36,7 +38,7 @@ export class GameEngine {
     up: boolean;
     down: boolean;
     jump: boolean;
-    shoot: boolean;
+    triggerPressed: boolean;
     aimUp: boolean;
     aimDown: boolean;
   } = {
@@ -45,17 +47,24 @@ export class GameEngine {
     up: false,
     down: false,
     jump: false,
-    shoot: false,
+    triggerPressed: false,
     aimUp: false,
     aimDown: false
   };
   private hasThisTriggeringShot = false;
   private currentLevelIndex = 0;
+  private throwPower = 0;
+  private isChargingThrow = false;
+  private throwChargeStartTime = 0;
   private get currentLevelName() {
     return LEVEL_ORDER[this.currentLevelIndex];
   }
   private get currentLevelConfig(): LevelConfig {
     return LEVEL_DEFINITIONS[this.currentLevelName];
+  }
+
+  private calculateThrowPower(chargeTime: number): number {
+    return Math.min(3.0, 0.3 + (chargeTime / 1000) * 2.5);
   }
   private debugMode = false;
   private paused = false;
@@ -172,7 +181,7 @@ export class GameEngine {
     up: boolean;
     down: boolean;
     jump: boolean;
-    shoot: boolean;
+    triggerPressed: boolean;
     aimUp: boolean;
     aimDown: boolean;
   }) {
@@ -189,6 +198,7 @@ export class GameEngine {
 
   private reset() {
     this.bullets = [];
+    this.grenades = [];
     this.enemies = [];
     this.allEnemies = [];
     this.activeEnemies.clear();
@@ -223,10 +233,19 @@ export class GameEngine {
         this.togglePause();
       }
       if (e.code === 'KeyC') {
-        this.player.switchToNextWeapon();
+        if (this.player.getSelectedWeaponCategory() === 'gun') {
+          this.player.switchToNextWeapon();
+        }
+        // In grenade mode, C does nothing (for future grenade type switching)
       }
       if (e.code === 'KeyR') {
-        this.player.reloadWeapon();
+        if (this.player.getSelectedWeaponCategory() === 'gun') {
+          this.player.reloadWeapon();
+        }
+        // In grenade mode, R does nothing (hand-thrown weapon)
+      }
+      if (e.code === 'KeyG') {
+        this.player.switchWeaponCategory();
       }
     });
 
@@ -307,8 +326,16 @@ export class GameEngine {
       return bullet.active;
     });
 
-    // Handle collisions
+    // Update grenades (but don't filter them yet - need to handle explosions first)
+    this.grenades.forEach(grenade => {
+      grenade.update(deltaTime, this.terrain);
+    });
+
+    // Handle collisions (includes grenade explosions)
     this.handleCollisions();
+
+    // Now filter out inactive grenades after explosions have been handled
+    this.grenades = this.grenades.filter(grenade => grenade.active);
 
     // Update particles
     this.particleSystem.update(deltaTime);
@@ -360,22 +387,61 @@ export class GameEngine {
       up: this.keys.has("KeyW") || this.keys.has("ArrowUp") || this.mobileInput.up,
       down: this.keys.has("KeyS") || this.keys.has("ArrowDown") || this.mobileInput.down,
       jump: this.keys.has("Space") || this.mobileInput.jump,
-      shoot: this.keys.has("KeyJ") || this.mobileInput.shoot,
+      triggerPressed: this.keys.has("KeyJ") || this.mobileInput.triggerPressed,
       aimUp: this.keys.has("KeyI") || this.mobileInput.aimUp,
       aimDown: this.keys.has("KeyK") || this.mobileInput.aimDown
     };
 
     this.player.update(deltaTime, input, this.terrain);
 
-    if (input.shoot) {
-      const newTriggerPress = !this.hasThisTriggeringShot;
-      if (this.player.canShoot(newTriggerPress)) {
-        const bullet = this.player.shoot(newTriggerPress);
-        if (bullet) {
-          this.bullets.push(bullet);
-          this.soundManager.playShoot();
-          this.hasThisTriggeringShot = true;
+    if (this.player.getSelectedWeaponCategory() === 'gun') {
+      if (input.triggerPressed) {
+        const newTriggerPress = !this.hasThisTriggeringShot;
+        
+        if (this.player.canShoot(newTriggerPress)) {
+          const bullet = this.player.shoot(newTriggerPress);
+          if (bullet) {
+            this.bullets.push(bullet);
+            this.soundManager.playShoot();
+            this.hasThisTriggeringShot = true;
+          }
         }
+      }
+    } else {
+      if (input.triggerPressed) {
+        const newTriggerPress = !this.hasThisTriggeringShot;
+        
+        // Start charging on first press
+        if (newTriggerPress) {
+          this.isChargingThrow = true;
+          this.throwChargeStartTime = Date.now();
+        }
+        
+        // Calculate current throw power based on charge time
+        let currentThrowPower = this.throwPower;
+        if (this.isChargingThrow) {
+          const chargeTime = Date.now() - this.throwChargeStartTime;
+          currentThrowPower = this.calculateThrowPower(chargeTime);
+        }
+        
+        if (this.player.canStartThrow(newTriggerPress)) {
+          this.player.startThrow(currentThrowPower);
+          this.hasThisTriggeringShot = true;
+        } else if (this.isChargingThrow) {
+          this.player.continueThrow(currentThrowPower);
+        }
+      } else if (this.isChargingThrow) {
+        // Trigger was released - finalize throw power
+        const chargeTime = Date.now() - this.throwChargeStartTime;
+        this.throwPower = this.calculateThrowPower(chargeTime);
+        this.isChargingThrow = false;
+        console.log(`[GRENADE] Throw power calculated: ${this.throwPower.toFixed(2)} (charge time: ${chargeTime}ms)`);
+      }
+
+      const completedGrenade = this.player.getCompletedGrenadeThrow();
+      if (completedGrenade) {
+        this.grenades.push(completedGrenade);
+        this.throwPower = 0;
       }
     }
 
@@ -448,6 +514,13 @@ export class GameEngine {
         this.particleSystem.createExplosion(bullet.transform.position, 'terrain');
       }
     });
+
+    // Handle grenade explosions
+    this.grenades.forEach(grenade => {
+      if (!grenade.active && grenade.isExploded()) {
+        this.handleGrenadeExplosion(grenade);
+      }
+    });
   }
 
   private render() {
@@ -480,6 +553,9 @@ export class GameEngine {
 
     // Render bullets
     this.bullets.forEach(bullet => bullet.render(this.ctx));
+
+    // Render grenades
+    this.grenades.forEach(grenade => grenade.render(this.ctx));
 
     // Render particles
     this.particleSystem.render(this.ctx);
@@ -515,7 +591,12 @@ export class GameEngine {
     this.ctx.fillStyle = "black";
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 60);
     this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 80);
-    this.ctx.fillText(`Ammo: ${this.player.weapon.getBulletsLeft()}/${this.player.weapon.getCapacity()}`, 22, 100);
+    
+    if (this.player.getSelectedWeaponCategory() === 'grenade') {
+      this.ctx.fillText(`Grenades: ${this.player.getGrenadeCount()}/${this.player.getMaxGrenades()}`, 22, 100);
+    } else {
+      this.ctx.fillText(`Ammo: ${this.player.weapon.getBulletsLeft()}/${this.player.weapon.getCapacity()}`, 22, 100);
+    }
     
     // Progress indicator
     if (this.debugMode) {
@@ -574,6 +655,49 @@ export class GameEngine {
     debugLines.forEach((line, i) => {
       this.ctx.fillText(line, 30, startY + i * lineHeight);
     });
+  }
+
+  private handleGrenadeExplosion(grenade: Grenade) {
+    const explosionPos = grenade.transform.position;
+    const explosionRadius = grenade.getExplosionRadius();
+    const explosionDamage = grenade.getExplosionDamage();
+    
+    console.log(`[GRENADE] Explosion at (${explosionPos.x.toFixed(1)}, ${explosionPos.y.toFixed(1)}) with radius ${explosionRadius}`);
+    
+    // Create explosion particle effect with radius-scaled animation
+    this.particleSystem.createExplosion(explosionPos, 'grenade', explosionRadius);
+    this.soundManager.playHit(); // Use hit sound for explosion
+    
+    // Damage enemies within explosion radius
+    this.enemies.forEach(enemy => {
+      const enemyCenter = enemy.getCenterOfGravity();
+      const distance = Math.sqrt(
+        Math.pow(enemyCenter.x - explosionPos.x, 2) + 
+        Math.pow(enemyCenter.y - explosionPos.y, 2)
+      );
+      
+      if (distance <= explosionRadius) {
+        // Calculate damage based on distance (more damage closer to center)
+        const damageMultiplier = 1 - (distance / explosionRadius);
+        const finalDamage = explosionDamage * damageMultiplier;
+        enemy.takeDamage(finalDamage);
+        console.log(`[GRENADE] Enemy hit for ${finalDamage.toFixed(1)} damage at distance ${distance.toFixed(1)}`);
+      }
+    });
+    
+    // Damage player if within explosion radius
+    const playerCenter = this.player.getCenterOfGravity();
+    const playerDistance = Math.sqrt(
+      Math.pow(playerCenter.x - explosionPos.x, 2) + 
+      Math.pow(playerCenter.y - explosionPos.y, 2)
+    );
+    
+    if (playerDistance <= explosionRadius) {
+      const damageMultiplier = 1 - (playerDistance / explosionRadius);
+      const finalDamage = explosionDamage * damageMultiplier;
+      this.player.takeDamage(finalDamage);
+      console.log(`[GRENADE] Player hit for ${finalDamage.toFixed(1)} damage at distance ${playerDistance.toFixed(1)}`);
+    }
   }
 
 }

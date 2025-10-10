@@ -191,6 +191,10 @@ export class Enemy implements GameObject {
     return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
+  getCenterOfGravity(): Vector2 {
+    return this.bounds.getAbsoluteCenter(this.transform.position);
+  }
+
   render(ctx: CanvasRenderingContext2D) {
     if (!this.active) return;
     

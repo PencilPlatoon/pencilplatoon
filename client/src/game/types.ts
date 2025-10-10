@@ -38,6 +38,7 @@ export interface WeaponType {
   holdRelativeY: number;
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
+  weaponCategory: 'gun' | 'grenade';
 }
 
 export interface Particle {

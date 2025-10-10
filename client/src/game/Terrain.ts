@@ -95,6 +95,17 @@ export class Terrain {
     throw new Error(`x=${x} is outside the terrain range`);
   }
 
+  calculateSlopeAt(x: number, sampleDistance: number = 20): number {
+    try {
+      const leftHeight = this.getHeightAt(x - sampleDistance);
+      const rightHeight = this.getHeightAt(x + sampleDistance);
+      return (rightHeight - leftHeight) / (sampleDistance * 2);
+    } catch (error) {
+      // If we can't get height at either point, return 0 (flat)
+      return 0;
+    }
+  }
+
   render(ctx: CanvasRenderingContext2D) {
     TerrainFigure.render({
       ctx,
