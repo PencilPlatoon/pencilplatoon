@@ -16,7 +16,7 @@ interface MobileControlsProps {
     up: boolean;
     down: boolean;
     jump: boolean;
-    shoot: boolean;
+    triggerPressed: boolean;
     aimUp: boolean;
     aimDown: boolean;
   }) => void;
@@ -31,7 +31,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
     up: false,
     down: false,
     jump: false,
-    shoot: false,
+    triggerPressed: false,
     aimUp: false,
     aimDown: false
   });
@@ -89,7 +89,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
             newInput.jump = true;
             break;
           case 'shoot':
-            newInput.shoot = true;
+            newInput.triggerPressed = true;
             break;
           case 'aimUp':
             newInput.aimUp = true;
@@ -134,7 +134,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
             newInput.jump = false;
             break;
           case 'shoot':
-            newInput.shoot = false;
+            newInput.triggerPressed = false;
             break;
           case 'aimUp':
             newInput.aimUp = false;
@@ -167,7 +167,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
       
       if (area && area.action === 'shoot') {
         handledTouch = true;
-        newInput.shoot = true;
+        newInput.triggerPressed = true;
       }
     }
 

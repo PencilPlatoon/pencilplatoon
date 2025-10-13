@@ -1,4 +1,4 @@
-import { Vector2, GameObject } from "./types";
+import { GameObject } from "./types";
 
 export class Physics {
   public static readonly GRAVITY = 1500;

@@ -5,15 +5,11 @@ import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
+import { ThrowingAimLineFigure } from "../figures/ThrowingAimLineFigure";
 import { Weapon } from "./Weapon";
+import { Grenade } from "./Grenade";
 import { EntityTransform } from "./EntityTransform";
 import { Physics } from "./Physics";
-
-declare global {
-  interface Window {
-    __DEBUG_MODE__?: boolean;
-  }
-}
 
 interface PlayerInput {
   left: boolean;
@@ -21,7 +17,7 @@ interface PlayerInput {
   up: boolean;
   down: boolean;
   jump: boolean;
-  shoot: boolean;
+  triggerPressed: boolean;
   aimUp: boolean;
   aimDown: boolean;
 }
@@ -35,22 +31,34 @@ export class Player implements GameObject {
   health: number;
   
   public static readonly MAX_HEALTH = 100;
+  public static readonly MAX_THROW_VELOCITY = 1000;
   private static readonly SPEED = 200;
   private static readonly JUMP_FORCE = 600;
   private static readonly HEALTHBAR_OFFSET_Y = 20;
   private static readonly AIM_ACCELERATION = 4;
   private static readonly MAX_AIM_SPEED = 3;
+  private static readonly THROW_ANIMATION_DURATION_MS = 300;
 
   private isGrounded = false;
   public weapon: Weapon;
+  private heldGrenade: Grenade;
   private weaponRelative: EntityTransform;
   private lastCollisionDebugX: number | null = null;
   private aimAngle: number = 0;
   private aimSpeed: number = 0;
   private currentWeaponIndex: number = 0;
+  private currentGrenadeIndex: number = 0;
   private walkCycle: number = 0;
   private isWalking: boolean = false;
   private lastX: number = 0;
+
+  private grenadeCount: number = 50;
+  private maxGrenades: number = 50;
+  private selectedWeaponCategory: 'gun' | 'grenade' = 'gun';
+  private throwingAnimation: number = 0; // 0 = not throwing, 1 = full throw motion
+  private throwingAnimationStartTime: number = 0;
+  private throwPower: number = 0; // Values in [0.0-1.0]
+  private completedGrenade: Grenade | null = null; // Grenade that was just completed and needs to be added to game world
 
   constructor(x: number, y: number) {
     this.id = "player";
@@ -61,6 +69,7 @@ export class Player implements GameObject {
     this.health = 0;
     
     this.weapon = new Weapon(Weapon.ALL_WEAPONS[0]);
+    this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.HAND_GRENADE);
     this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
     
     // Initialize with proper state
@@ -68,8 +77,31 @@ export class Player implements GameObject {
   }
 
   private getAbsoluteWeaponTransform(): EntityTransform {
-    const handTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
-    return this.transform.applyTransform(handTransform).applyTransform(this.weaponRelative);
+    if (this.selectedWeaponCategory === 'grenade') {
+      // For grenades, use the back hand with throwing animation
+      let backArmAngle = this.aimAngle;
+      if (this.throwingAnimation > 0) {
+        // During throwing, the back arm swings up and forward
+        // Animation goes from 1 (start) to 0 (end)
+        const throwProgress = 1 - this.throwingAnimation;
+        backArmAngle = this.aimAngle - Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (negative for upward motion)
+      }
+      const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
+      return this.transform.applyTransform(backHandTransform).applyTransform(this.weaponRelative);
+    } else {
+      // For guns, use the forward hand
+      const forwardHandTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
+      return this.transform.applyTransform(forwardHandTransform).applyTransform(this.weaponRelative);
+    }
+  }
+
+  private getThrowingReleaseTransform(): EntityTransform {
+    // Get the position where grenade will be released (at end of animation)
+    const releaseAngle = this.aimAngle - Math.PI * 0.3; // Final position of throw (30 degrees up)
+    const backHandTransform = HumanFigure.getBackHandTransform(releaseAngle);
+    const releasePosition = this.transform.applyTransform(backHandTransform).applyTransform(this.weaponRelative).position;
+    // Return transform with release position, aim angle for throw direction, and player facing
+    return new EntityTransform(releasePosition, this.aimAngle, this.transform.facing);
   }
 
   getCenterOfGravity(): Vector2 {
@@ -83,6 +115,11 @@ export class Player implements GameObject {
     this.health = Player.MAX_HEALTH;
     this.active = true;
     this.aimAngle = 0;
+    this.grenadeCount = this.maxGrenades;
+    this.throwPower = 0;
+    this.throwingAnimation = 0;
+    this.throwingAnimationStartTime = 0;
+    this.completedGrenade = null;
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
@@ -95,6 +132,17 @@ export class Player implements GameObject {
       this.walkCycle = 0;
     }
     this.lastX = this.transform.position.x;
+
+    // Update throwing animation
+    if (this.throwingAnimation > 0) {
+      const animationTime = Date.now() - this.throwingAnimationStartTime;
+      this.throwingAnimation = Math.max(0, 1 - (animationTime / Player.THROW_ANIMATION_DURATION_MS));
+      
+      // If animation just completed and we have a queued grenade throw, execute it
+      if (this.throwingAnimation === 0 && this.throwPower > 0) {
+        this.releaseThrow();
+      }
+    }
 
     // Horizontal movement
     if (input.left) {
@@ -163,7 +211,30 @@ export class Player implements GameObject {
     console.log(`Switched to weapon: ${this.weapon.name}`);
   }
 
+  switchToNextGrenade(): void {
+    this.currentGrenadeIndex = (this.currentGrenadeIndex + 1) % Grenade.ALL_GRENADES.length;
+    this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.ALL_GRENADES[this.currentGrenadeIndex]);
+    console.log(`Switched to grenade: ${this.heldGrenade.name}`);
+  }
+
+  switchWeaponCategory(): void {
+    if (this.selectedWeaponCategory === 'grenade') {
+      // Switch back to guns
+      this.selectedWeaponCategory = 'gun';
+      console.log(`Switched back to gun: ${this.weapon.name}`);
+    } else {
+      // Switch to grenade
+      this.selectedWeaponCategory = 'grenade';
+      console.log(`Switched to grenade mode: ${this.heldGrenade.name}`);
+    }
+  }
+
   reloadWeapon(): void {
+    if (this.selectedWeaponCategory === 'grenade') {
+      // Grenades can't be reloaded - they're limited to inventory
+      console.log(`Cannot reload grenades - you have ${this.grenadeCount}/${this.maxGrenades}`);
+      return;
+    }
     this.weapon.reload();
     console.log(`Reloaded weapon: ${this.weapon.name}`);
   }
@@ -171,6 +242,86 @@ export class Player implements GameObject {
   shoot(newTriggerPress: boolean): Bullet | null {
     const weaponTransform = this.getAbsoluteWeaponTransform();
     return this.weapon.shoot(weaponTransform, newTriggerPress);
+  }
+
+  canStartThrow(): boolean {
+    return this.grenadeCount > 0;
+  }
+
+  setThrowPower(power: number): void {
+    this.throwPower = power;
+  }
+
+  private getThrowMultiplier(): number {
+    // Maps throwPower [0.0, 1.0] to [0.2, 1.0]
+    return 0.2 + (this.throwPower * 0.8);
+  }
+
+  startThrow(): void {
+    if (this.grenadeCount <= 0) return;
+    
+    this.grenadeCount--;
+    // Start throwing animation (throwPower is already set by GameEngine)
+    this.throwingAnimation = 1;
+    this.throwingAnimationStartTime = Date.now();
+    console.log(`[PLAYER] Started grenade throw animation with power: ${this.throwPower.toFixed(2)} (multiplier: ${this.getThrowMultiplier().toFixed(2)}). Remaining: ${this.grenadeCount}/${this.maxGrenades}`);
+  }
+
+  private releaseThrow(): void {
+    console.log(`[PLAYER] Releasing grenade throw with power: ${this.throwPower.toFixed(2)}`);
+    if (this.throwPower <= 0) return;
+    
+    const multiplier = this.getThrowMultiplier();
+    const velocity = Player.MAX_THROW_VELOCITY * multiplier;
+    
+    console.log(`[GRENADE THROW] throwPower: ${this.throwPower.toFixed(2)}, multiplier: ${multiplier.toFixed(2)}, velocity magnitude: ${velocity.toFixed(1)}`);
+    
+    const releaseTransform = this.getThrowingReleaseTransform();
+    
+    const throwAngle = this.aimAngle;
+    const throwVelocity = {
+      x: Math.cos(throwAngle) * this.transform.facing * velocity,
+      y: Math.sin(throwAngle) * velocity
+    };
+    
+    const grenadeX = releaseTransform.position.x;
+    const grenadeY = releaseTransform.position.y;
+    
+    console.log(`[GRENADE THROW] Player hand position: (${grenadeX.toFixed(1)}, ${grenadeY.toFixed(1)}), throw angle: ${(throwAngle * 180 / Math.PI).toFixed(1)}°, velocity: (${throwVelocity.x.toFixed(1)}, ${throwVelocity.y.toFixed(1)})`);
+    console.log(`[PLAYER] Executed queued grenade throw with multiplier: ${multiplier.toFixed(2)}. Player position: (${this.transform.position.x.toFixed(1)}, ${this.transform.position.y.toFixed(1)}), aim angle: ${(this.aimAngle * 180 / Math.PI).toFixed(1)}°`);
+    
+    this.throwPower = 0;
+    
+    const thrownGrenade = this.heldGrenade;
+    thrownGrenade.prepareForThrow(grenadeX, grenadeY, throwVelocity);
+    
+    this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.ALL_GRENADES[this.currentGrenadeIndex]);
+    
+    this.completedGrenade = thrownGrenade;
+    console.log(`[PLAYER] Completed grenade throw: ${thrownGrenade}`);
+  }
+
+  getCompletedGrenadeThrow(): Grenade | null {
+    // This method is called by GameEngine to check if a grenade throw was completed
+    const grenade = this.completedGrenade;
+    this.completedGrenade = null; // Clear it after returning
+    return grenade;
+  }
+
+  getGrenadeCount(): number {
+    return this.grenadeCount;
+  }
+
+  getMaxGrenades(): number {
+    return this.maxGrenades;
+  }
+
+  getSelectedWeaponCategory(): 'gun' | 'grenade' {
+    return this.selectedWeaponCategory;
+  }
+
+  getEntityLabel(): string {
+    return 'Player';
   }
 
   takeDamage(damage: number) {
@@ -190,12 +341,37 @@ export class Player implements GameObject {
   }
 
   render(ctx: CanvasRenderingContext2D) {
-    this.weapon.render({
-      ctx,
-      transform: this.getAbsoluteWeaponTransform(),
-      showAimLine: true,
-      aimLineLength: 100
-    });
+    if (this.selectedWeaponCategory === 'gun') {
+      this.weapon.render({
+        ctx,
+        transform: this.getAbsoluteWeaponTransform(),
+        showAimLine: true
+      });
+    } else {
+      const releaseTransform = this.getThrowingReleaseTransform();
+      
+      // Render the held grenade
+      this.heldGrenade.transform = this.getAbsoluteWeaponTransform();
+      this.heldGrenade.render(ctx);
+      
+      ThrowingAimLineFigure.render({
+        ctx,
+        transform: releaseTransform,
+        velocity: Player.MAX_THROW_VELOCITY * 1.0,
+        mode: "Max"
+      });
+      
+      // Show current charging line if actively charging
+      if (this.throwPower > 0) {
+        ThrowingAimLineFigure.render({
+          ctx,
+          transform: releaseTransform,
+          velocity: Player.MAX_THROW_VELOCITY * this.getThrowMultiplier(),
+          mode: "Charging"
+        });
+      }
+    }
+    
     HealthBarFigure.render({
       ctx,
       transform: new EntityTransform({
@@ -212,7 +388,8 @@ export class Player implements GameObject {
       active: this.active,
       aimAngle: this.aimAngle,
       isWalking: this.isWalking,
-      walkCycle: this.walkCycle
+      walkCycle: this.walkCycle,
+      throwingAnimation: this.throwingAnimation
     });
   }
 }

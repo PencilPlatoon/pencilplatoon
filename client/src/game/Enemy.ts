@@ -9,12 +9,6 @@ import { Weapon } from "./Weapon";
 import { EntityTransform } from "./EntityTransform";
 import { Physics } from "./Physics";
 
-declare global {
-  interface Window {
-    __DEBUG_MODE__?: boolean;
-  }
-}
-
 export class Enemy implements GameObject {
   id: string;
   transform: EntityTransform;
@@ -180,6 +174,10 @@ export class Enemy implements GameObject {
     return this.weapon.shoot(updatedWeaponTransform, false);
   }
 
+  getEntityLabel(): string {
+    return 'Enemy';
+  }
+
   takeDamage(damage: number) {
     this.health = Math.max(0, this.health - damage);
     if (this.health <= 0) {
@@ -189,6 +187,10 @@ export class Enemy implements GameObject {
 
   getAbsoluteBounds() {
     return this.bounds.getAbsoluteBounds(this.transform.position);
+  }
+
+  getCenterOfGravity(): Vector2 {
+    return this.bounds.getAbsoluteCenter(this.transform.position);
   }
 
   render(ctx: CanvasRenderingContext2D) {

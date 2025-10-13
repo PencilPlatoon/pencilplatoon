@@ -1,6 +1,12 @@
 import { BoundingBox } from "./BoundingBox";
 import { EntityTransform } from "./EntityTransform";
 
+declare global {
+  interface Window {
+    __DEBUG_MODE__?: boolean;
+  }
+}
+
 export interface Vector2 {
   x: number;
   y: number;
@@ -15,6 +21,12 @@ export interface GameObject {
   health?: number;
 }
 
+export interface DamageableEntity extends GameObject {
+  getCenterOfGravity(): Vector2;
+  takeDamage(damage: number): void;
+  getEntityLabel(): string;
+}
+
 export interface WeaponType {
   name: string;
   damage: number;
@@ -23,7 +35,7 @@ export interface WeaponType {
   bulletSize: number;
   weaponLength: number;
   soundEffect?: string;
-  svgPath?: string;
+  svgPath: string;
   /**
    * The relative X coordinate of the hand position along the weapon, as a fraction of weapon length.
    * A value of 0.5 means the hand is at the middle of the weapon.
@@ -38,6 +50,17 @@ export interface WeaponType {
   holdRelativeY: number;
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
+}
+
+export interface GrenadeType {
+  name: string;
+  damage: number;
+  explosionRadius: number;
+  explosionDelay: number;
+  size: number;
+  svgPath: string;
+  holdRelativeX: number;
+  holdRelativeY: number;
 }
 
 export interface Particle {

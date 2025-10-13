@@ -85,7 +85,8 @@ export class HumanFigure {
     active,
     aimAngle,
     isWalking,
-    walkCycle
+    walkCycle,
+    throwingAnimation = 0
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
@@ -93,6 +94,7 @@ export class HumanFigure {
     aimAngle: number;
     isWalking: boolean;
     walkCycle: number;
+    throwingAnimation?: number;
   }) {
     if (!active) return;
     const position = transform.position;
@@ -122,7 +124,14 @@ export class HumanFigure {
     // Arms
     
     // Backward arm (opposite to facing direction)
-    const backHandTransform = HumanFigure.getBackHandTransform(0);
+    let backArmAngle = 0;
+    if (throwingAnimation > 0) {
+      // During throwing, the back arm swings up and forward
+      // Animation goes from 1 (start) to 0 (end)
+      const throwProgress = 1 - throwingAnimation;
+      backArmAngle = -Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (negative for upward motion)
+    }
+    const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
     const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
     ctx.beginPath();
     ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));

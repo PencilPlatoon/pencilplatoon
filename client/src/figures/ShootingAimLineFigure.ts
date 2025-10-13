@@ -1,19 +1,20 @@
 import { toCanvasY } from "../game/Terrain";
 import { EntityTransform } from "../game/EntityTransform";
 
-export class AimLineFigure {
+export class ShootingAimLineFigure {
+  static readonly AIM_LINE_LENGTH = 100;
+
   static render({
     ctx,
     transform,
-    aimLineLength
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
-    aimLineLength: number;
   }) {
     const position = transform.position;
-    const aimEndX = position.x + Math.cos(transform.rotation) * aimLineLength * transform.facing;
-    const aimEndY = position.y + Math.sin(transform.rotation) * aimLineLength;
+    const aimEndX = position.x + Math.cos(transform.rotation) * this.AIM_LINE_LENGTH * transform.facing;
+    const aimEndY = position.y + Math.sin(transform.rotation) * this.AIM_LINE_LENGTH;
+    
     ctx.save();
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
@@ -25,4 +26,5 @@ export class AimLineFigure {
     ctx.setLineDash([]);
     ctx.restore();
   }
-} 
+}
+

@@ -84,7 +84,7 @@ export default function Game() {
     up: boolean;
     down: boolean;
     jump: boolean;
-    shoot: boolean;
+    triggerPressed: boolean;
     aimUp: boolean;
     aimDown: boolean;
   }) => {

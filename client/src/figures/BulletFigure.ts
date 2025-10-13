@@ -6,15 +6,12 @@ export class BulletFigure {
   static render({
     ctx,
     transform,
-    bounds,
-    active = true
+    bounds
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
     bounds: BoundingBox;
-    active?: boolean;
   }) {
-    if (!active) return;
     const position = transform.position;
 
     const canvasY = toCanvasY(position.y) - bounds.height / 2;

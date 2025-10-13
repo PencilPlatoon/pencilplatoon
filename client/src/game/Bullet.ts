@@ -5,12 +5,6 @@ import { BulletFigure } from "../figures/BulletFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { EntityTransform } from "./EntityTransform";
 
-declare global {
-  interface Window {
-    __DEBUG_MODE__?: boolean;
-  }
-}
-
 export class Bullet implements GameObject {
   id: string;
   transform: EntityTransform;
@@ -76,8 +70,7 @@ export class Bullet implements GameObject {
     BulletFigure.render({
       ctx,
       transform: this.transform,
-      bounds: this.bounds,
-      active: this.active
+      bounds: this.bounds
     });
 
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));

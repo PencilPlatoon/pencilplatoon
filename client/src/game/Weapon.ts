@@ -1,4 +1,4 @@
-import { WeaponType } from "./types";
+import { WeaponType, Vector2 } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
@@ -14,7 +14,7 @@ export class Weapon {
   bulletSize: number;
   weaponLength: number;
   soundEffect?: string;
-  svgPath?: string;
+  svgPath: string;
   holdRelativeX: number;
   holdRelativeY: number;
   capacity: number;
@@ -50,10 +50,11 @@ export class Weapon {
       this.holdRelativeY
     );
     if (this.svgPath) {
+      const svgPath = this.svgPath;
       const holdRelativeX = this.holdRelativeX;
       const holdRelativeY = this.holdRelativeY;
       this._loadPromise = (async () => {
-        const svgInfo = await SVGLoader.get(this.svgPath!);
+        const svgInfo = await SVGLoader.get(svgPath);
         if (svgInfo) {
           const { displayWidth, displayHeight } = Weapon.calculateDisplaySize(weaponType, svgInfo);
           this.boundingBox = new BoundingBox(
@@ -65,7 +66,7 @@ export class Weapon {
           this.svgInfo = svgInfo;
           this.isLoaded = true;
         } else {
-          console.warn(`Weapon SVG failed to load: ${this.svgPath}`);
+          console.warn(`Weapon SVG failed to load: ${svgPath}`);
           // Fall back to basic weapon
           this.isLoaded = true;
         }
@@ -121,20 +122,17 @@ export class Weapon {
   render({
     ctx,
     transform,
-    showAimLine = false,
-    aimLineLength = 100
+    showAimLine = false
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
     showAimLine?: boolean;
-    aimLineLength?: number;
   }) {
     WeaponFigure.render({
       ctx,
       transform,
       weapon: this,
       showAimLine,
-      aimLineLength,
       svgInfo: this.svgInfo,
       boundingBox: this.boundingBox
     });
