@@ -5,7 +5,7 @@ import { Terrain } from "./Terrain";
 import { HumanFigure } from "../figures/HumanFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
-import { Weapon } from "./Weapon";
+import { ShootingWeapon } from "./ShootingWeapon";
 import { EntityTransform } from "./EntityTransform";
 import { Physics } from "./Physics";
 
@@ -26,7 +26,7 @@ export class Enemy implements GameObject {
   private static readonly HEALTHBAR_OFFSET_Y = 20;
 
   private lastShotTime = 0;
-  private weapon: Weapon;
+  private weapon: ShootingWeapon;
   private weaponRelative: EntityTransform; // Relative weapon transform
   private patrolDirection = 1;
   private patrolStartX: number;
@@ -46,7 +46,7 @@ export class Enemy implements GameObject {
     this.patrolStartX = x;
     this.lastX = x;
     
-    this.weapon = new Weapon(Weapon.RIFLE_A_MAIN_OFFENSIVE);
+    this.weapon = new ShootingWeapon(ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE);
     this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
   }
 

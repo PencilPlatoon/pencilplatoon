@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { SVGLoader, SVGInfo } from '../util/SVGLoader';
-import { Weapon } from '../game/Weapon';
+import { ShootingWeapon } from '../game/ShootingWeapon';
 import { WeaponType } from '../game/types';
 
 export interface LoadedAsset {
@@ -17,13 +17,13 @@ export function useAssetLoader() {
 
   useEffect(() => {
     const loadAssets = async () => {
-      const loadPromises = Weapon.ALL_WEAPONS
+      const loadPromises = ShootingWeapon.ALL_WEAPONS
         .filter(weapon => weapon.svgPath)
         .map(async (weapon) => {
           try {
             const svgInfo = await SVGLoader.get(weapon.svgPath!);
             if (svgInfo) {
-              const { displayWidth, displayHeight } = Weapon.calculateDisplaySize(weapon, svgInfo);
+              const { displayWidth, displayHeight } = ShootingWeapon.calculateDisplaySize(weapon, svgInfo);
               return {
                 svgInfo,
                 weapon,

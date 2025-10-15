@@ -8,7 +8,7 @@ See generally-applicable principles in client/src/DESIGN.md.
 
 - Principle: Make game state easy to reason about
   - Sub principle: Use weapon objects as separate entities
-    - Implementation: Player/Enemy contains a Weapon instance rather than embedding weapon logic
+    - Implementation: Player/Enemy contains a ShootingWeapon instance rather than embedding weapon logic
 
 - Principle: Make input handling easy to reason about
   - Sub principle: Use structured input objects instead of individual parameters

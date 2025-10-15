@@ -1,4 +1,4 @@
-import { WeaponType, Vector2 } from "./types";
+import { WeaponType } from "./types";
 import { BoundingBox } from "./BoundingBox";
 import { SVGLoader, SVGInfo } from "../util/SVGLoader";
 import { Bullet } from "./Bullet";
@@ -6,7 +6,7 @@ import { WeaponFigure } from "../figures/WeaponFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { EntityTransform } from "./EntityTransform";
 
-export class Weapon {
+export class ShootingWeapon {
   name: string;
   damage: number;
   fireInterval: number;
@@ -56,7 +56,7 @@ export class Weapon {
       this._loadPromise = (async () => {
         const svgInfo = await SVGLoader.get(svgPath);
         if (svgInfo) {
-          const { displayWidth, displayHeight } = Weapon.calculateDisplaySize(weaponType, svgInfo);
+          const { displayWidth, displayHeight } = ShootingWeapon.calculateDisplaySize(weaponType, svgInfo);
           this.boundingBox = new BoundingBox(
             displayWidth,
             displayHeight,
@@ -66,7 +66,7 @@ export class Weapon {
           this.svgInfo = svgInfo;
           this.isLoaded = true;
         } else {
-          console.warn(`Weapon SVG failed to load: ${svgPath}`);
+          console.warn(`ShootingWeapon SVG failed to load: ${svgPath}`);
           // Fall back to basic weapon
           this.isLoaded = true;
         }
@@ -141,7 +141,7 @@ export class Weapon {
 
   async waitForLoaded(): Promise<void> {
     await this._loadPromise;
-    console.log(`Weapon loaded: ${this.name}`);
+    console.log(`ShootingWeapon loaded: ${this.name}`);
   }
 
   static calculateDisplaySize(weapon: WeaponType, svgInfo: SVGInfo): { displayWidth: number; displayHeight: number } {
@@ -351,19 +351,19 @@ export class Weapon {
   };
 
   static readonly ALL_WEAPONS: WeaponType[] = [
-    Weapon.WEBLEY_REVOLVER,
-    Weapon.RIFLE_A_MAIN_OFFENSIVE,
-    Weapon.FNAF_BATTLE_RIFLE,
-    Weapon.AK200_ASSAULT_RIFLE,
-    Weapon.M9_JOHNSON,
-    Weapon.M7_CARBINE,
-    Weapon.HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE,
-    Weapon.M270_BREACHER_SHOTGUN,
-    Weapon.R_200_SHOTGUN,
-    Weapon.MR_27_DRUMBEAT_SHOTGUN,
-    Weapon.PTS_27_ANTITANK_GUN,
-    Weapon.BROWNING_MK3_MACHINE_GUN,
-    Weapon.VP_37_SUBMACHINE_GUN,
-    Weapon.MK_200_SNIPER_RIFLE,
+    ShootingWeapon.WEBLEY_REVOLVER,
+    ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE,
+    ShootingWeapon.FNAF_BATTLE_RIFLE,
+    ShootingWeapon.AK200_ASSAULT_RIFLE,
+    ShootingWeapon.M9_JOHNSON,
+    ShootingWeapon.M7_CARBINE,
+    ShootingWeapon.HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE,
+    ShootingWeapon.M270_BREACHER_SHOTGUN,
+    ShootingWeapon.R_200_SHOTGUN,
+    ShootingWeapon.MR_27_DRUMBEAT_SHOTGUN,
+    ShootingWeapon.PTS_27_ANTITANK_GUN,
+    ShootingWeapon.BROWNING_MK3_MACHINE_GUN,
+    ShootingWeapon.VP_37_SUBMACHINE_GUN,
+    ShootingWeapon.MK_200_SNIPER_RIFLE,
   ];
 }

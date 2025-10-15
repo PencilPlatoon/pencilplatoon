@@ -6,7 +6,7 @@ import { HumanFigure } from "../figures/HumanFigure";
 import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { ThrowingAimLineFigure } from "../figures/ThrowingAimLineFigure";
-import { Weapon } from "./Weapon";
+import { ShootingWeapon } from "./ShootingWeapon";
 import { Grenade } from "./Grenade";
 import { EntityTransform } from "./EntityTransform";
 import { Physics } from "./Physics";
@@ -40,7 +40,7 @@ export class Player implements GameObject {
   private static readonly THROW_ANIMATION_DURATION_MS = 300;
 
   private isGrounded = false;
-  public weapon: Weapon;
+  public weapon: ShootingWeapon;
   private heldGrenade: Grenade;
   private weaponRelative: EntityTransform;
   private lastCollisionDebugX: number | null = null;
@@ -68,7 +68,7 @@ export class Player implements GameObject {
     this.active = false;
     this.health = 0;
     
-    this.weapon = new Weapon(Weapon.ALL_WEAPONS[0]);
+    this.weapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[0]);
     this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.HAND_GRENADE);
     this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
     
@@ -206,8 +206,8 @@ export class Player implements GameObject {
   }
 
   switchToNextWeapon(): void {
-    this.currentWeaponIndex = (this.currentWeaponIndex + 1) % Weapon.ALL_WEAPONS.length;
-    this.weapon = new Weapon(Weapon.ALL_WEAPONS[this.currentWeaponIndex]);
+    this.currentWeaponIndex = (this.currentWeaponIndex + 1) % ShootingWeapon.ALL_WEAPONS.length;
+    this.weapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[this.currentWeaponIndex]);
     console.log(`Switched to weapon: ${this.weapon.name}`);
   }
 
