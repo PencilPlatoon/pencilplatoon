@@ -572,6 +572,7 @@ export class GameEngine {
     const healthBarWidth = 200;
     const healthBarHeight = 20;
     const healthPercentage = this.player.health / Player.MAX_HEALTH;
+    const healthDisplay = Math.floor(this.player.health);
 
     this.ctx.fillStyle = "rgba(0, 0, 0, 0.7)";
     this.ctx.fillRect(20, 20, healthBarWidth + 4, healthBarHeight + 4);
@@ -586,7 +587,7 @@ export class GameEngine {
     this.ctx.fillStyle = "white";
     this.ctx.font = "16px Arial";
     this.ctx.textAlign = "center";
-    this.ctx.fillText(`Health: ${this.player.health}/${Player.MAX_HEALTH}`, 22 + healthBarWidth / 2, 22 + healthBarHeight / 2 + 6);
+    this.ctx.fillText(`Health: ${healthDisplay}/${Player.MAX_HEALTH}`, 22 + healthBarWidth / 2, 22 + healthBarHeight / 2 + 6);
     this.ctx.textAlign = "left"; // Reset text alignment
     this.ctx.fillStyle = "black";
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 60);
