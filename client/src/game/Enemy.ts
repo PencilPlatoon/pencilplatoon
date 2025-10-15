@@ -27,7 +27,6 @@ export class Enemy implements GameObject {
 
   private lastShotTime = 0;
   private weapon: ShootingWeapon;
-  private weaponRelative: EntityTransform; // Relative weapon transform
   private patrolDirection = 1;
   private patrolStartX: number;
   private aimAngle: number = 0; // Angle of the arm/aim
@@ -47,12 +46,11 @@ export class Enemy implements GameObject {
     this.lastX = x;
     
     this.weapon = new ShootingWeapon(ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE);
-    this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
   }
 
   private getAbsoluteWeaponTransform(): EntityTransform {
     const handTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
-    return this.transform.applyTransform(handTransform).applyTransform(this.weaponRelative);
+    return this.transform.applyTransform(handTransform);
   }
 
   private computeAimAngle(target: Vector2): number {

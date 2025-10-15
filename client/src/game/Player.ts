@@ -37,13 +37,11 @@ export class Player implements GameObject {
   private static readonly HEALTHBAR_OFFSET_Y = 20;
   private static readonly AIM_ACCELERATION = 4;
   private static readonly MAX_AIM_SPEED = 3;
-  private static readonly THROW_ANIMATION_DURATION_MS = 300;
+  private static readonly THROW_CYCLE_DURATION_MS = 300;
 
   private isGrounded = false;
   public weapon: ShootingWeapon;
   private heldGrenade: Grenade;
-  private weaponRelative: EntityTransform;
-  private lastCollisionDebugX: number | null = null;
   private aimAngle: number = 0;
   private aimSpeed: number = 0;
   private currentWeaponIndex: number = 0;
@@ -55,8 +53,8 @@ export class Player implements GameObject {
   private grenadeCount: number = 50;
   private maxGrenades: number = 50;
   private selectedWeaponCategory: 'gun' | 'grenade' = 'gun';
-  private throwingAnimation: number = 0; // 0 = not throwing, 1 = full throw motion
-  private throwingAnimationStartTime: number = 0;
+  private throwCycle: number = 0; // 0 = not throwing, 1 = full throw motion
+  private throwCycleStartTime: number = 0;
   private throwPower: number = 0; // Values in [0.0-1.0]
   private completedGrenade: Grenade | null = null; // Grenade that was just completed and needs to be added to game world
 
@@ -70,7 +68,6 @@ export class Player implements GameObject {
     
     this.weapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[0]);
     this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.HAND_GRENADE);
-    this.weaponRelative = new EntityTransform({ x: 0, y: 0 }, 0, 1); // Weapon relative to hand (no rotation)
     
     // Initialize with proper state
     this.reset(x, y);
@@ -80,18 +77,18 @@ export class Player implements GameObject {
     if (this.selectedWeaponCategory === 'grenade') {
       // For grenades, use the back hand with throwing animation
       let backArmAngle = this.aimAngle;
-      if (this.throwingAnimation > 0) {
+      if (this.throwCycle > 0) {
         // During throwing, the back arm swings up and forward
         // Animation goes from 1 (start) to 0 (end)
-        const throwProgress = 1 - this.throwingAnimation;
+        const throwProgress = 1 - this.throwCycle;
         backArmAngle = this.aimAngle - Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (negative for upward motion)
       }
       const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
-      return this.transform.applyTransform(backHandTransform).applyTransform(this.weaponRelative);
+      return this.transform.applyTransform(backHandTransform);
     } else {
       // For guns, use the forward hand
       const forwardHandTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
-      return this.transform.applyTransform(forwardHandTransform).applyTransform(this.weaponRelative);
+      return this.transform.applyTransform(forwardHandTransform);
     }
   }
 
@@ -99,7 +96,7 @@ export class Player implements GameObject {
     // Get the position where grenade will be released (at end of animation)
     const releaseAngle = this.aimAngle - Math.PI * 0.3; // Final position of throw (30 degrees up)
     const backHandTransform = HumanFigure.getBackHandTransform(releaseAngle);
-    const releasePosition = this.transform.applyTransform(backHandTransform).applyTransform(this.weaponRelative).position;
+    const releasePosition = this.transform.applyTransform(backHandTransform).position;
     // Return transform with release position, aim angle for throw direction, and player facing
     return new EntityTransform(releasePosition, this.aimAngle, this.transform.facing);
   }
@@ -117,8 +114,8 @@ export class Player implements GameObject {
     this.aimAngle = 0;
     this.grenadeCount = this.maxGrenades;
     this.throwPower = 0;
-    this.throwingAnimation = 0;
-    this.throwingAnimationStartTime = 0;
+    this.throwCycle = 0;
+    this.throwCycleStartTime = 0;
     this.completedGrenade = null;
   }
 
@@ -134,12 +131,12 @@ export class Player implements GameObject {
     this.lastX = this.transform.position.x;
 
     // Update throwing animation
-    if (this.throwingAnimation > 0) {
-      const animationTime = Date.now() - this.throwingAnimationStartTime;
-      this.throwingAnimation = Math.max(0, 1 - (animationTime / Player.THROW_ANIMATION_DURATION_MS));
+    if (this.throwCycle > 0) {
+      const animationTime = Date.now() - this.throwCycleStartTime;
+      this.throwCycle = Math.max(0, 1 - (animationTime / Player.THROW_CYCLE_DURATION_MS));
       
       // If animation just completed and we have a queued grenade throw, execute it
-      if (this.throwingAnimation === 0 && this.throwPower > 0) {
+      if (this.throwCycle === 0 && this.throwPower > 0) {
         this.releaseThrow();
       }
     }
@@ -176,9 +173,6 @@ export class Player implements GameObject {
     this.transform.position.x = Math.max(50, this.transform.position.x);
 
     this.handleTerrainCollision(terrain);
-    if (this.lastCollisionDebugX !== this.transform.position.x) {
-      this.lastCollisionDebugX = this.transform.position.x;
-    }
   }
 
   private handleTerrainCollision(terrain: Terrain) {
@@ -262,9 +256,9 @@ export class Player implements GameObject {
     
     this.grenadeCount--;
     // Start throwing animation (throwPower is already set by GameEngine)
-    this.throwingAnimation = 1;
-    this.throwingAnimationStartTime = Date.now();
-    console.log(`[PLAYER] Started grenade throw animation with power: ${this.throwPower.toFixed(2)} (multiplier: ${this.getThrowMultiplier().toFixed(2)}). Remaining: ${this.grenadeCount}/${this.maxGrenades}`);
+    this.throwCycle = 1;
+    this.throwCycleStartTime = Date.now();
+    console.log(`[PLAYER] Started grenade throw with power: ${this.throwPower.toFixed(2)} (multiplier: ${this.getThrowMultiplier().toFixed(2)}). Remaining: ${this.grenadeCount}/${this.maxGrenades}`);
   }
 
   private releaseThrow(): void {
@@ -389,7 +383,7 @@ export class Player implements GameObject {
       aimAngle: this.aimAngle,
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
-      throwingAnimation: this.throwingAnimation
+      throwingAnimation: this.throwCycle
     });
   }
 }
