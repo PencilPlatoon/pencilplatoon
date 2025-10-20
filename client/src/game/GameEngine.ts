@@ -6,6 +6,7 @@ import { Camera } from "./Camera";
 import { CollisionSystem } from "./CollisionSystem";
 import { Bullet } from "./Bullet";
 import { Grenade } from "./Grenade";
+import { Rocket } from "./Rocket";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
@@ -25,6 +26,7 @@ export class GameEngine {
   private activeEnemies: Set<string> = new Set(); // Track which enemies are active
   private bullets: Bullet[] = [];
   private grenades: Grenade[] = [];
+  private rockets: Rocket[] = [];
   private terrain: Terrain;
   private particleSystem: ParticleSystem;
   private camera: Camera;
@@ -190,16 +192,17 @@ export class GameEngine {
   }
 
   switchWeapon(): void {
-    this.player.switchToNextWeapon();
+    this.player.switchWeaponInCategory();
   }
 
   reloadWeapon(): void {
-    this.player.reloadWeapon();
+    this.player.reload();
   }
 
   private reset() {
     this.bullets = [];
     this.grenades = [];
+    this.rockets = [];
     this.enemies = [];
     this.allEnemies = [];
     this.activeEnemies.clear();
@@ -234,17 +237,10 @@ export class GameEngine {
         this.togglePause();
       }
       if (e.code === 'KeyC') {
-        if (this.player.getSelectedWeaponCategory() === 'gun') {
-          this.player.switchToNextWeapon();
-        } else {
-          this.player.switchToNextGrenade();
-        }
+        this.player.switchWeaponInCategory();
       }
       if (e.code === 'KeyR') {
-        if (this.player.getSelectedWeaponCategory() === 'gun') {
-          this.player.reloadWeapon();
-        }
-        // In grenade mode, R does nothing (hand-thrown weapon)
+        this.player.reload();
       }
       if (e.code === 'KeyG') {
         this.player.switchWeaponCategory();
@@ -333,11 +329,17 @@ export class GameEngine {
       grenade.update(deltaTime, this.terrain);
     });
 
-    // Handle collisions (includes grenade explosions)
+    // Update rockets (but don't filter them yet - need to handle explosions first)
+    this.rockets.forEach(rocket => {
+      rocket.update(deltaTime, this.terrain);
+    });
+
+    // Handle collisions (includes grenade and rocket explosions)
     this.handleCollisions();
 
-    // Now filter out inactive grenades after explosions have been handled
+    // Now filter out inactive grenades and rockets after explosions have been handled
     this.grenades = this.grenades.filter(grenade => grenade.active);
+    this.rockets = this.rockets.filter(rocket => rocket.active);
 
     // Update particles
     this.particleSystem.update(deltaTime);
@@ -396,7 +398,9 @@ export class GameEngine {
 
     this.player.update(deltaTime, input, this.terrain);
 
-    if (this.player.getSelectedWeaponCategory() === 'gun') {
+    const category = this.player.getSelectedWeaponCategory();
+    
+    if (category === 'gun') {
       if (input.triggerPressed) {
         const newTriggerPress = !this.hasThisTriggeringShot;
         
@@ -409,7 +413,7 @@ export class GameEngine {
           }
         }
       }
-    } else {
+    } else if (category === 'grenade') {
       if (input.triggerPressed) {
         const newTriggerPress = !this.hasThisTriggeringShot;
         
@@ -442,6 +446,19 @@ export class GameEngine {
       if (completedGrenade) {
         console.log(`[GameEngine] Completed grenade throw: ${completedGrenade}`);
         this.grenades.push(completedGrenade);
+      }
+    } else {
+      // launcher category
+      if (input.triggerPressed) {
+        const newTriggerPress = !this.hasThisTriggeringShot;
+        
+        const rocket = this.player.launch(newTriggerPress);
+        if (rocket) {
+          this.rockets.push(rocket);
+          this.soundManager.playShoot();
+          this.hasThisTriggeringShot = true;
+          console.log(`[ROCKET] Launched rocket`);
+        }
       }
     }
 
@@ -515,10 +532,77 @@ export class GameEngine {
       }
     });
 
+    // Rocket vs Enemy collisions
+    this.rockets.forEach(rocket => {
+      if (!rocket.active) return;
+
+      this.enemies.forEach(enemy => {
+        // Skip collision check if rocket hasn't cleared its launcher yet
+        if (rocket.hasLastHolder()) {
+          return;
+        }
+
+        const rocketAbs = rocket.getAbsoluteBounds();
+        const enemyAbs = enemy.getAbsoluteBounds();
+        if (
+          this.collisionSystem.checkCollision(rocketAbs, enemyAbs) ||
+          this.collisionSystem.checkLineIntersectsRect(
+            rocket.previousPosition,
+            rocket.transform.position,
+            enemyAbs
+          )
+        ) {
+          // Hit enemy - trigger explosion
+          rocket.explode();
+        }
+      });
+    });
+
+    // Rocket vs Player collisions
+    this.rockets.forEach(rocket => {
+      if (!rocket.active) return;
+
+      // Skip collision check if rocket hasn't cleared its launcher yet
+      if (rocket.hasLastHolder()) {
+        return;
+      }
+
+      const rocketAbs = rocket.getAbsoluteBounds();
+      const playerAbs = this.player.getAbsoluteBounds();
+      if (
+        this.collisionSystem.checkCollision(rocketAbs, playerAbs) ||
+        this.collisionSystem.checkLineIntersectsRect(
+          rocket.previousPosition,
+          rocket.transform.position,
+          playerAbs
+        )
+      ) {
+        // Hit player - trigger explosion
+        rocket.explode();
+      }
+    });
+
+    // Rocket vs Terrain collisions
+    this.rockets.forEach(rocket => {
+      if (!rocket.active) return;
+
+      const rocketAbs = rocket.getAbsoluteBounds();
+      if (this.terrain.checkCollision(rocketAbs)) {
+        rocket.explode();
+      }
+    });
+
     // Handle grenade explosions
     this.grenades.forEach(grenade => {
       if (!grenade.active && grenade.isExploded()) {
         this.handleGrenadeExplosion(grenade);
+      }
+    });
+
+    // Handle rocket explosions
+    this.rockets.forEach(rocket => {
+      if (!rocket.active && rocket.isExploded()) {
+        this.handleRocketExplosion(rocket);
       }
     });
   }
@@ -557,6 +641,9 @@ export class GameEngine {
     // Render grenades
     this.grenades.forEach(grenade => grenade.render(this.ctx));
 
+    // Render rockets
+    this.rockets.forEach(rocket => rocket.render(this.ctx));
+
     // Render particles
     this.particleSystem.render(this.ctx);
 
@@ -592,12 +679,17 @@ export class GameEngine {
     this.ctx.fillStyle = "black";
     this.ctx.fillText(`Level: ${this.currentLevelName}`, 22, 60);
     
-    if (this.player.getSelectedWeaponCategory() === 'grenade') {
-      this.ctx.fillText(`Weapon: Hand Grenade`, 22, 80);
+    const category = this.player.getSelectedWeaponCategory();
+    
+    const heldObject = this.player.getHeldObject();
+    this.ctx.fillText(`Weapon: ${heldObject.type.name}`, 22, 80);
+    
+    if (category === 'grenade') {
       this.ctx.fillText(`Grenades: ${this.player.getGrenadeCount()}/${this.player.getMaxGrenades()}`, 22, 100);
+    } else if (category === 'launcher') {
+      this.ctx.fillText(`Rockets: ${this.player.getRocketsLeft()}/${this.player.arsenal.heldLaunchingWeapon.type.capacity}`, 22, 100);
     } else {
-      this.ctx.fillText(`Weapon: ${this.player.weapon.name}`, 22, 80);
-      this.ctx.fillText(`Ammo: ${this.player.weapon.getBulletsLeft()}/${this.player.weapon.getCapacity()}`, 22, 100);
+      this.ctx.fillText(`Ammo: ${this.player.arsenal.heldShootingWeapon.getBulletsLeft()}/${this.player.arsenal.heldShootingWeapon.getCapacity()}`, 22, 100);
     }
     
     // Progress indicator
@@ -689,6 +781,26 @@ export class GameEngine {
     
     // Create explosion particle effect with radius-scaled animation
     this.particleSystem.createExplosion(explosionPos, 'grenade', explosionRadius);
+    this.soundManager.playHit(); // Use hit sound for explosion
+    
+    // Damage enemies within explosion radius
+    this.enemies.forEach(enemy => {
+      this.applyExplosionDamage(enemy, explosionPos, explosionRadius, explosionDamage);
+    });
+    
+    // Damage player if within explosion radius
+    this.applyExplosionDamage(this.player, explosionPos, explosionRadius, explosionDamage);
+  }
+
+  private handleRocketExplosion(rocket: Rocket) {
+    const explosionPos = rocket.transform.position;
+    const explosionRadius = rocket.getExplosionRadius();
+    const explosionDamage = rocket.getExplosionDamage();
+    
+    console.log(`[ROCKET] Explosion at (${explosionPos.x.toFixed(1)}, ${explosionPos.y.toFixed(1)}) with radius ${explosionRadius}`);
+    
+    // Create explosion particle effect with radius-scaled animation
+    this.particleSystem.createExplosion(explosionPos, 'rocket', explosionRadius);
     this.soundManager.playHit(); // Use hit sound for explosion
     
     // Damage enemies within explosion radius

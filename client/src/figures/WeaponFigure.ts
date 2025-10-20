@@ -1,9 +1,9 @@
-import { WeaponType } from "../game/types";
 import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
 import { ShootingAimLineFigure } from "./ShootingAimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { EntityTransform } from "../game/EntityTransform";
+import { ShootingWeapon } from "../game/ShootingWeapon";
 
 export class WeaponFigure {
   static renderSVG({
@@ -15,7 +15,7 @@ export class WeaponFigure {
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
-    weapon: WeaponType;
+    weapon: ShootingWeapon;
     svgInfo: SVGInfo;
     boundingBox: BoundingBox;
   }) {
@@ -27,7 +27,7 @@ export class WeaponFigure {
     ctx.scale(transform.facing, 1);
     const svgWidth = svgInfo.boundingBox.width;
     const svgHeight = svgInfo.boundingBox.height;
-    const scale = weapon.weaponLength / svgWidth;
+    const scale = weapon.type.size / svgWidth;
     ctx.scale(scale, scale);
     const anchorX = svgWidth * boundingBox.relativeReferenceX;
     const anchorY = svgHeight * boundingBox.relativeReferenceY;
@@ -42,14 +42,14 @@ export class WeaponFigure {
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
-    weapon: WeaponType;
+    weapon: ShootingWeapon;
   }) {
     const position = transform.position;
     const weaponX = position.x;
     const weaponY = position.y;
     
-    const weaponEndX = weaponX + Math.cos(transform.rotation) * weapon.weaponLength * transform.facing;
-    const weaponEndY = weaponY + Math.sin(transform.rotation) * weapon.weaponLength;
+    const weaponEndX = weaponX + Math.cos(transform.rotation) * weapon.type.size * transform.facing;
+    const weaponEndY = weaponY + Math.sin(transform.rotation) * weapon.type.size;
     
     ctx.save();
     ctx.strokeStyle = "black";
@@ -71,7 +71,7 @@ export class WeaponFigure {
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
-    weapon: WeaponType;
+    weapon: ShootingWeapon;
     showAimLine?: boolean;
     svgInfo?: SVGInfo;
     boundingBox: BoundingBox;
@@ -84,8 +84,8 @@ export class WeaponFigure {
 
     if (showAimLine) {
       const position = transform.position;
-      const shootLineEndX = position.x + Math.cos(transform.rotation) * weapon.weaponLength * transform.facing;
-      const shootLineEndY = position.y + Math.sin(transform.rotation) * weapon.weaponLength;
+      const shootLineEndX = position.x + Math.cos(transform.rotation) * weapon.type.size * transform.facing;
+      const shootLineEndY = position.y + Math.sin(transform.rotation) * weapon.type.size;
       const shootLineTransform = new EntityTransform({ x: shootLineEndX, y: shootLineEndY }, transform.rotation, transform.facing);
       
       ShootingAimLineFigure.render({

@@ -1,15 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SVGLoader, SVGInfo } from '../util/SVGLoader';
-import { ShootingWeapon } from '../game/ShootingWeapon';
-import { WeaponType } from '../game/types';
-
-export interface LoadedAsset {
-  svgInfo: SVGInfo;
-  weapon: WeaponType;
-  displayWidth: number;
-  displayHeight: number;
-}
-
+import { loadAllAssets, LoadedAsset } from '../util/SVGAssetLoader';
 
 export function useAssetLoader() {
   const [loadedAssets, setLoadedAssets] = useState<LoadedAsset[]>([]);
@@ -17,31 +7,8 @@ export function useAssetLoader() {
 
   useEffect(() => {
     const loadAssets = async () => {
-      const loadPromises = ShootingWeapon.ALL_WEAPONS
-        .filter(weapon => weapon.svgPath)
-        .map(async (weapon) => {
-          try {
-            const svgInfo = await SVGLoader.get(weapon.svgPath!);
-            if (svgInfo) {
-              const { displayWidth, displayHeight } = ShootingWeapon.calculateDisplaySize(weapon, svgInfo);
-              return {
-                svgInfo,
-                weapon,
-                displayWidth,
-                displayHeight
-              };
-            }
-            return null;
-          } catch (error) {
-            console.warn(`Failed to load asset: ${weapon.name}`, error);
-            return null;
-          }
-        });
-
-      const results = await Promise.all(loadPromises);
-      const successfulAssets = results.filter((asset): asset is LoadedAsset => asset !== null);
-      
-      setLoadedAssets(successfulAssets);
+      const assets = await loadAllAssets();
+      setLoadedAssets(assets);
       setIsLoading(false);
     };
 

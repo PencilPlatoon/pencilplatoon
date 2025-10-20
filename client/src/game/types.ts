@@ -1,4 +1,4 @@
-import { BoundingBox } from "./BoundingBox";
+import { BoundingBox, AbsoluteBoundingBox } from "./BoundingBox";
 import { EntityTransform } from "./EntityTransform";
 
 declare global {
@@ -12,6 +12,14 @@ export interface Vector2 {
   y: number;
 }
 
+export interface SVGObjectType {
+  name: string;
+  svgPath: string;
+  size: number;
+  holdRelativeX: number;
+  holdRelativeY: number;
+}
+
 export interface GameObject {
   id: string;
   transform: EntityTransform;
@@ -19,6 +27,11 @@ export interface GameObject {
   bounds: BoundingBox;
   active: boolean;
   health?: number;
+  getAbsoluteBounds(): AbsoluteBoundingBox;
+}
+
+export interface Holder extends GameObject {
+  getAbsoluteHeldObjectTransform(): EntityTransform;
 }
 
 export interface DamageableEntity extends GameObject {
@@ -27,40 +40,37 @@ export interface DamageableEntity extends GameObject {
   getEntityLabel(): string;
 }
 
-export interface WeaponType {
-  name: string;
+export interface ShootingWeaponType extends SVGObjectType {
   damage: number;
   fireInterval: number;
   bulletSpeed: number;
   bulletSize: number;
-  weaponLength: number;
   soundEffect?: string;
-  svgPath: string;
   /**
    * The relative X coordinate of the hand position along the weapon, as a fraction of weapon length.
    * A value of 0.5 means the hand is at the middle of the weapon.
    * Values range from 0 (base of weapon) to 1 (tip of weapon).
    */
-  holdRelativeX: number;
-  /**
-   * The relative Y coordinate of the hand position across the weapon, as a fraction of weapon height.
-   * A value of 0.5 means the hand is at the center of the weapon.
-   * Values range from 0 (bottom of weapon) to 1 (top of weapon).
-   */
-  holdRelativeY: number;
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
 }
 
-export interface GrenadeType {
-  name: string;
+export interface GrenadeType extends SVGObjectType {
   damage: number;
   explosionRadius: number;
   explosionDelay: number;
-  size: number;
-  svgPath: string;
-  holdRelativeX: number;
-  holdRelativeY: number;
+}
+
+export interface RocketType extends SVGObjectType {
+  damage: number;
+  explosionRadius: number;
+  speed: number;
+}
+
+export interface LauncherType extends SVGObjectType {
+  rocketType: string; // matches a RocketType definition
+  capacity: number;
+  reloadAnimationDuration: number; // Player reads this and manages reload cycle
 }
 
 export interface Particle {

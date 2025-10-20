@@ -48,6 +48,17 @@ export class HumanFigure {
     return HumanFigure.FIGURE_HEIGHT;
   }
 
+  /**
+   * Get the transform for the forward hand (arm on the same side as facing direction).
+   * 
+   * Note: In world coordinates, +Y is UP (converted to canvas coords via toCanvasY).
+   * 
+   * @param aimAngle - The angle of the arm:
+   *   0 → horizontal (forward when facing right)
+   *   Positive (e.g. π/6) → aiming upward (sin > 0, +Y in world coords)
+   *   Negative (e.g. -π/6) → aiming downward (sin < 0, -Y in world coords)
+   * @returns EntityTransform with hand position and the same angle
+   */
   static getForwardHandTransform(aimAngle: number): EntityTransform {
     // Calculate the hand position by extending the arm at the aim angle
     const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle) * HumanFigure.ARM_LENGTH;
@@ -56,6 +67,26 @@ export class HumanFigure {
     return new EntityTransform({ x: handX, y: handY }, aimAngle, 1);
   }
 
+  /**
+   * Get the transform for the back hand (arm on the opposite side from facing direction).
+   * 
+   * IMPORTANT: This function automatically adds π to the input angle to position 
+   * the arm on the opposite side of the body.
+   * 
+   * Note: In world coordinates, +Y is UP (converted to canvas coords via toCanvasY).
+   * 
+   * @param aimAngle - The "relative" angle that will have π added to it:
+   *   0 → actual angle π (horizontal backward)
+   *   Positive (e.g. π/2) → actual angle 3π/2, sin=-1 (pointing DOWN)
+   *   Negative (e.g. -π/2) → actual angle π/2, sin=+1 (pointing UP)
+   * 
+   * Usage:
+   *   To point the back arm down, pass positive angle (e.g. π/2).
+   *   To point the back arm up, pass negative angle (e.g. -π/2).
+   *   To point the back arm horizontal backward, pass 0.
+   * 
+   * @returns EntityTransform with hand position and angle (aimAngle + π)
+   */
   static getBackHandTransform(aimAngle: number): EntityTransform {
     // Calculate the hand position by extending the arm at the aim angle
     // Back hand is on the opposite side of the body
@@ -86,7 +117,8 @@ export class HumanFigure {
     aimAngle,
     isWalking,
     walkCycle,
-    throwingAnimation = 0
+    throwingAnimation = 0,
+    reloadBackArmAngle = null
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
@@ -95,6 +127,7 @@ export class HumanFigure {
     isWalking: boolean;
     walkCycle: number;
     throwingAnimation?: number;
+    reloadBackArmAngle?: number | null;
   }) {
     if (!active) return;
     const position = transform.position;
@@ -125,7 +158,10 @@ export class HumanFigure {
     
     // Backward arm (opposite to facing direction)
     let backArmAngle = 0;
-    if (throwingAnimation > 0) {
+    if (reloadBackArmAngle !== null) {
+      // During reloading, use the reload animation angle
+      backArmAngle = reloadBackArmAngle;
+    } else if (throwingAnimation > 0) {
       // During throwing, the back arm swings up and forward
       // Animation goes from 1 (start) to 0 (end)
       const throwProgress = 1 - throwingAnimation;

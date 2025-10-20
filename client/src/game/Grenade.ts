@@ -4,7 +4,8 @@ import { Terrain } from "./Terrain";
 import { EntityTransform } from "./EntityTransform";
 import { Physics } from "./Physics";
 import { GrenadeFigure } from "../figures/GrenadeFigure";
-import { SVGLoader, SVGInfo } from "../util/SVGLoader";
+import { SVGInfo } from "../util/SVGLoader";
+import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
 
 export class Grenade implements GameObject {
   // Physics constants
@@ -20,21 +21,15 @@ export class Grenade implements GameObject {
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
-  damage: number;
-  name: string;
-  size: number;
-  explosionRadius: number;
-  explosionDelay: number;
-  svgPath?: string;
-  holdRelativeX: number;
-  holdRelativeY: number;
-  svgInfo: SVGInfo | null = null;
+  type: GrenadeType;
+  svgInfo?: SVGInfo;
+  isLoaded: boolean;
   
   private lifeTime = 0;
-  private explosionDamage: number;
   private isRolling = false;
   public previousPosition: Vector2;
   private hasExploded = false;
+  private _loadPromise: Promise<void>;
 
   constructor(
     x: number,
@@ -46,27 +41,18 @@ export class Grenade implements GameObject {
     this.transform = new EntityTransform({ x, y }, 0, 1);
     this.previousPosition = { x, y };
     this.velocity = velocity;
+    this.type = grenadeType;
+    this.isLoaded = false;
     
-    // Copy all properties from grenadeType
-    this.name = grenadeType.name;
-    this.damage = grenadeType.damage;
-    this.explosionRadius = grenadeType.explosionRadius;
-    this.explosionDelay = grenadeType.explosionDelay;
-    this.size = grenadeType.size;
-    this.svgPath = grenadeType.svgPath;
-    this.holdRelativeX = grenadeType.holdRelativeX;
-    this.holdRelativeY = grenadeType.holdRelativeY;
-    this.explosionDamage = grenadeType.damage;
-    
-    this.bounds = new BoundingBox(this.size, this.size, 0.5, 0.5);
+    this.bounds = new BoundingBox(grenadeType.size, grenadeType.size, 0.5, 0.5);
     this.active = true;
     
-    // Load grenade SVG asynchronously
-    if (this.svgPath) {
-      SVGLoader.get(this.svgPath).then(info => {
-        this.svgInfo = info;
-      });
-    }
+    // Load grenade SVG asynchronously and update bounds
+    this._loadPromise = loadSVGAndCreateBounds(grenadeType, grenadeType.size).then(({ bounds, svgInfo }) => {
+      this.bounds = bounds;
+      this.svgInfo = svgInfo;
+      this.isLoaded = true;
+    });
   }
 
   update(deltaTime: number, terrain: Terrain) {
@@ -75,7 +61,7 @@ export class Grenade implements GameObject {
     this.previousPosition = { x: this.transform.position.x, y: this.transform.position.y };
     this.lifeTime += deltaTime;
 
-    if (this.lifeTime >= this.explosionDelay) {
+    if (this.lifeTime >= this.type.explosionDelay) {
       this.explode();
       return;
     }
@@ -169,11 +155,11 @@ export class Grenade implements GameObject {
   }
 
   getExplosionRadius(): number {
-    return this.explosionRadius;
+    return this.type.explosionRadius;
   }
 
   getExplosionDamage(): number {
-    return this.explosionDamage;
+    return this.type.damage;
   }
 
   getAbsoluteBounds() {
@@ -205,6 +191,11 @@ export class Grenade implements GameObject {
     this.lifeTime = 0;
     this.hasExploded = false;
     this.isRolling = false;
+  }
+
+  async waitForLoaded(): Promise<void> {
+    await this._loadPromise;
+    console.log(`Grenade loaded: ${this.type.name}`);
   }
 
   static readonly HAND_GRENADE: GrenadeType = {

@@ -24,7 +24,7 @@ export class GrenadeFigure {
       
       const svgWidth = svgInfo.boundingBox.width;
       const svgHeight = svgInfo.boundingBox.height;
-      const scale = grenade.size / svgWidth;
+      const scale = grenade.type.size / svgWidth;
       
       ctx.scale(scale, scale);
       

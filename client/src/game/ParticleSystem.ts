@@ -5,15 +5,16 @@ import { EntityTransform } from "./EntityTransform";
 export class ParticleSystem {
   private particles: Particle[] = [];
 
-  createExplosion(position: Vector2, type: 'enemy' | 'player' | 'terrain' | 'grenade', explosionRadius?: number) {
+  createExplosion(position: Vector2, type: 'enemy' | 'player' | 'terrain' | 'grenade' | 'rocket', explosionRadius?: number) {
     const colors = {
       enemy: ['#ff4444', '#ff8844', '#ffaa44', '#ffff44'],
       player: ['#ff2222', '#ff6666', '#ff9999'],
       terrain: ['#888888', '#aaaaaa', '#666666'],
-      grenade: ['#ff6600', '#ff9900', '#ffcc00', '#ffff00', '#ff0000']
+      grenade: ['#ff6600', '#ff9900', '#ffcc00', '#ffff00', '#ff0000'],
+      rocket: ['#ff0000', '#ff4400', '#ff8800', '#ffcc00', '#ffff00', '#ffffff']
     };
 
-    const particleCount = type === 'terrain' ? 8 : type === 'grenade' ? 20 : 12;
+    const particleCount = type === 'terrain' ? 8 : (type === 'grenade' || type === 'rocket') ? 20 : 12;
     const particleColors = colors[type];
 
     for (let i = 0; i < particleCount; i++) {
