@@ -21,8 +21,8 @@ export class GameEngine {
   private ctx: CanvasRenderingContext2D;
   private player: Player;
   private enemies: Enemy[] = [];
-  private allEnemies: Enemy[] = []; // All enemies for the level
-  private activeEnemies: Set<string> = new Set(); // Track which enemies are active
+  private allEnemies: Enemy[] = [];
+  private activeEnemies: Set<string> = new Set();
   private bullets: Bullet[] = [];
   private grenades: Grenade[] = [];
   private rockets: Rocket[] = [];
@@ -82,7 +82,6 @@ export class GameEngine {
     this.particleSystem = new ParticleSystem();
     this.soundManager = new SoundManager();
     this.collisionSystem = new CollisionSystem();
-    // Create player at far left spawn position, at the top of the world
     this.player = new Player(GameEngine.PLAYER_START_X, Terrain.WORLD_TOP);
     
     this.setupEventListeners();
@@ -130,7 +129,6 @@ export class GameEngine {
     this.seed = seed;
     setGlobalSeed(this.seed);
     this.levelStartCounter++;
-    //this.initLevelTerrain(this.currentLevelIndex);
     this.reset();
     this.spawnEnemies();
     this.isRunning = true;
@@ -149,7 +147,6 @@ export class GameEngine {
       console.log("Next level started");
     } else {
       this.stop();
-      // Game over logic here if needed
       console.log("Game over: All levels completed.");
     }
   }
@@ -228,7 +225,6 @@ export class GameEngine {
   }
 
   private setupEventListeners() {
-    // Keyboard events
     window.addEventListener("keydown", (e) => {
       e.stopPropagation();
       this.keys.add(e.code);
@@ -297,18 +293,13 @@ export class GameEngine {
   }
 
   private update(deltaTime: number) {
-    // Update player
     this.updatePlayer(deltaTime);
-
-    // Activate enemies when they come on screen
     this.activateNearbyEnemies();
 
-    // Update active enemies
     this.enemies.forEach(enemy => {
       const playerCOG = this.player.getCenterOfGravity();
       enemy.update(deltaTime, playerCOG, this.terrain);
       
-      // Enemy shooting
       if (enemy.canShoot(playerCOG)) {
         const bullet = enemy.shoot(playerCOG);
         if (bullet) {
@@ -317,7 +308,6 @@ export class GameEngine {
       }
     });
 
-    // Update bullets
     this.bullets = this.bullets.filter(bullet => {
       bullet.update(deltaTime);
       return bullet.active;
@@ -349,16 +339,12 @@ export class GameEngine {
     this.grenades = this.grenades.filter(grenade => grenade.active);
     this.rockets = this.rockets.filter(rocket => rocket.active);
 
-    // Update particles
     this.particleSystem.update(deltaTime);
 
-    // Update camera to follow player
     this.camera.followTarget(this.player.transform.position, deltaTime);
 
-    // Remove dead enemies
     this.enemies = this.enemies.filter(enemy => enemy.health > 0);
 
-    // Check level completion
     this.checkLevelCompletion();
   }
 
@@ -392,7 +378,6 @@ export class GameEngine {
   }
 
   private updatePlayer(deltaTime: number) {
-    // Handle player input - combine keyboard and mobile input
     const input = {
       left: this.keys.has("KeyA") || this.keys.has("ArrowLeft") || this.mobileInput.left,
       right: this.keys.has("KeyD") || this.keys.has("ArrowRight") || this.mobileInput.right,
@@ -473,10 +458,7 @@ export class GameEngine {
     // Check if player died
     if (this.player.health <= 0) {
       this.stop();
-      // Trigger game over
-      import("../lib/stores/useGameStore").then(({ useGameStore }) => {
-        useGameStore.getState().end();
-      });
+      useGameStore.getState().end();
     }
   }
 
@@ -499,36 +481,19 @@ export class GameEngine {
     this.ctx.save();
     this.ctx.translate(-this.camera.bottomLeftWorldX, this.camera.toScreenY(-this.camera.bottomLeftWorldY));
 
-    // Render terrain
     this.terrain.render(this.ctx);
-
-    // Render player
     this.player.render(this.ctx);
-
-    // Render enemies
     this.enemies.forEach(enemy => enemy.render(this.ctx));
-
-    // Render bullets
     this.bullets.forEach(bullet => bullet.render(this.ctx));
-
-    // Render grenades
     this.grenades.forEach(grenade => grenade.render(this.ctx));
-
-    // Render rockets
     this.rockets.forEach(rocket => rocket.render(this.ctx));
-
-    // Render particles
     this.particleSystem.render(this.ctx);
 
-    // Restore context
     this.ctx.restore();
-
-    // Render UI (not affected by camera)
     this.renderUI();
   }
 
   private renderUI() {
-    // Health bar
     const healthBarWidth = 200;
     const healthBarHeight = 20;
     const healthPercentage = this.player.health / Player.MAX_HEALTH;
@@ -565,12 +530,10 @@ export class GameEngine {
       this.ctx.fillText(`Ammo: ${this.player.arsenal.heldShootingWeapon.getBulletsLeft()}/${this.player.arsenal.heldShootingWeapon.getCapacity()}`, 22, 100);
     }
     
-    // Progress indicator
     if (this.debugMode) {
       this.renderProgressBar();
     }
 
-    // Debug info at bottom of screen
     if (this.debugMode) {
       this.renderDebugInfo();
     }
@@ -582,7 +545,6 @@ export class GameEngine {
     const progressBarWidth = 200;
     const progressBarHeight = 10;
     
-    // Position at bottom left with padding
     const padding = 20;
     const progressBarY = this.canvas.height - padding - progressBarHeight;
     
@@ -592,7 +554,6 @@ export class GameEngine {
     this.ctx.fillStyle = "lightblue";
     this.ctx.fillRect(padding + 2, progressBarY + 2, progressBarWidth * progressPercentage, progressBarHeight);
     
-    // Overlay percentage text in white on top of the bar
     this.ctx.fillStyle = "white";
     this.ctx.font = "12px Arial";
     this.ctx.textAlign = "center";
@@ -615,7 +576,7 @@ export class GameEngine {
     ];
     this.ctx.font = "14px monospace";
     this.ctx.fillStyle = "#222";
-    // Position debug info above the bottom edge, with padding
+
     const padding = 20;
     const lineHeight = 20;
     const startY = this.canvas.height - padding - debugLines.length * lineHeight;
