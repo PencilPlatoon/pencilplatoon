@@ -13,6 +13,7 @@ export class LaunchingWeapon implements GameObject, Holder {
   velocity: Vector2;
   bounds: BoundingBox;
   active: boolean;
+  previousPosition: Vector2;
   
   // LaunchingWeapon specific fields
   type: LauncherType;
@@ -28,6 +29,7 @@ export class LaunchingWeapon implements GameObject, Holder {
     this.id = `launcher_${Date.now()}_${Math.random()}`;
     this.transform = new EntityTransform({ x: 0, y: 0 }, 0, 1);
     this.velocity = { x: 0, y: 0 };
+    this.previousPosition = { x: 0, y: 0 };
     this.active = true;
     
     // Initialize LaunchingWeapon fields
