@@ -4,6 +4,7 @@ import { Terrain } from "./Terrain";
 import { BulletFigure } from "../figures/BulletFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { EntityTransform } from "./EntityTransform";
+import { DamageableEntity } from "./types";
 
 export class Bullet implements GameObject {
   id: string;
@@ -79,6 +80,26 @@ export class Bullet implements GameObject {
   getAbsoluteBounds() {
     // For Bullet, position is at center, so we can use the BoundingBox method directly
     return this.bounds.getAbsoluteBounds(this.transform.position);
+  }
+
+  getExplosionParameters(entity: DamageableEntity) {
+    const config = entity.getBulletExplosionParameters();
+    
+    return {
+      position: this.transform.position,
+      radius: config.radius,
+      colors: config.colors,
+      particleCount: config.particleCount
+    };
+  }
+
+  getTerrainExplosionParameters() {
+    return {
+      position: this.transform.position,
+      radius: 25,
+      colors: ['#888888', '#aaaaaa', '#666666'],
+      particleCount: 8
+    };
   }
 
   deactivate(reason: string, terrain?: Terrain) {

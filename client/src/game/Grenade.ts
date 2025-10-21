@@ -24,6 +24,8 @@ export class Grenade implements GameObject {
   type: GrenadeType;
   svgInfo?: SVGInfo;
   isLoaded: boolean;
+  explosionRadius: number;
+  explosionDamage: number;
   
   private lifeTime = 0;
   private isRolling = false;
@@ -43,6 +45,8 @@ export class Grenade implements GameObject {
     this.velocity = velocity;
     this.type = grenadeType;
     this.isLoaded = false;
+    this.explosionRadius = grenadeType.explosionRadius;
+    this.explosionDamage = grenadeType.damage;
     
     this.bounds = new BoundingBox(grenadeType.size, grenadeType.size, 0.5, 0.5);
     this.active = true;
@@ -154,12 +158,17 @@ export class Grenade implements GameObject {
     this.deactivate('exploded');
   }
 
-  getExplosionRadius(): number {
-    return this.type.explosionRadius;
+  getEntityLabel(): string {
+    return 'grenade';
   }
 
-  getExplosionDamage(): number {
-    return this.type.damage;
+  getExplosionParameters() {
+    return {
+      position: this.transform.position,
+      radius: this.explosionRadius,
+      colors: ['#ff6600', '#ff9900', '#ffcc00', '#ffff00', '#ff0000'],
+      particleCount: 20
+    };
   }
 
   getAbsoluteBounds() {

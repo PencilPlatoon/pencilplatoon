@@ -20,6 +20,8 @@ export class Rocket implements GameObject {
   isLoaded: boolean;
   stabilizerRotation: number = 0;
   isLaunched: boolean = false;
+  explosionRadius: number;
+  explosionDamage: number;
   
   public previousPosition: Vector2;
   private hasExploded = false;
@@ -42,6 +44,8 @@ export class Rocket implements GameObject {
     this.holder = holder;
     this.type = rocketType;
     this.isLoaded = false;
+    this.explosionRadius = rocketType.explosionRadius;
+    this.explosionDamage = rocketType.damage;
     
     // Default bounding box
     this.bounds = new BoundingBox(rocketType.size, rocketType.size, 0.5, 0.5);
@@ -112,12 +116,17 @@ export class Rocket implements GameObject {
     this.deactivate('exploded');
   }
 
-  getExplosionRadius(): number {
-    return this.type.explosionRadius;
+  getEntityLabel(): string {
+    return 'rocket';
   }
 
-  getExplosionDamage(): number {
-    return this.type.damage;
+  getExplosionParameters() {
+    return {
+      position: this.transform.position,
+      radius: this.explosionRadius,
+      colors: ['#ff0000', '#ff4400', '#ff8800', '#ffcc00', '#ffff00', '#ffffff'],
+      particleCount: 20
+    };
   }
 
   getAbsoluteBounds() {

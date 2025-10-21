@@ -27,6 +27,7 @@ export interface GameObject {
   bounds: BoundingBox;
   active: boolean;
   health?: number;
+  previousPosition: Vector2;
   getAbsoluteBounds(): AbsoluteBoundingBox;
 }
 
@@ -38,6 +39,21 @@ export interface DamageableEntity extends GameObject {
   getCenterOfGravity(): Vector2;
   takeDamage(damage: number): void;
   getEntityLabel(): string;
+  getBulletExplosionParameters(): { colors: string[], particleCount: number, radius: number };
+}
+
+export interface ExplosionParameters {
+  position: Vector2;
+  radius: number;
+  colors: string[];
+  particleCount: number;
+}
+
+export interface ExplodingEntity extends GameObject {
+  explosionRadius: number;
+  explosionDamage: number;
+  getEntityLabel(): string;
+  getExplosionParameters(): ExplosionParameters;
 }
 
 export interface ShootingWeaponType extends SVGObjectType {

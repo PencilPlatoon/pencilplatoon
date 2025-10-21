@@ -11,7 +11,6 @@ import { useGameStore } from "../lib/stores/useGameStore";
 import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
 import { setGlobalSeed, seededRandom } from "../lib/utils";
-import { DamageableEntity } from "./types";
 
 export class GameEngine {
   static readonly SCREEN_WIDTH = 800;
@@ -335,7 +334,16 @@ export class GameEngine {
     });
 
     // Handle collisions (includes grenade and rocket explosions)
-    this.handleCollisions();
+    this.collisionSystem.handleCollisions({
+      bullets: this.bullets,
+      enemies: this.enemies,
+      grenades: this.grenades,
+      rockets: this.rockets,
+      player: this.player,
+      terrain: this.terrain,
+      particleSystem: this.particleSystem,
+      soundManager: this.soundManager
+    });
 
     // Now filter out inactive grenades and rockets after explosions have been handled
     this.grenades = this.grenades.filter(grenade => grenade.active);
@@ -470,141 +478,6 @@ export class GameEngine {
         useGameStore.getState().end();
       });
     }
-  }
-
-  private handleCollisions() {
-    // Bullet vs Enemy collisions
-    this.bullets.forEach(bullet => {
-      if (!bullet.active) return;
-
-      this.enemies.forEach(enemy => {
-        const bulletAbs = bullet.getAbsoluteBounds();
-        const enemyAbs = enemy.getAbsoluteBounds();
-        if (
-          this.collisionSystem.checkCollision(bulletAbs, enemyAbs) ||
-          this.collisionSystem.checkLineIntersectsRect(
-            bullet.previousPosition,
-            bullet.transform.position,
-            enemyAbs
-          )
-        ) {
-          // Hit enemy
-          enemy.takeDamage(bullet.damage);
-          bullet.deactivate('hit-enemy');
-          // Create explosion effect
-          this.particleSystem.createExplosion(bullet.transform.position, 'enemy');
-          this.soundManager.playHit();
-        }
-      });
-    });
-
-    // Enemy bullet vs Player collisions
-    this.bullets.forEach(bullet => {
-      if (!bullet.active) return;
-
-      const bulletAbs = bullet.getAbsoluteBounds();
-      const playerAbs = this.player.getAbsoluteBounds();
-      if (
-        this.collisionSystem.checkCollision(bulletAbs, playerAbs) ||
-        this.collisionSystem.checkLineIntersectsRect(
-          bullet.previousPosition,
-          bullet.transform.position,
-          playerAbs
-        )
-      ) {
-        // Hit player
-        this.player.takeDamage(bullet.damage);
-        bullet.deactivate('hit-player');
-        // Create explosion effect
-        this.particleSystem.createExplosion(bullet.transform.position, 'player');
-        this.soundManager.playHit();
-      }
-    });
-
-    // Bullet vs Terrain collisions
-    this.bullets.forEach(bullet => {
-      if (!bullet.active) return;
-
-      const bulletAbs = bullet.getAbsoluteBounds();
-      if (this.terrain.checkCollision(bulletAbs)) {
-        bullet.deactivate('hit-terrain', this.terrain);
-        this.particleSystem.createExplosion(bullet.transform.position, 'terrain');
-      }
-    });
-
-    // Rocket vs Enemy collisions
-    this.rockets.forEach(rocket => {
-      if (!rocket.active) return;
-
-      this.enemies.forEach(enemy => {
-        // Skip collision check if rocket hasn't cleared its launcher yet
-        if (rocket.hasLastHolder()) {
-          return;
-        }
-
-        const rocketAbs = rocket.getAbsoluteBounds();
-        const enemyAbs = enemy.getAbsoluteBounds();
-        if (
-          this.collisionSystem.checkCollision(rocketAbs, enemyAbs) ||
-          this.collisionSystem.checkLineIntersectsRect(
-            rocket.previousPosition,
-            rocket.transform.position,
-            enemyAbs
-          )
-        ) {
-          // Hit enemy - trigger explosion
-          rocket.explode();
-        }
-      });
-    });
-
-    // Rocket vs Player collisions
-    this.rockets.forEach(rocket => {
-      if (!rocket.active) return;
-
-      // Skip collision check if rocket hasn't cleared its launcher yet
-      if (rocket.hasLastHolder()) {
-        return;
-      }
-
-      const rocketAbs = rocket.getAbsoluteBounds();
-      const playerAbs = this.player.getAbsoluteBounds();
-      if (
-        this.collisionSystem.checkCollision(rocketAbs, playerAbs) ||
-        this.collisionSystem.checkLineIntersectsRect(
-          rocket.previousPosition,
-          rocket.transform.position,
-          playerAbs
-        )
-      ) {
-        // Hit player - trigger explosion
-        rocket.explode();
-      }
-    });
-
-    // Rocket vs Terrain collisions
-    this.rockets.forEach(rocket => {
-      if (!rocket.active) return;
-
-      const rocketAbs = rocket.getAbsoluteBounds();
-      if (this.terrain.checkCollision(rocketAbs)) {
-        rocket.explode();
-      }
-    });
-
-    // Handle grenade explosions
-    this.grenades.forEach(grenade => {
-      if (!grenade.active && grenade.isExploded()) {
-        this.handleGrenadeExplosion(grenade);
-      }
-    });
-
-    // Handle rocket explosions
-    this.rockets.forEach(rocket => {
-      if (!rocket.active && rocket.isExploded()) {
-        this.handleRocketExplosion(rocket);
-      }
-    });
   }
 
   private render() {
@@ -749,67 +622,6 @@ export class GameEngine {
     debugLines.forEach((line, i) => {
       this.ctx.fillText(line, 30, startY + i * lineHeight);
     });
-  }
-
-  private applyExplosionDamage(
-    entity: DamageableEntity,
-    explosionPos: { x: number; y: number },
-    explosionRadius: number,
-    explosionDamage: number
-  ): void {
-    const center = entity.getCenterOfGravity();
-    const distance = Math.sqrt(
-      Math.pow(center.x - explosionPos.x, 2) + 
-      Math.pow(center.y - explosionPos.y, 2)
-    );
-    
-    if (distance <= explosionRadius) {
-      // Calculate damage based on distance (more damage closer to center)
-      const damageMultiplier = 1 - (distance / explosionRadius);
-      const finalDamage = explosionDamage * damageMultiplier;
-      entity.takeDamage(finalDamage);
-      console.log(`[GRENADE] ${entity.getEntityLabel()} hit for ${finalDamage.toFixed(1)} damage at distance ${distance.toFixed(1)}`);
-    }
-  }
-
-  private handleGrenadeExplosion(grenade: Grenade) {
-    const explosionPos = grenade.transform.position;
-    const explosionRadius = grenade.getExplosionRadius();
-    const explosionDamage = grenade.getExplosionDamage();
-    
-    console.log(`[GRENADE] Explosion at (${explosionPos.x.toFixed(1)}, ${explosionPos.y.toFixed(1)}) with radius ${explosionRadius}`);
-    
-    // Create explosion particle effect with radius-scaled animation
-    this.particleSystem.createExplosion(explosionPos, 'grenade', explosionRadius);
-    this.soundManager.playHit(); // Use hit sound for explosion
-    
-    // Damage enemies within explosion radius
-    this.enemies.forEach(enemy => {
-      this.applyExplosionDamage(enemy, explosionPos, explosionRadius, explosionDamage);
-    });
-    
-    // Damage player if within explosion radius
-    this.applyExplosionDamage(this.player, explosionPos, explosionRadius, explosionDamage);
-  }
-
-  private handleRocketExplosion(rocket: Rocket) {
-    const explosionPos = rocket.transform.position;
-    const explosionRadius = rocket.getExplosionRadius();
-    const explosionDamage = rocket.getExplosionDamage();
-    
-    console.log(`[ROCKET] Explosion at (${explosionPos.x.toFixed(1)}, ${explosionPos.y.toFixed(1)}) with radius ${explosionRadius}`);
-    
-    // Create explosion particle effect with radius-scaled animation
-    this.particleSystem.createExplosion(explosionPos, 'rocket', explosionRadius);
-    this.soundManager.playHit(); // Use hit sound for explosion
-    
-    // Damage enemies within explosion radius
-    this.enemies.forEach(enemy => {
-      this.applyExplosionDamage(enemy, explosionPos, explosionRadius, explosionDamage);
-    });
-    
-    // Damage player if within explosion radius
-    this.applyExplosionDamage(this.player, explosionPos, explosionRadius, explosionDamage);
   }
 
 }

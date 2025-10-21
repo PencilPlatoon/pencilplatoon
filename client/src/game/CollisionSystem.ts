@@ -1,5 +1,13 @@
-import { Vector2 } from "./types";
+import { Vector2, DamageableEntity, GameObject, ExplodingEntity } from "./types";
 import { AbsoluteBoundingBox } from "./BoundingBox";
+import { Player } from "./Player";
+import { Enemy } from "./Enemy";
+import { Bullet } from "./Bullet";
+import { Grenade } from "./Grenade";
+import { Rocket } from "./Rocket";
+import { Terrain } from "./Terrain";
+import { ParticleSystem } from "./ParticleSystem";
+import { SoundManager } from "./SoundManager";
 
 export class CollisionSystem {
   checkCollision(a: AbsoluteBoundingBox, b: AbsoluteBoundingBox): boolean {
@@ -42,5 +50,163 @@ export class CollisionSystem {
       }
     }
     return true;
+  }
+
+  checkGameObjectCollision(objectA: GameObject, objectB: GameObject): boolean {
+    const boundsA = objectA.getAbsoluteBounds();
+    const boundsB = objectB.getAbsoluteBounds();
+    
+    return (
+      this.checkCollision(boundsA, boundsB) ||
+      this.checkLineIntersectsRect(
+        objectA.previousPosition,
+        objectA.transform.position,
+        boundsB
+      )
+    );
+  }
+
+  handleCollisions({
+    bullets,
+    enemies,
+    grenades,
+    rockets,
+    player,
+    terrain,
+    particleSystem,
+    soundManager
+  }: {
+    bullets: Bullet[];
+    enemies: Enemy[];
+    grenades: Grenade[];
+    rockets: Rocket[];
+    player: Player;
+    terrain: Terrain;
+    particleSystem: ParticleSystem;
+    soundManager: SoundManager;
+  }): void {
+    const damageableEntities: DamageableEntity[] = [...enemies, player];
+
+    bullets.forEach(bullet => {
+      if (!bullet.active) return;
+      damageableEntities.forEach(entity => {
+        this.handleBulletDamageableEntityCollision(bullet, entity, particleSystem, soundManager);
+      });
+    });
+
+    bullets.forEach(bullet => {
+      if (!bullet.active) return;
+      this.handleBulletTerrainCollision(bullet, terrain, particleSystem);
+    });
+
+    rockets.forEach(rocket => {
+      if (!rocket.active) return;
+      if (rocket.hasLastHolder()) {
+        return;
+      }
+      damageableEntities.forEach(entity => {
+        this.handleRocketDamageableEntityCollision(rocket, entity);
+      });
+    });
+
+    rockets.forEach(rocket => {
+      if (!rocket.active) return;
+      this.handleRocketTerrainCollision(rocket, terrain);
+    });
+
+    grenades.forEach(grenade => {
+      if (!grenade.active && grenade.isExploded()) {
+        this.handleExplosion(grenade, damageableEntities, particleSystem, soundManager);
+      }
+    });
+
+    rockets.forEach(rocket => {
+      if (!rocket.active && rocket.isExploded()) {
+        this.handleExplosion(rocket, damageableEntities, particleSystem, soundManager);
+      }
+    });
+  }
+
+  private handleBulletDamageableEntityCollision(
+    bullet: Bullet,
+    entity: DamageableEntity,
+    particleSystem: ParticleSystem,
+    soundManager: SoundManager
+  ): void {
+    if (this.checkGameObjectCollision(bullet, entity)) {
+      entity.takeDamage(bullet.damage);
+      bullet.deactivate(`hit-${entity.getEntityLabel()}`);
+      particleSystem.createExplosion(bullet.getExplosionParameters(entity));
+      soundManager.playHit();
+    }
+  }
+
+  private handleBulletTerrainCollision(
+    bullet: Bullet,
+    terrain: Terrain,
+    particleSystem: ParticleSystem
+  ): void {
+    const bulletAbs = bullet.getAbsoluteBounds();
+    if (terrain.checkCollision(bulletAbs)) {
+      bullet.deactivate('hit-terrain', terrain);
+      particleSystem.createExplosion(bullet.getTerrainExplosionParameters());
+    }
+  }
+
+  private handleRocketDamageableEntityCollision(rocket: Rocket, entity: DamageableEntity): void {
+    if (this.checkGameObjectCollision(rocket, entity)) {
+      rocket.explode();
+    }
+  }
+
+  private handleRocketTerrainCollision(rocket: Rocket, terrain: Terrain): void {
+    const rocketAbs = rocket.getAbsoluteBounds();
+    if (terrain.checkCollision(rocketAbs)) {
+      rocket.explode();
+    }
+  }
+
+  private applyExplosionDamage(
+    entity: DamageableEntity,
+    explosionPos: { x: number; y: number },
+    explosionRadius: number,
+    explosionDamage: number
+  ): void {
+    const center = entity.getCenterOfGravity();
+    const distance = Math.sqrt(
+      Math.pow(center.x - explosionPos.x, 2) + 
+      Math.pow(center.y - explosionPos.y, 2)
+    );
+    
+    if (distance <= explosionRadius) {
+      // Calculate damage based on distance (more damage closer to center)
+      const damageMultiplier = 1 - (distance / explosionRadius);
+      const finalDamage = explosionDamage * damageMultiplier;
+      entity.takeDamage(finalDamage);
+      console.log(`[GRENADE] ${entity.getEntityLabel()} hit for ${finalDamage.toFixed(1)} damage at distance ${distance.toFixed(1)}`);
+    }
+  }
+
+  private handleExplosion(
+    explosive: ExplodingEntity,
+    entities: DamageableEntity[],
+    particleSystem: ParticleSystem,
+    soundManager: SoundManager
+  ): void {
+    const explosionPos = explosive.transform.position;
+    const explosionRadius = explosive.explosionRadius;
+    const explosionDamage = explosive.explosionDamage;
+    const explosionParams = explosive.getExplosionParameters();
+    
+    console.log(`[${explosive.getEntityLabel().toUpperCase()}] Explosion at (${explosionPos.x.toFixed(1)}, ${explosionPos.y.toFixed(1)}) with radius ${explosionRadius}`);
+    
+    // Create explosion particle effect with radius-scaled animation
+    particleSystem.createExplosion(explosionParams);
+    soundManager.playHit(); // Use hit sound for explosion
+    
+    // Damage entities within explosion radius
+    entities.forEach(entity => {
+      this.applyExplosionDamage(entity, explosionPos, explosionRadius, explosionDamage);
+    });
   }
 }

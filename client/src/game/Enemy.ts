@@ -16,6 +16,7 @@ export class Enemy implements GameObject {
   bounds: BoundingBox;
   active: boolean;
   health: number;
+  previousPosition: Vector2;
   
   public static readonly MAX_HEALTH = 75;
   private static readonly SPEED = 125;
@@ -42,6 +43,7 @@ export class Enemy implements GameObject {
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = true;
     this.health = Enemy.MAX_HEALTH;
+    this.previousPosition = { x, y };
     this.patrolStartX = x;
     this.lastX = x;
     
@@ -62,6 +64,7 @@ export class Enemy implements GameObject {
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
+    this.previousPosition = { x: this.transform.position.x, y: this.transform.position.y };
     this.isWalking = Math.abs(this.velocity.x) > 0;
     
     // Update walk cycle for animation
@@ -174,6 +177,14 @@ export class Enemy implements GameObject {
 
   getEntityLabel(): string {
     return 'Enemy';
+  }
+
+  getBulletExplosionParameters() {
+    return {
+      colors: ['#ff4444', '#ff8844', '#ffaa44', '#ffff44'],
+      particleCount: 12,
+      radius: 30
+    };
   }
 
   takeDamage(damage: number) {

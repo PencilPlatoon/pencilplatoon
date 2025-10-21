@@ -33,6 +33,7 @@ export class Player implements GameObject, Holder {
   bounds: BoundingBox;
   active: boolean;
   health: number;
+  previousPosition: Vector2;
   
   public static readonly MAX_HEALTH = 100;
   public static readonly MAX_THROW_VELOCITY = 1000;
@@ -66,6 +67,7 @@ export class Player implements GameObject, Holder {
     this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
     this.active = false;
     this.health = 0;
+    this.previousPosition = { x: 0, y: 0 };
     
     this.arsenal = new Arsenal();
     this.reloadMovement = new ReloadLauncherMovement();
@@ -134,6 +136,7 @@ export class Player implements GameObject, Holder {
   }
 
   update(deltaTime: number, input: PlayerInput, terrain: Terrain) {
+    this.previousPosition = { x: this.transform.position.x, y: this.transform.position.y };
     this.isWalking = input.left || input.right;
     
     // Update walk cycle for animation
@@ -380,6 +383,14 @@ export class Player implements GameObject, Holder {
 
   getEntityLabel(): string {
     return 'Player';
+  }
+
+  getBulletExplosionParameters() {
+    return {
+      colors: ['#ff2222', '#ff6666', '#ff9999'],
+      particleCount: 12,
+      radius: 30
+    };
   }
 
   takeDamage(damage: number) {
