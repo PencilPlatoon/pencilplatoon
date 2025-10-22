@@ -1,0 +1,372 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Horizontal Draggable Pages + Box Selections</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<style>
+  :root { --gap: 0px; --handle: 10px; }
+  html, body { margin:0; height:100%; }
+  body { background:#111; color:#ddd; font:14px/1.4 system-ui, sans-serif; }
+  #toolbar { position:sticky; top:0; z-index:9999; background:#1b1b1b; padding:6px 10px; border-bottom:1px solid #333; display:flex; gap:8px; align-items:center; }
+  button,label { color:#ddd; background:#2a2a2a; border:1px solid #444; padding:6px 10px; border-radius:6px; }
+  button:hover { background:#333; }
+  #strip { overflow-x:auto; overflow-y:hidden; white-space:nowrap; height:calc(100vh - 40px); padding:10px 0; user-select:none; }
+  .page { position:relative; display:inline-block; margin-right:var(--gap); cursor:grab; z-index:0; transform:translate(0px,0px); }
+  .page.dragging { cursor:grabbing; }
+  .page.selection-mode { cursor:crosshair; }
+  img { display:block; height:auto; max-height:calc(100vh - 70px); }
+  .selection { position:absolute; border:2px dashed rgba(120,180,255,0.9); background:rgba(50,120,255,0.25); box-sizing:border-box; pointer-events:auto; }
+  .selection.selected { outline:1px solid rgba(180,220,255,0.9); }
+  .handle { position:absolute; width:var(--handle); height:var(--handle); background:#cee4ff; border:1px solid #3a75c4; box-sizing:border-box; }
+  .handle.nw { left:-6px; top:-6px; cursor:nwse-resize; }
+  .handle.ne { right:-6px; top:-6px; cursor:nesw-resize; }
+  .handle.sw { left:-6px; bottom:-6px; cursor:nesw-resize; }
+  .handle.se { right:-6px; bottom:-6px; cursor:nwse-resize; }
+  .selection:not(.selected) .handle { display:none; }
+</style>
+</head>
+<body>
+  <div id="toolbar">
+    <button id="modeBtn">Enter box-selection mode</button>
+    <button id="exportBtn">export images</button>
+    <input type="text" id="labelInput" placeholder="Optional label" style="padding:6px 10px; background:#2a2a2a; border:1px solid #444; border-radius:6px; color:#ddd; width:150px;">
+    <button id="reset">Reset positions</button>
+    <label><input type="checkbox" id="persist"> Persist positions (localStorage)</label>
+  </div>
+  <div id="strip" aria-label="Scrollable page strip"></div>
+
+<script>
+  // Files
+  const base = "level-1-pg-";
+  const start = 3, end = 17;
+  const files = Array.from({length: end - start + 1}, (_, i) => `${base}${start + i}.png`);
+
+  // State
+  const strip = document.getElementById('strip');
+  const modeBtn = document.getElementById('modeBtn');
+  const exportBtn = document.getElementById('exportBtn');
+  const labelInput = document.getElementById('labelInput');
+  const persistChk = document.getElementById('persist');
+  const resetBtn = document.getElementById('reset');
+  const STORAGE_KEY = 'page_offsets_v1';
+
+  let selectionMode = false;
+  let offsets = files.map(() => ({ x:0, y:0 }));
+  let nodes = [];
+
+  // Restore offsets
+  const saved = localStorage.getItem(STORAGE_KEY);
+  if (saved) {
+    try {
+      const parsed = JSON.parse(saved);
+      if (Array.isArray(parsed) && parsed.length === offsets.length) {
+        offsets = parsed; persistChk.checked = true;
+      }
+    } catch {}
+  }
+
+  // Build pages
+  nodes = files.map((src, idx) => {
+    const img = document.createElement('img');
+    img.alt = src;
+    img.crossOrigin = 'anonymous';            // <-- important for export
+    img.src = src;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'page';
+    wrap.style.zIndex = String(1000 + idx);
+    wrap.dataset.index = String(idx);
+    wrap.appendChild(img);
+
+    applyTransform(idx, wrap);
+    enableSelectionsOn(wrap);
+    strip.appendChild(wrap);
+    return wrap;
+  });
+
+  function applyTransform(i, node) {
+    const {x,y} = offsets[i];
+    node.style.transform = `translate(${x}px, ${y}px)`;
+  }
+  function saveIfNeeded() {
+    if (persistChk.checked) localStorage.setItem(STORAGE_KEY, JSON.stringify(offsets));
+  }
+
+  resetBtn.addEventListener('click', () => {
+    offsets = offsets.map(() => ({ x:0, y:0 }));
+    nodes.forEach((n,i)=>applyTransform(i,n));
+    localStorage.removeItem(STORAGE_KEY);
+    persistChk.checked = false;
+  });
+
+  // Drag pages (disabled in selection mode)
+  let draggingPage = null;
+  function onPointerDownPage(e) {
+    if (selectionMode) return;
+    const page = e.currentTarget;
+    e.preventDefault();
+    const idx = Number(page.dataset.index);
+    draggingPage = {
+      idx,
+      startX: e.clientX,
+      startY: e.clientY,
+      startOffsets: offsets.map(o => ({...o}))
+    };
+    page.classList.add('dragging');
+    window.addEventListener('pointermove', onPointerMovePage);
+    window.addEventListener('pointerup', onPointerUpPage, { once:true });
+    window.addEventListener('pointercancel', onPointerUpPage, { once:true });
+  }
+  function onPointerMovePage(e) {
+    if (!draggingPage) return;
+    const dx = e.clientX - draggingPage.startX;
+    const dy = e.clientY - draggingPage.startY;
+    // Move dragged and all later by the same delta
+    for (let j = draggingPage.idx; j < offsets.length; j++) {
+      offsets[j].x = draggingPage.startOffsets[j].x + dx;
+      offsets[j].y = draggingPage.startOffsets[j].y + dy;
+      applyTransform(j, nodes[j]);
+    }
+  }
+  function onPointerUpPage() {
+    if (!draggingPage) return;
+    nodes[draggingPage.idx].classList.remove('dragging');
+    draggingPage = null;
+    saveIfNeeded();
+    window.removeEventListener('pointermove', onPointerMovePage);
+  }
+
+  // Mode toggle
+  modeBtn.addEventListener('click', () => {
+    selectionMode = !selectionMode;
+    modeBtn.textContent = selectionMode ? 'Exit box-selection mode' : 'Enter box-selection mode';
+    nodes.forEach(n => n.classList.toggle('selection-mode', selectionMode));
+  });
+
+  // Selection system per page
+  function enableSelectionsOn(page) {
+    page._selections = []; // {el,x,y,w,h}
+    page.addEventListener('pointerdown', (e) => {
+      if (!selectionMode) { onPointerDownPage.call(page, e); return; }
+
+      const targetSel = e.target.closest('.selection');
+      const handle = e.target.closest('.handle');
+
+      if (handle) { startResize(e, page, targetSel, handle); return; }
+      if (targetSel) { selectOnly(page, targetSel); startDragSelection(e, page, targetSel); return; }
+
+      // Plain click begins rubberband. If it turns into a drag we create a box.
+      startRubberband(e, page);
+    });
+  }
+
+  function deselectAll(page) { page._selections.forEach(s => s.el.classList.remove('selected')); }
+  function deselectAllPages() { nodes.forEach(page => deselectAll(page)); }
+  function selectOnly(page, el) { page._selections.forEach(s => s.el.classList.toggle('selected', s.el === el)); }
+
+  function makeSelectionEl(page, x, y, w, h) {
+    const el = document.createElement('div');
+    el.className = 'selection selected';
+    Object.assign(el.style, { left:x+'px', top:y+'px', width:w+'px', height:h+'px' });
+    for (const cls of ['nw','ne','sw','se']) {
+      const hd = document.createElement('div'); hd.className = 'handle ' + cls; hd.dataset.corner = cls; el.appendChild(hd);
+    }
+    page.appendChild(el);
+    const rec = { el, x, y, w, h };
+    page._selections.push(rec);
+    return rec;
+  }
+
+  function pageBox(page) {
+    const img = page.querySelector('img');
+    return { w: img.clientWidth, h: img.clientHeight };
+  }
+  function clampSelection(rec, page) {
+    const box = pageBox(page);
+    rec.x = Math.max(0, Math.min(rec.x, box.w - rec.w));
+    rec.y = Math.max(0, Math.min(rec.y, box.h - rec.h));
+    rec.w = Math.max(1, Math.min(rec.w, box.w - rec.x));
+    rec.h = Math.max(1, Math.min(rec.h, box.h - rec.y));
+    Object.assign(rec.el.style, { left:rec.x+'px', top:rec.y+'px', width:rec.w+'px', height:rec.h+'px' });
+  }
+
+  // Rubberband: auto-select new box
+  function startRubberband(e, page) {
+    e.preventDefault();
+    const start = localPoint(page, e);
+    let moved = false;
+
+    const ghost = document.createElement('div');
+    ghost.className = 'selection selected';
+    Object.assign(ghost.style, { left:start.x+'px', top:start.y+'px', width:'0px', height:'0px' });
+    page.appendChild(ghost);
+
+    function onMove(ev) {
+      moved = true;
+      const p = localPoint(page, ev);
+      const x = Math.min(start.x, p.x);
+      const y = Math.min(start.y, p.y);
+      const w = Math.abs(p.x - start.x);
+      const h = Math.abs(p.y - start.y);
+      Object.assign(ghost.style, { left:x+'px', top:y+'px', width:w+'px', height:h+'px' });
+    }
+    function onUp() {
+      window.removeEventListener('pointermove', onMove);
+      const w = parseFloat(ghost.style.width) || 0;
+      const h = parseFloat(ghost.style.height) || 0;
+      const x = parseFloat(ghost.style.left) || 0;
+      const y = parseFloat(ghost.style.top) || 0;
+      page.removeChild(ghost);
+
+      if (moved && w >= 3 && h >= 3) {
+        deselectAllPages();                        // deselect all selections on all pages
+        const rec = makeSelectionEl(page, x, y, w, h); // created in selected state
+        clampSelection(rec, page);
+      } else {
+        // click without drag: deselect all
+        deselectAll(page);
+      }
+    }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once:true });
+    window.addEventListener('pointercancel', onUp, { once:true });
+  }
+
+  function startDragSelection(e, page, el) {
+    e.preventDefault();
+    const rec = page._selections.find(s => s.el === el);
+    const start = localPoint(page, e);
+    const startPos = { x:rec.x, y:rec.y };
+    function onMove(ev) {
+      const p = localPoint(page, ev);
+      rec.x = startPos.x + (p.x - start.x);
+      rec.y = startPos.y + (p.y - start.y);
+      clampSelection(rec, page);
+    }
+    function onUp(){ window.removeEventListener('pointermove', onMove); }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once:true });
+    window.addEventListener('pointercancel', onUp, { once:true });
+  }
+
+  function startResize(e, page, el, handle) {
+    e.preventDefault();
+    const rec = page._selections.find(s => s.el === el);
+    const start = localPoint(page, e);
+    const b = { x:rec.x, y:rec.y, w:rec.w, h:rec.h };
+    const corner = handle.dataset.corner;
+    function onMove(ev) {
+      const p = localPoint(page, ev);
+      let x=b.x, y=b.y, w=b.w, h=b.h;
+      if (corner.includes('n')) { y = Math.min(b.y + b.h - 1, p.y); h = b.y + b.h - y; }
+      if (corner.includes('s')) { h = Math.max(1, p.y - b.y); }
+      if (corner.includes('w')) { x = Math.min(b.x + b.w - 1, p.x); w = b.x + b.w - x; }
+      if (corner.includes('e')) { w = Math.max(1, p.x - b.x); }
+      rec.x=x; rec.y=y; rec.w=w; rec.h=h;
+      clampSelection(rec, page);
+    }
+    function onUp(){ window.removeEventListener('pointermove', onMove); }
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp, { once:true });
+    window.addEventListener('pointercancel', onUp, { once:true });
+  }
+
+  function localPoint(page, e) {
+    const r = page.getBoundingClientRect();
+    const img = page.querySelector('img');
+    const ix = e.clientX - r.left;
+    const iy = e.clientY - r.top;
+    return {
+      x: Math.max(0, Math.min(ix, img.clientWidth)),
+      y: Math.max(0, Math.min(iy, img.clientHeight))
+    };
+  }
+
+  // Delete or Backspace key removes selected boxes
+  window.addEventListener('keydown', (e) => {
+    if (e.key !== 'Delete' && e.key !== 'Backspace') return;
+    
+    // Check if any box is selected
+    const hasSelection = nodes.some(page => 
+      page._selections.some(rec => rec.el.classList.contains('selected'))
+    );
+    if (!hasSelection) return;
+    
+    e.preventDefault(); // Prevent backspace from navigating back
+    nodes.forEach(page => {
+      const keep = [];
+      for (const rec of page._selections) {
+        if (rec.el.classList.contains('selected')) page.removeChild(rec.el);
+        else keep.push(rec);
+      }
+      page._selections = keep;
+    });
+  });
+
+  // Click selection behavior
+  strip.addEventListener('pointerdown', (e) => {
+    if (!selectionMode) return;
+    const page = e.target.closest('.page');
+    if (!page) return;
+    const sel = e.target.closest('.selection');
+    if (sel) selectOnly(page, sel); else deselectAll(page);
+  }, { capture:true });
+
+  // Export selections, then clear
+  exportBtn.addEventListener('click', async () => {
+    const timestamp = Date.now();
+    let counter = 1;
+    const label = labelInput.value.trim();
+    const labelPart = label ? `${label}-` : '';
+
+    for (const page of nodes) {
+      const img = page.querySelector('img');
+      if (!img.complete || img.naturalWidth === 0) { try { await img.decode(); } catch {} }
+
+      // If images are not same-origin or lack CORS, export will fail.
+      const scaleX = img.naturalWidth / img.clientWidth;
+      const scaleY = img.naturalHeight / img.clientHeight;
+
+      for (const rec of page._selections) {
+        const sx = Math.round(rec.x * scaleX);
+        const sy = Math.round(rec.y * scaleY);
+        const sw = Math.round(rec.w * scaleX);
+        const sh = Math.round(rec.h * scaleY);
+
+        const canvas = document.createElement('canvas');
+        canvas.width = sw; canvas.height = sh;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, sx, sy, sw, sh, 0, 0, sw, sh);
+
+        // May throw SecurityError if canvas is tainted (fix by serving same-origin with CORS).
+        const blob = await new Promise((res, rej) => {
+          try { canvas.toBlob(res, 'image/png'); } catch (err) { rej(err); }
+        });
+        if (!blob) continue;
+
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        const baseName = img.alt.replace(/\.[^.]+$/, '');
+        a.href = url;
+        a.download = `${baseName}-crop-${labelPart}${timestamp}-${counter++}.png`;
+        document.body.appendChild(a);
+        a.click();
+        URL.revokeObjectURL(url);
+        a.remove();
+        
+        // Add delay to prevent browser from blocking multiple downloads
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+    }
+
+    // Clear all selections
+    nodes.forEach(page => { page._selections.forEach(rec => rec.el.remove()); page._selections = []; });
+  });
+
+  // Disable native image dragging; attach page drag
+  strip.addEventListener('dragstart', e => e.preventDefault());
+  nodes.forEach(page => page.addEventListener('pointerdown', onPointerDownPage, { passive:false }));
+</script>
+</body>
+</html>
