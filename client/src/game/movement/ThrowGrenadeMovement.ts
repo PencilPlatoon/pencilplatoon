@@ -47,7 +47,7 @@ export class ThrowGrenadeMovement {
     // During throwing, the back arm swings up and forward
     // Animation goes from 1 (start) to 0 (end)
     const throwProgress = 1 - this.getThrowProgress();
-    return aimAngle - Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (negative for upward motion)
+    return aimAngle + Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (positive for upward motion)
   }
 
   getGrenadeTransform({
@@ -70,7 +70,7 @@ export class ThrowGrenadeMovement {
     aimAngle: number;
   }): EntityTransform {
     // Get the position where grenade will be released (at end of animation)
-    const releaseAngle = aimAngle - Math.PI * 0.3; // Final position of throw (30 degrees up)
+    const releaseAngle = aimAngle + Math.PI * 0.3; // Final position of throw (30 degrees up)
     const backHandTransform = HumanFigure.getBackHandTransform(releaseAngle);
     const releasePosition = playerTransform.applyTransform(backHandTransform).position;
     // Return transform with release position, aim angle for throw direction, and player facing

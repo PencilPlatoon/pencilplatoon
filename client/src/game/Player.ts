@@ -87,11 +87,17 @@ export class Player implements GameObject, Holder {
 
   getAbsoluteHeldObjectTransform(): EntityTransform {
     if (this.selectedWeaponCategory === 'grenade') {
-      // For grenades, use the back hand with throwing animation
-      return this.throwMovement.getGrenadeTransform({
-        playerTransform: this.transform,
-        aimAngle: this.aimAngle
-      });
+      if (this.throwMovement.isInThrowState()) {
+        // For grenades, use the back hand with throwing animation
+        return this.throwMovement.getGrenadeTransform({
+          playerTransform: this.transform,
+          aimAngle: this.aimAngle
+        });
+    } else {
+        const backHandTransform = HumanFigure.getBackHandTransform(0);
+        return this.transform.applyTransform(backHandTransform);
+      }
+  
     } else {
       // For guns and launchers, use the forward hand
       const forwardHandTransform = HumanFigure.getForwardHandTransform(this.aimAngle);

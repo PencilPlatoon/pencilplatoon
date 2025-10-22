@@ -84,23 +84,23 @@ export class ReloadLauncherMovement {
     if (!state) return null;
     
     const { phase, progress } = state;
-    // Note: getBackHandTransform adds π to these angles, and +Y is UP in world coords
-    // When passed to getBackHandTransform(θ), hand position uses angle θ+π:
+    // Note: getBackHandTransform mirrors angles around π, and +Y is UP in world coords
+    // When passed to getBackHandTransform(θ), hand position uses angle π-θ:
     // - Pass 0 → arm at π (horizontal backward)
-    // - Pass π/2 → arm at 3π/2, sin=-1 (pointing down, since +Y is up)
-    // - Pass (aimAngle - π) → arm at aimAngle
-    const downAngleInput = Math.PI / 2; // Will result in arm pointing down
-    let targetAngleInput = aimAngle - Math.PI; // Will result in arm at aimAngle
+    // - Pass -π/2 → arm at 3π/2, sin=-1 (pointing down, since +Y is up)
+    // - Pass (π - aimAngle) → arm at aimAngle
+    const downAngleInput = -Math.PI / 2; // Will result in arm pointing down
+    let targetAngleInput = Math.PI - aimAngle; // Will result in arm at aimAngle
     
-    // Ensure the arm continues rotating counterclockwise (increasing angles) in phase 3
-    // by adding 2π to target if needed
-    if (targetAngleInput < downAngleInput) {
-      targetAngleInput += 2 * Math.PI;
+    // Ensure the arm continues rotating clockwise (decreasing angles) in phase 3
+    // by subtracting 2π from target if needed
+    if (targetAngleInput > downAngleInput) {
+      targetAngleInput -= 2 * Math.PI;
     }
     
     switch (phase) {
       case 1:
-        // Phase 1: Swing down from horizontal backward (0) to pointing down (π/2)
+        // Phase 1: Swing down from horizontal backward (0) to pointing down (-π/2)
         return downAngleInput * progress;
       
       case 2:
@@ -108,7 +108,7 @@ export class ReloadLauncherMovement {
         return downAngleInput;
       
       case 3:
-        // Phase 3: Swing forward from down (π/2) to aim angle (aimAngle - π)
+        // Phase 3: Swing forward from down (-π/2) to aim angle (π - aimAngle)
         return downAngleInput + (targetAngleInput - downAngleInput) * progress;
       
       case 4:
@@ -116,7 +116,7 @@ export class ReloadLauncherMovement {
         return targetAngleInput;
       
       case 5:
-        // Phase 5: Return to original position (aimAngle - π) back to 0
+        // Phase 5: Return to original position (π - aimAngle) back to 0
         return targetAngleInput - targetAngleInput * progress;
       
       default:
@@ -153,7 +153,7 @@ export class ReloadLauncherMovement {
       const absoluteBackHand = playerTransform.applyTransform(backHandTransform);
       return new EntityTransform(
         absoluteBackHand.position,
-        backArmAngle + Math.PI, // Actual arm angle (getBackHandTransform adds π)
+        Math.PI - backArmAngle, // Actual arm angle (getBackHandTransform mirrors around π)
         playerTransform.facing
       );
     } else if (phase === 4) {

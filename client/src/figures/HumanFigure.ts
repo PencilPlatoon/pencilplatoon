@@ -70,30 +70,32 @@ export class HumanFigure {
   /**
    * Get the transform for the back hand (arm on the opposite side from facing direction).
    * 
-   * IMPORTANT: This function automatically adds π to the input angle to position 
-   * the arm on the opposite side of the body.
+   * IMPORTANT: This function mirrors the angle around π (horizontal backward) to position 
+   * the arm on the opposite side of the body. Unlike getForwardHandTransform which rotates
+   * counterclockwise for positive angles, this rotates clockwise for positive angles.
    * 
    * Note: In world coordinates, +Y is UP (converted to canvas coords via toCanvasY).
    * 
-   * @param aimAngle - The "relative" angle that will have π added to it:
+   * @param aimAngle - The "relative" angle that will be mirrored around π:
    *   0 → actual angle π (horizontal backward)
-   *   Positive (e.g. π/2) → actual angle 3π/2, sin=-1 (pointing DOWN)
-   *   Negative (e.g. -π/2) → actual angle π/2, sin=+1 (pointing UP)
+   *   Positive (e.g. π/6) → actual angle 5π/6, sin=+0.5 (pointing UP, rotates clockwise from backward)
+   *   Negative (e.g. -π/6) → actual angle 7π/6, sin=-0.5 (pointing DOWN, rotates counterclockwise from backward)
    * 
    * Usage:
-   *   To point the back arm down, pass positive angle (e.g. π/2).
-   *   To point the back arm up, pass negative angle (e.g. -π/2).
+   *   To point the back arm up, pass positive angle (e.g. π/6).
+   *   To point the back arm down, pass negative angle (e.g. -π/6).
    *   To point the back arm horizontal backward, pass 0.
    * 
-   * @returns EntityTransform with hand position and angle (aimAngle + π)
+   * @returns EntityTransform with hand position and angle (π - aimAngle)
    */
   static getBackHandTransform(aimAngle: number): EntityTransform {
-    // Calculate the hand position by extending the arm at the aim angle
+    // Calculate the hand position by extending the arm at the mirrored angle
     // Back hand is on the opposite side of the body
-    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle + Math.PI) * HumanFigure.ARM_LENGTH;
-    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle + Math.PI) * HumanFigure.ARM_LENGTH;
+    const actualAngle = Math.PI - aimAngle;
+    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(actualAngle) * HumanFigure.ARM_LENGTH;
+    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(actualAngle) * HumanFigure.ARM_LENGTH;
     
-    return new EntityTransform({ x: handX, y: handY }, aimAngle + Math.PI, 1);
+    return new EntityTransform({ x: handX, y: handY }, actualAngle, 1);
   }
 
   static updateWalkCycle(
@@ -165,7 +167,7 @@ export class HumanFigure {
       // During throwing, the back arm swings up and forward
       // Animation goes from 1 (start) to 0 (end)
       const throwProgress = 1 - throwingAnimation;
-      backArmAngle = -Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (negative for upward motion)
+      backArmAngle = Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (positive for upward motion)
     }
     const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
     const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
