@@ -4,7 +4,7 @@ import { BoundingBox } from "./BoundingBox";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
 import { Bullet } from "./Bullet";
-import { WeaponFigure } from "../figures/WeaponFigure";
+import { ShootingWeaponFigure } from "../figures/ShootingWeaponFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { EntityTransform } from "./EntityTransform";
 
@@ -82,7 +82,7 @@ export class ShootingWeapon implements HoldableObject {
   }
 
   render(ctx: CanvasRenderingContext2D, transform: EntityTransform, showAimLine: boolean = true) {
-    WeaponFigure.render({
+    ShootingWeaponFigure.render({
       ctx,
       transform,
       weapon: this,

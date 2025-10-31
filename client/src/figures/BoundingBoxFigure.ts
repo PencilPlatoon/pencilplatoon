@@ -62,7 +62,6 @@ export class BoundingBoxFigure {
     ctx.strokeStyle = 'red';
     ctx.lineWidth = 1;
 
-    // Apply the same transformations as WeaponFigure
     ctx.translate(position.x, toCanvasY(position.y));
     ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
     ctx.scale(transform.facing, 1);

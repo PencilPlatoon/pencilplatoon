@@ -6,7 +6,7 @@ import { EntityTransform } from "../game/EntityTransform";
 import { ShootingWeapon } from "../game/ShootingWeapon";
 import { BoundingBoxFigure } from "./BoundingBoxFigure";
 
-export class WeaponFigure {
+export class ShootingWeaponFigure {
   private static loggedWeapons = new Set<string>();
 
   static renderSVG({
@@ -36,9 +36,9 @@ export class WeaponFigure {
     const refY = height * boundingBox.refRatioPosition.y;
     
     // Debug logging (once per weapon type)
-    if (typeof window !== 'undefined' && window.__DEBUG_MODE__ && !WeaponFigure.loggedWeapons.has(weapon.type.name)) {
-      WeaponFigure.loggedWeapons.add(weapon.type.name);
-      console.log('[WeaponFigure.renderSVG]', weapon.type.name, {
+    if (typeof window !== 'undefined' && window.__DEBUG_MODE__ && !ShootingWeaponFigure.loggedWeapons.has(weapon.type.name)) {
+      ShootingWeaponFigure.loggedWeapons.add(weapon.type.name);
+      console.log('[ShootingWeaponFigure.renderSVG]', weapon.type.name, {
         svgOriginalDimensions: { width: svgInfo.boundingBox.width, height: svgInfo.boundingBox.height },
         boundingBoxDimensions: { width, height },
         refRatioPosition: { x: boundingBox.refRatioPosition.x, y: boundingBox.refRatioPosition.y },
