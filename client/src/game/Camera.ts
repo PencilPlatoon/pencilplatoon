@@ -1,4 +1,4 @@
-import { Vector2 } from "./types";
+import { Vector2 } from "./Vector2";
 import { Terrain } from "./Terrain";
 
 export class Camera {
@@ -28,7 +28,7 @@ export class Camera {
   }
 
   // Calculate desired camera position for a given target
-  private calculateDesiredPosition(target: Vector2): { x: number; y: number } {
+  private calculateDesiredPosition(target: Vector2): Vector2 {
     // Calculate desired camera position (bottom-left of viewport)
     const desiredBottomLeftX = target.x - this.width / 2 + this.lookAhead;
     

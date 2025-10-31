@@ -1,4 +1,5 @@
-import { ShootingWeaponType } from "./types";
+import { ShootingWeaponType, HoldableObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
@@ -7,7 +8,7 @@ import { WeaponFigure } from "../figures/WeaponFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { EntityTransform } from "./EntityTransform";
 
-export class ShootingWeapon {
+export class ShootingWeapon implements HoldableObject {
   type: ShootingWeaponType;
   boundingBox: BoundingBox;
   svgInfo?: SVGInfo;
@@ -25,15 +26,18 @@ export class ShootingWeapon {
     this.boundingBox = new BoundingBox(
       weaponType.size,
       1,
-      weaponType.holdRelativeX,
-      weaponType.holdRelativeY
+      weaponType.primaryHoldRatioPosition
     );
     
-    this._loadPromise = loadSVGAndCreateBounds(weaponType, 1).then(({ bounds, svgInfo }) => {
+    this._loadPromise = loadSVGAndCreateBounds(weaponType, 1, weaponType.primaryHoldRatioPosition).then(({ bounds, svgInfo }) => {
       this.boundingBox = bounds;
       this.svgInfo = svgInfo;
       this.isLoaded = true;
     });
+  }
+  
+  get bounds(): BoundingBox {
+    return this.boundingBox;
   }
 
   canShoot(newTriggerPress: boolean): boolean {
@@ -77,15 +81,7 @@ export class ShootingWeapon {
     return this.type.capacity;
   }
 
-  render({
-    ctx,
-    transform,
-    showAimLine = false
-  }: {
-    ctx: CanvasRenderingContext2D;
-    transform: EntityTransform;
-    showAimLine?: boolean;
-  }) {
+  render(ctx: CanvasRenderingContext2D, transform: EntityTransform, showAimLine: boolean = true) {
     WeaponFigure.render({
       ctx,
       transform,
@@ -102,6 +98,15 @@ export class ShootingWeapon {
     console.log(`ShootingWeapon loaded: ${this.type.name}`);
   }
 
+  updatePrimaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.primaryHoldRatioPosition = ratioPosition;
+    this.boundingBox.refRatioPosition = ratioPosition;
+  }
+
+  updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.secondaryHoldRatioPosition = ratioPosition;
+  }
+
   static readonly WEBLEY_REVOLVER: ShootingWeaponType = {
     name: "Webley",
     damage: 20,
@@ -110,10 +115,11 @@ export class ShootingWeapon {
     bulletSize: 2,
     size: 20,
     svgPath: "svg/webley.svg",
-    holdRelativeX: 0.25,
-    holdRelativeY: 0.5,
+    // Pistol: one-handed, only held in primary hand (was forward hand)
+    primaryHoldRatioPosition: { x: 0.17, y: 0.52 },
+    secondaryHoldRatioPosition: null, // Secondary hand is free
     capacity: 7,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly RIFLE_A_MAIN_OFFENSIVE: ShootingWeaponType = {
@@ -124,8 +130,9 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 50,
     svgPath: "svg/rifle-a-main-offensive.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    // Rifle: secondary hand on barrel/foregrip, primary hand on trigger grip
+    primaryHoldRatioPosition: { x: 0.32, y: 0.36 },
+    secondaryHoldRatioPosition: { x: 0.63, y: 0.35 },
     capacity: 30,
     autoFiringType: 'auto',
   };
@@ -138,8 +145,8 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/fnaf-battle-rifle.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.35, y: 0.38 },
+    secondaryHoldRatioPosition: { x: 0.59, y: 0.35 },
     capacity: 20,
     autoFiringType: 'auto',
   };
@@ -152,8 +159,8 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/ak-200.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.39, y: 0.37 },
+    secondaryHoldRatioPosition: { x: 0.64, y: 0.46 },
     capacity: 32,
     autoFiringType: 'auto',
   };
@@ -166,10 +173,10 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/m9-johnson.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.36, y: 0.40 },
+    secondaryHoldRatioPosition: { x: 0.56, y: 0.39 },
     capacity: 10,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly M7_CARBINE: ShootingWeaponType = {
@@ -180,8 +187,8 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/m7-carbine.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.40, y: 0.72 },
+    secondaryHoldRatioPosition: { x: 0.66, y: 0.47 },
     capacity: 15,
     autoFiringType: 'semi-auto',
   };
@@ -194,8 +201,8 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/harmann-and-wolffs-bolt-action-rifle.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.45, y: 0.42 },
+    secondaryHoldRatioPosition: { x: 0.62, y: 0.44 },
     capacity: 5,
     autoFiringType: 'semi-auto',
   };
@@ -208,10 +215,11 @@ export class ShootingWeapon {
     bulletSize: 4,
     size: 50,
     svgPath: "svg/m270-breacher.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    // Shotgun: secondary hand on pump/barrel, primary hand on grip
+    primaryHoldRatioPosition: { x: 0.42, y: 0.51 },
+    secondaryHoldRatioPosition: { x: 0.72, y: 0.46 },
     capacity: 8,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly R_200_SHOTGUN: ShootingWeaponType = {
@@ -222,10 +230,10 @@ export class ShootingWeapon {
     bulletSize: 4,
     size: 60,
     svgPath: "svg/r-200.svg",
-    holdRelativeX: 0.4,
-    holdRelativeY: 0.25,
+    primaryHoldRatioPosition: { x: 0.13, y: 0.42 },
+    secondaryHoldRatioPosition: { x: 0.47, y: 0.38 },
     capacity: 15,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
@@ -236,10 +244,10 @@ export class ShootingWeapon {
     bulletSize: 4,
     size: 80,
     svgPath: "svg/mr-27-drumbeat.svg",
-    holdRelativeX: 0.4,
-    holdRelativeY: 0.25,
+    primaryHoldRatioPosition: { x: 0.25, y: 0.48 },
+    secondaryHoldRatioPosition: { x: 0.43, y: 0.18 },
     capacity: 30,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly PTS_27_ANTITANK_GUN: ShootingWeaponType = {
@@ -250,10 +258,10 @@ export class ShootingWeapon {
     bulletSize: 5,
     size: 70,
     svgPath: "svg/pts-27.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    primaryHoldRatioPosition: { x: 0.23, y: 0.33 },
+    secondaryHoldRatioPosition: { x: 0.42, y: 0.41 },
     capacity: 12,
-    autoFiringType: 'auto',
+    autoFiringType: 'semi-auto',
   };
 
   static readonly BROWNING_MK3_MACHINE_GUN: ShootingWeaponType = {
@@ -264,8 +272,9 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 60,
     svgPath: "svg/browning-mk3.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.25,
+    // Machine gun: secondary hand on barrel grip, primary hand on trigger
+    primaryHoldRatioPosition: { x: 0.29, y: 0.30 },
+    secondaryHoldRatioPosition: { x: 0.54, y: 0.44 },
     capacity: 100,
     autoFiringType: 'auto',
   };
@@ -278,8 +287,9 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 45,
     svgPath: "svg/vp-37.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    // SMG: compact, closer grips
+    primaryHoldRatioPosition: { x: 0.43, y: 0.35 },
+    secondaryHoldRatioPosition: { x: 0.64, y: 0.39 },
     capacity: 20,
     autoFiringType: 'auto',
   };
@@ -292,8 +302,9 @@ export class ShootingWeapon {
     bulletSize: 3,
     size: 70,
     svgPath: "svg/mk-200.svg",
-    holdRelativeX: 0.35,
-    holdRelativeY: 0.5,
+    // Sniper: secondary on foregrip, primary on trigger
+    primaryHoldRatioPosition: { x: 0.30, y: 0.47 },
+    secondaryHoldRatioPosition: { x: 0.53, y: 0.54 },
     capacity: 6,
     autoFiringType: 'semi-auto',
   };

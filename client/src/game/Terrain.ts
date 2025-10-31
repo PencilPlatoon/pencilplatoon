@@ -1,7 +1,7 @@
-import { TerrainSegment, TerrainPoint } from "./types";
+import { TerrainSegment } from "./types";
+import { Vector2 } from "./Vector2";
 import { TerrainConfig } from "./LevelConfig";
 import { TerrainFigure } from "../figures/TerrainFigure";
-import { seededRandom } from "../lib/utils";
 
 export class Terrain {
   static readonly WORLD_TOP = 600; // The top of the world/screen for all entities
@@ -9,7 +9,7 @@ export class Terrain {
   static readonly LEVEL_WIDTH = 8000; // The width of the level for global access
 
   private segments: TerrainSegment[] = [];
-  private terrainPoints: TerrainPoint[] = [];
+  private terrainPoints: Vector2[] = [];
   private groundLevel = Terrain.WORLD_BOTTOM + 100;
   private terrainColor: string = "rgba(0, 0, 0, 0.1)";
   constructor(terrainColor?: string) {
@@ -56,8 +56,7 @@ export class Terrain {
       const maxY = Math.max(point1.y, point2.y);
       const height = minY - Terrain.WORLD_BOTTOM; // Extend to bottom of screen
       this.segments.push({
-        x: point1.x,
-        y: Terrain.WORLD_BOTTOM,
+        position: { x: point1.x, y: Terrain.WORLD_BOTTOM },
         width: pointSpacing,
         height: height,
         type: 'ground'
@@ -69,12 +68,12 @@ export class Terrain {
     return Terrain.LEVEL_WIDTH;
   }
 
-  checkCollision(absBounds: { upperLeft: { x: number; y: number }; lowerRight: { x: number; y: number } }): boolean {
+  checkCollision(absBounds: { upperLeft: Vector2; lowerRight: Vector2 }): boolean {
     return this.segments.some(segment => 
-      absBounds.upperLeft.x < segment.x + segment.width &&
-      absBounds.lowerRight.x > segment.x &&
-      absBounds.lowerRight.y < segment.y + segment.height &&
-      absBounds.upperLeft.y > segment.y
+      absBounds.upperLeft.x < segment.position.x + segment.width &&
+      absBounds.lowerRight.x > segment.position.x &&
+      absBounds.lowerRight.y < segment.position.y + segment.height &&
+      absBounds.upperLeft.y > segment.position.y
     );
   }
 

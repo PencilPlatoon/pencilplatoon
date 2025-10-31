@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import GameCanvas from "./GameCanvas";
 import GameUI from "./GameUI";
 import MobileControls from "./MobileControls";
+import { DesignerMode } from "./DesignerMode";
 import { GameEngine } from "../game/GameEngine";
 import { useGameStore } from "../lib/stores/useGameStore";
 import { useAudio } from "../lib/stores/useAudio";
@@ -12,6 +13,7 @@ export default function Game() {
   const gameEngineRef = useRef<GameEngine | null>(null);
   const [isGameInitialized, setIsGameInitialized] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [isDesignerMode, setIsDesignerMode] = useState(false);
   const { phase, start, end, debugMode, restart, seed } = useGameStore();
   const { backgroundMusic, isMusicMuted } = useAudio();
   const isMobile = useIsMobile();
@@ -112,6 +114,18 @@ export default function Game() {
     }
   };
 
+  const handleEnterDesigner = () => {
+    setIsDesignerMode(true);
+  };
+
+  const handleExitDesigner = () => {
+    setIsDesignerMode(false);
+  };
+
+  if (isDesignerMode) {
+    return <DesignerMode onExit={handleExitDesigner} />;
+  }
+
   return (
     <div className="relative w-full h-full">
       <GameCanvas ref={canvasRef} />
@@ -124,6 +138,7 @@ export default function Game() {
         onSwitchWeapon={handleSwitchWeapon}
         onReload={handleReload}
         onPause={handlePause}
+        onEnterDesigner={handleEnterDesigner}
         isPaused={isPaused}
         isInitialized={isGameInitialized}
       />

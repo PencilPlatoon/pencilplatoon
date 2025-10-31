@@ -1,4 +1,5 @@
-import { Vector2, DamageableEntity, GameObject, ExplodingEntity } from "./types";
+import { DamageableEntity, GameObject, ExplodingEntity } from "./types";
+import { Vector2 } from "./Vector2";
 import { AbsoluteBoundingBox } from "./BoundingBox";
 import { Player } from "./Player";
 import { Enemy } from "./Enemy";
@@ -168,7 +169,7 @@ export class CollisionSystem {
 
   private applyExplosionDamage(
     entity: DamageableEntity,
-    explosionPos: { x: number; y: number },
+    explosionPos: Vector2,
     explosionRadius: number,
     explosionDamage: number
   ): void {

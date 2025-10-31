@@ -17,11 +17,12 @@ interface GameUIProps {
   onSwitchWeapon?: () => void;
   onReload?: () => void;
   onPause?: () => void;
+  onEnterDesigner?: () => void;
   isPaused?: boolean;
   isInitialized: boolean;
 }
 
-export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onReload, onPause, isPaused, isInitialized }: GameUIProps) {
+export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onReload, onPause, onEnterDesigner, isPaused, isInitialized }: GameUIProps) {
   const { isSoundMuted, isMusicMuted, toggleSoundMute, toggleMusicMute } = useAudio();
   const debugMode = useGameStore((state) => state.debugMode);
   const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
@@ -143,6 +144,18 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
           </Card>
           <AssetGrid assets={loadedAssets} isLoading={isLoading} />
         </div>
+        
+        {/* Designer Mode Button */}
+        {onEnterDesigner && (
+          <Button
+            onClick={onEnterDesigner}
+            variant="outline"
+            size="sm"
+            className="fixed bottom-4 right-4 bg-white/90 hover:bg-white"
+          >
+            🎨 Designer Mode
+          </Button>
+        )}
       </div>
     );
   }

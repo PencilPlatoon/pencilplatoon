@@ -32,19 +32,16 @@ export class Arsenal {
   switchToNextWeapon(): void {
     this.currentWeaponIndex = (this.currentWeaponIndex + 1) % ShootingWeapon.ALL_WEAPONS.length;
     this.heldShootingWeapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[this.currentWeaponIndex]);
-    console.log(`[Arsenal] Switched to weapon: ${this.heldShootingWeapon.type.name}`);
   }
 
   switchToNextLauncher(): void {
     this.currentLauncherIndex = (this.currentLauncherIndex + 1) % LaunchingWeapon.ALL_LAUNCHERS.length;
     this.heldLaunchingWeapon = new LaunchingWeapon(LaunchingWeapon.ALL_LAUNCHERS[this.currentLauncherIndex]);
-    console.log(`[Arsenal] Switched to launcher: ${this.heldLaunchingWeapon.type.name}`);
   }
 
   switchToNextGrenade(): void {
     this.currentGrenadeIndex = (this.currentGrenadeIndex + 1) % Grenade.ALL_GRENADES.length;
     this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.ALL_GRENADES[this.currentGrenadeIndex]);
-    console.log(`[Arsenal] Switched to grenade: ${this.heldGrenade.type.name}`);
   }
 
   reset(): void {

@@ -1,4 +1,4 @@
-import { Vector2 } from "./types";
+import { Vector2 } from "./Vector2";
 
 export class EntityTransform {
   position: Vector2;
@@ -17,7 +17,7 @@ export class EntityTransform {
 
   clone(): EntityTransform {
     return new EntityTransform(
-      { x: this.position.x, y: this.position.y },
+      this.position,
       this.rotation,
       this.facing
     );
@@ -41,7 +41,7 @@ export class EntityTransform {
     return {
       x: this.position.x + (this.facing * armLength),
       y: this.position.y
-    };
+    } as Vector2;
   }
 
   // Apply a relative transform onto this transform
@@ -56,6 +56,21 @@ export class EntityTransform {
     // Accumulate rotation (add relative rotation to this transform's rotation)
     const absoluteRotation = this.rotation + relativeTransform.rotation;
     
-    return new EntityTransform({ x: absoluteX, y: absoluteY }, absoluteRotation, absoluteFacing);
+    return new EntityTransform({ x: absoluteX, y: absoluteY } as Vector2, absoluteRotation, absoluteFacing);
+  }
+
+  // Compute the relative transform that would produce the given absolute transform when applied to this transform
+  reverseTransform(absoluteTransform: EntityTransform): EntityTransform {
+    // Reverse position calculation: relativeX = (absoluteX - this.position.x) / this.facing
+    const relativeX = (absoluteTransform.position.x - this.position.x) / this.facing;
+    const relativeY = absoluteTransform.position.y - this.position.y;
+    
+    // Reverse facing calculation: relativeFacing = absoluteFacing / this.facing
+    const relativeFacing = absoluteTransform.facing / this.facing;
+    
+    // Reverse rotation calculation: relativeRotation = absoluteRotation - this.rotation
+    const relativeRotation = absoluteTransform.rotation - this.rotation;
+    
+    return new EntityTransform({ x: relativeX, y: relativeY } as Vector2, relativeRotation, relativeFacing);
   }
 } 

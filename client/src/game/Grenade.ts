@@ -1,4 +1,5 @@
-import { GameObject, Vector2, GrenadeType } from "./types";
+import { GameObject, GrenadeType, HoldableObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
 import { EntityTransform } from "./EntityTransform";
@@ -7,7 +8,7 @@ import { GrenadeFigure } from "../figures/GrenadeFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
 
-export class Grenade implements GameObject {
+export class Grenade implements GameObject, HoldableObject {
   // Physics constants
   private static readonly ROLL_FRICTION = 0.7; // Lower value = more friction (0.7 means 30% speed lost per frame)
   private static readonly BOUNCE_DAMPING = 0.6; // Velocity multiplier when bouncing
@@ -48,11 +49,11 @@ export class Grenade implements GameObject {
     this.explosionRadius = grenadeType.explosionRadius;
     this.explosionDamage = grenadeType.damage;
     
-    this.bounds = new BoundingBox(grenadeType.size, grenadeType.size, 0.5, 0.5);
+    this.bounds = new BoundingBox(grenadeType.size, grenadeType.size, grenadeType.primaryHoldRatioPosition);
     this.active = true;
     
     // Load grenade SVG asynchronously and update bounds
-    this._loadPromise = loadSVGAndCreateBounds(grenadeType, grenadeType.size).then(({ bounds, svgInfo }) => {
+    this._loadPromise = loadSVGAndCreateBounds(grenadeType, grenadeType.size, grenadeType.primaryHoldRatioPosition).then(({ bounds, svgInfo }) => {
       this.bounds = bounds;
       this.svgInfo = svgInfo;
       this.isLoaded = true;
@@ -175,7 +176,7 @@ export class Grenade implements GameObject {
     return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
-  render(ctx: CanvasRenderingContext2D) {
+  render(ctx: CanvasRenderingContext2D, transform: EntityTransform) {
     GrenadeFigure.render({
       ctx,
       grenade: this
@@ -207,6 +208,15 @@ export class Grenade implements GameObject {
     console.log(`Grenade loaded: ${this.type.name}`);
   }
 
+  updatePrimaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.primaryHoldRatioPosition = ratioPosition;
+    this.bounds.refRatioPosition = ratioPosition;
+  }
+
+  updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.secondaryHoldRatioPosition = ratioPosition;
+  }
+
   static readonly HAND_GRENADE: GrenadeType = {
     name: "Hand Grenade",
     damage: 150,
@@ -214,8 +224,9 @@ export class Grenade implements GameObject {
     explosionDelay: 3,
     size: 10,
     svgPath: "svg/grenade.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
+    // Grenade: one-handed, only held in primary hand (throwing hand)
+    primaryHoldRatioPosition: { x: 0.5, y: 0.5 },
+    secondaryHoldRatioPosition: null, // Secondary hand is free
   };
 
   static readonly ALL_GRENADES: GrenadeType[] = [

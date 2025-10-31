@@ -1,4 +1,5 @@
-import { GameObject, Vector2, Holder } from "./types";
+import { GameObject, Holder, HoldableObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox, AbsoluteBoundingBox } from "./BoundingBox";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
@@ -46,6 +47,7 @@ export class Player implements GameObject, Holder {
 
   private isGrounded = false;
   public arsenal: Arsenal;
+  private lastLoggedWeapon: string | null = null;
   private aimAngle: number = 0;
   private aimSpeed: number = 0;
   private walkCycle: number = 0;
@@ -63,7 +65,7 @@ export class Player implements GameObject, Holder {
     this.id = "player";
     this.transform = new EntityTransform({ x: 0, y: 0 }, 0, 1);
     this.velocity = { x: 0, y: 0 };
-    this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
+    this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), { x: 0.5, y: 0.0 });
     this.active = false;
     this.health = 0;
     this.previousPosition = { x: 0, y: 0 };
@@ -75,7 +77,7 @@ export class Player implements GameObject, Holder {
     this.reset(x, y);
   }
 
-  getHeldObject(): ShootingWeapon | LaunchingWeapon | Grenade {
+  getHeldObject(): HoldableObject {
     if (this.selectedWeaponCategory === 'gun') {
       return this.arsenal.heldShootingWeapon;
     } else if (this.selectedWeaponCategory === 'launcher') {
@@ -85,19 +87,15 @@ export class Player implements GameObject, Holder {
     }
   }
 
-  getAbsoluteHeldObjectTransform(): EntityTransform {
+  getPrimaryHandAbsTransform(): EntityTransform {
     if (this.selectedWeaponCategory === 'grenade') {
       if (this.throwMovement.isInThrowState()) {
-        // For grenades, use the back hand with throwing animation
-        return this.throwMovement.getGrenadeTransform({
-          playerTransform: this.transform,
-          aimAngle: this.aimAngle
-        });
-    } else {
+        const grenadeRelTransform = this.throwMovement.getGrenadeRelTransform(this.aimAngle);
+        return this.transform.applyTransform(grenadeRelTransform);
+      } else {
         const backHandTransform = HumanFigure.getBackHandTransform(0);
         return this.transform.applyTransform(backHandTransform);
       }
-  
     } else {
       // For guns and launchers, use the forward hand
       const forwardHandTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
@@ -105,11 +103,89 @@ export class Player implements GameObject, Holder {
     }
   }
 
-  private getThrowingReleaseTransform(): EntityTransform {
-    return this.throwMovement.getReleaseTransform({
-      playerTransform: this.transform,
-      aimAngle: this.aimAngle
-    });
+  /**
+   * Get weapon transform where weapon extends from body pivot point.
+   * Weapon line extends from pivot along aimAngle, with grip at offset distance.
+   * Offset is selected based on whether weapon has secondary hold (two-handed vs single-handed).
+   */
+  public getWeaponRelTransform(): EntityTransform {
+    // Get current weapon to determine offset type
+    const holdableObject = this.getHeldObject();
+    const hasSecondaryHold = holdableObject.type.secondaryHoldRatioPosition !== null;
+    
+    // Select appropriate offsets based on whether weapon has secondary hold
+    const horizontalOffset = hasSecondaryHold 
+      ? HumanFigure.WEAPON_HORIZONTAL_OFFSET_TWO_HANDED 
+      : HumanFigure.WEAPON_HORIZONTAL_OFFSET_SINGLE_HANDED;
+    const verticalOffset = hasSecondaryHold 
+      ? HumanFigure.WEAPON_VERTICAL_OFFSET_TWO_HANDED 
+      : HumanFigure.WEAPON_VERTICAL_OFFSET_SINGLE_HANDED;
+    
+    // Pivot point on body (where weapon line intersects body)
+    const pivotX = 0; // At body center
+    const pivotY = HumanFigure.ARM_Y_OFFSET + verticalOffset; // positive Y is up, so negative offset moves down
+
+    // Grip is horizontalOffset distance from pivot along aim angle
+    // Weapon transform position represents the ANCHOR point (which we've set to gripRelativeX)
+    // So weapon position IS the grip position (since anchor is at the grip)
+    const weaponX = pivotX + Math.cos(this.aimAngle) * horizontalOffset;
+    const weaponY = pivotY + Math.sin(this.aimAngle) * horizontalOffset;
+    
+    return new EntityTransform(
+      { x: weaponX, y: weaponY },
+      this.aimAngle,
+      1
+    );
+  }
+
+  /**
+   * Get the absolute transform of the weapon in world coordinates.
+   * This represents where the weapon is positioned and oriented in the game world.
+   */
+  public getWeaponAbsTransform(): EntityTransform {
+    const weaponRelTransform = this.getWeaponRelTransform();
+    return this.transform.applyTransform(weaponRelTransform);
+  }
+
+  private calculateHandPositionsForHoldableObject(holdableObject: HoldableObject, weaponRelTransform: EntityTransform): { forwardHandPosition: Vector2 | null; backHandPosition: Vector2 | null } {
+    // Calculate primary hand position (always present)
+    const primaryHandRelative = HumanFigure.getHandPositionForWeapon(
+      weaponRelTransform,
+      holdableObject.type,
+      holdableObject.bounds.height,
+      holdableObject.type.primaryHoldRatioPosition
+    );
+    
+    // Calculate secondary hand position (if present)
+    const secondaryHandRelative = holdableObject.type.secondaryHoldRatioPosition !== null
+      ? HumanFigure.getHandPositionForWeapon(
+          weaponRelTransform,
+          holdableObject.type,
+          holdableObject.bounds.height,
+          holdableObject.type.secondaryHoldRatioPosition
+        )
+      : null;
+    
+    // If weapon has secondary hold: forward hand on secondary position, back hand on primary position
+    // If weapon has no secondary hold: forward hand on primary position, back hand goes to resting position (null)
+    if (holdableObject.type.secondaryHoldRatioPosition !== null) {
+      return {
+        forwardHandPosition: secondaryHandRelative,
+        backHandPosition: primaryHandRelative
+      };
+    } else {
+      return {
+        forwardHandPosition: primaryHandRelative,
+        backHandPosition: null
+      };
+    }
+  }
+
+  private getThrowingReleaseAbsTransform(): EntityTransform {
+    const relTransform = this.throwMovement.getReleaseRelTransform(this.aimAngle);
+    const absTransform = this.transform.applyTransform(relTransform);
+    // Override rotation with aim angle for throw direction (applyTransform accumulates rotations)
+    return new EntityTransform(absTransform.position, this.aimAngle, absTransform.facing);
   }
 
   getCenterOfGravity(): Vector2 {
@@ -234,13 +310,10 @@ export class Player implements GameObject, Holder {
   switchWeaponCategory(): void {
     if (this.selectedWeaponCategory === 'gun') {
       this.selectedWeaponCategory = 'grenade';
-      console.log(`Switched to grenade mode: ${this.arsenal.heldGrenade.type.name}`);
     } else if (this.selectedWeaponCategory === 'grenade') {
       this.selectedWeaponCategory = 'launcher';
-      console.log(`Switched to launcher mode: ${this.arsenal.heldLaunchingWeapon.type.name}`);
     } else {
       this.selectedWeaponCategory = 'gun';
-      console.log(`Switched to gun mode: ${this.arsenal.heldShootingWeapon.type.name}`);
     }
   }
 
@@ -272,7 +345,7 @@ export class Player implements GameObject, Holder {
   }
 
   shoot(newTriggerPress: boolean): Bullet | null {
-    const weaponTransform = this.getAbsoluteHeldObjectTransform();
+    const weaponTransform = this.getPrimaryHandAbsTransform();
     return this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
   }
 
@@ -307,7 +380,7 @@ export class Player implements GameObject, Holder {
     
     console.log(`[GRENADE THROW] throwPower: ${this.throwPower.toFixed(2)}, multiplier: ${multiplier.toFixed(2)}, velocity magnitude: ${velocity.toFixed(1)}`);
     
-    const releaseTransform = this.getThrowingReleaseTransform();
+    const releaseTransform = this.getThrowingReleaseAbsTransform();
     
     const throwAngle = this.aimAngle;
     const throwVelocity = {
@@ -345,7 +418,7 @@ export class Player implements GameObject, Holder {
       return null;
     }
     
-    const weaponTransform = this.getAbsoluteHeldObjectTransform();
+    const weaponTransform = this.getPrimaryHandAbsTransform();
     const rocket = launcher.launch(weaponTransform);
     if (rocket) {
       this.arsenal.rocketCount--;
@@ -404,23 +477,28 @@ export class Player implements GameObject, Holder {
     return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
-  render(ctx: CanvasRenderingContext2D) {
+  render(ctx: CanvasRenderingContext2D, options: { skipHealthBar?: boolean } = {}) {
+    // Check if we should log (once per weapon)
+    const currentWeapon = this.getHeldObject();
+    const shouldLogWeapon = this.lastLoggedWeapon !== currentWeapon.type.name;
+    
+    // Calculate weapon transform with vertical offset (player-relative)
+    const weaponRelTransform = this.getWeaponRelTransform();
+    const weaponAbsTransform = this.transform.applyTransform(weaponRelTransform);
+    
+    
     if (this.selectedWeaponCategory === 'gun') {
-      this.arsenal.heldShootingWeapon.render({
-        ctx,
-        transform: this.getAbsoluteHeldObjectTransform(),
-        showAimLine: true
-      });
+      this.arsenal.heldShootingWeapon.render(ctx, weaponAbsTransform, true);
     } else if (this.selectedWeaponCategory === 'grenade') {
-      const releaseTransform = this.getThrowingReleaseTransform();
+      const releaseAbsTransform = this.getThrowingReleaseAbsTransform();
       
       // Render the held grenade
-      this.arsenal.heldGrenade.transform = this.getAbsoluteHeldObjectTransform();
-      this.arsenal.heldGrenade.render(ctx);
+      this.arsenal.heldGrenade.transform = weaponAbsTransform;
+      this.arsenal.heldGrenade.render(ctx, weaponAbsTransform);
       
       ThrowingAimLineFigure.render({
         ctx,
-        transform: releaseTransform,
+        transform: releaseAbsTransform,
         velocity: Player.MAX_THROW_VELOCITY * 1.0,
         mode: "Max"
       });
@@ -429,7 +507,7 @@ export class Player implements GameObject, Holder {
       if (this.throwPower > 0) {
         ThrowingAimLineFigure.render({
           ctx,
-          transform: releaseTransform,
+          transform: releaseAbsTransform,
           velocity: Player.MAX_THROW_VELOCITY * this.getThrowMultiplier(),
           mode: "Charging"
         });
@@ -437,14 +515,9 @@ export class Player implements GameObject, Holder {
     } else {
       // launcher category
       const launcher = this.arsenal.heldLaunchingWeapon;
-      const weaponTransform = this.getAbsoluteHeldObjectTransform();
       
       // Render launcher weapon (handles rocket rendering internally if loaded)
-      launcher.render({
-        ctx,
-        transform: weaponTransform,
-        showAimLine: true
-      });
+      launcher.render(ctx, weaponAbsTransform, true);
       
       // If reloading, render the reloading rocket based on animation phase
       if (this.reloadMovement.isInReloadState() && this.arsenal.reloadingRocket) {
@@ -452,7 +525,7 @@ export class Player implements GameObject, Holder {
           playerTransform: this.transform,
           aimAngle: this.aimAngle,
           arsenal: this.arsenal,
-          weaponTransform
+          weaponAbsTransform
         });
         if (rocketTransform) {
           this.arsenal.reloadingRocket.render(ctx, rocketTransform);
@@ -460,19 +533,39 @@ export class Player implements GameObject, Holder {
       }
     }
     
-    HealthBarFigure.render({
-      ctx,
-      transform: new EntityTransform({
-        x: this.transform.position.x,
-        y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
-      }),
-      health: this.health,
-      maxHealth: Player.MAX_HEALTH
-    });
+    if (!options.skipHealthBar) {
+      HealthBarFigure.render({
+        ctx,
+        transform: new EntityTransform({
+          x: this.transform.position.x,
+          y: this.transform.position.y + HumanFigure.FIGURE_HEIGHT + Player.HEALTHBAR_OFFSET_Y
+        }),
+        health: this.health,
+        maxHealth: Player.MAX_HEALTH
+      });
+    }
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
     
     // Get reload back arm angle if reloading
     const reloadBackArmAngle = this.reloadMovement.getBackArmAngle(this.aimAngle);
+    const isThrowingOrReloading = this.throwMovement.isInThrowState() || reloadBackArmAngle !== null;
+    
+    // Calculate hand positions based on weapon dual-hold system
+    // Skip during animations (throwing/reloading) - let animations control hand positions
+    let forwardHandPosition: Vector2 | null = null;
+    let backHandPosition: Vector2 | null = null;
+    
+    if (!isThrowingOrReloading) {
+      const holdableObject = this.getHeldObject();
+      const handPositions = this.calculateHandPositionsForHoldableObject(holdableObject, weaponRelTransform);
+      forwardHandPosition = handPositions.forwardHandPosition;
+      backHandPosition = handPositions.backHandPosition;
+    }
+    
+    // Update logged weapon after calculation
+    if (shouldLogWeapon) {
+      this.lastLoggedWeapon = currentWeapon.type.name;
+    }
     
     HumanFigure.render({
       ctx,
@@ -482,7 +575,9 @@ export class Player implements GameObject, Holder {
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
       throwingAnimation: this.throwMovement.getThrowCycle(),
-      reloadBackArmAngle
+      reloadBackArmAngle,
+      forwardHandPosition,
+      backHandPosition
     });
   }
 }

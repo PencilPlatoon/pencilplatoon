@@ -1,5 +1,6 @@
 import { SVGInfo, SVGLoader } from './SVGLoader';
 import { SVGObjectType } from '../game/types';
+import { Vector2 } from '../game/Vector2';
 import { BoundingBox } from '../game/BoundingBox';
 import { ShootingWeapon } from '../game/ShootingWeapon';
 import { LaunchingWeapon } from '../game/LaunchingWeapon';
@@ -38,15 +39,15 @@ export const calculateDisplaySize = (
 
 export const loadSVGAndCreateBounds = async (
   obj: SVGObjectType,
-  defaultHeight: number
+  defaultHeight: number,
+  refRatioPosition: Vector2
 ): Promise<LoadedSVGBounds> => {
   if (!obj.svgPath) {
     return {
       bounds: new BoundingBox(
         obj.size,
         defaultHeight,
-        obj.holdRelativeX,
-        obj.holdRelativeY
+        refRatioPosition
       ),
       svgInfo: undefined
     };
@@ -60,8 +61,7 @@ export const loadSVGAndCreateBounds = async (
         bounds: new BoundingBox(
           displayWidth,
           displayHeight,
-          obj.holdRelativeX,
-          obj.holdRelativeY
+          refRatioPosition
         ),
         svgInfo
       };
@@ -75,8 +75,7 @@ export const loadSVGAndCreateBounds = async (
     bounds: new BoundingBox(
       obj.size,
       defaultHeight,
-      obj.holdRelativeX,
-      obj.holdRelativeY
+      refRatioPosition
     ),
     svgInfo: undefined
   };

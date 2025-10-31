@@ -1,4 +1,5 @@
-import { GameObject, Vector2, RocketType, Holder } from "./types";
+import { GameObject, RocketType, Holder } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
 import { EntityTransform } from "./EntityTransform";
@@ -48,10 +49,10 @@ export class Rocket implements GameObject {
     this.explosionDamage = rocketType.damage;
     
     // Default bounding box
-    this.bounds = new BoundingBox(rocketType.size, rocketType.size, 0.5, 0.5);
+    this.bounds = new BoundingBox(rocketType.size, rocketType.size, { x: 0.5, y: 0.5 });
     this.active = true;
     
-    this._loadPromise = loadSVGAndCreateBounds(rocketType, rocketType.size).then(({ bounds, svgInfo }) => {
+    this._loadPromise = loadSVGAndCreateBounds(rocketType, rocketType.size, { x: 0.5, y: 0.5 }).then(({ bounds, svgInfo }) => {
       this.bounds = bounds;
       this.svgInfo = svgInfo;
       this.isLoaded = true;
@@ -131,7 +132,7 @@ export class Rocket implements GameObject {
 
   getAbsoluteBounds() {
     if (this.holder) {
-      const transform = this.holder.getAbsoluteHeldObjectTransform();
+      const transform = this.holder.getPrimaryHandAbsTransform();
       return this.bounds.getAbsoluteBounds(transform.position);
     } else {
       return this.bounds.getAbsoluteBounds(this.transform.position);
@@ -162,7 +163,7 @@ export class Rocket implements GameObject {
     holder: Holder
   ): void {
     // Get the full transform from the holder, including rotation
-    const holderTransform = holder.getAbsoluteHeldObjectTransform();
+    const holderTransform = holder.getPrimaryHandAbsTransform();
     this.transform.position.x = holderTransform.position.x;
     this.transform.position.y = holderTransform.position.y;
     this.transform.rotation = holderTransform.rotation;
@@ -198,8 +199,6 @@ export class Rocket implements GameObject {
     speed: 400,
     size: 40,
     svgPath: "svg/rpg-8-rocket.svg",
-    holdRelativeX: 0.5,
-    holdRelativeY: 0.5,
   };
 
   static readonly ALL_ROCKETS: RocketType[] = [

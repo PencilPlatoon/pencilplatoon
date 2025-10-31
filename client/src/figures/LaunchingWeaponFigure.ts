@@ -4,6 +4,7 @@ import { LaunchingAimLineFigure } from "./LaunchingAimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { EntityTransform } from "../game/EntityTransform";
 import { LaunchingWeapon } from "../game/LaunchingWeapon";
+import { BoundingBoxFigure } from "./BoundingBoxFigure";
 
 export class LaunchingWeaponFigure {
   static renderSVG({
@@ -25,13 +26,16 @@ export class LaunchingWeaponFigure {
     ctx.translate(position.x, toCanvasY(position.y));
     ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
     ctx.scale(transform.facing, 1);
-    const svgWidth = svgInfo.boundingBox.width;
-    const svgHeight = svgInfo.boundingBox.height;
-    const scale = launcher.type.size / svgWidth;
-    ctx.scale(scale, scale);
-    const anchorX = svgWidth * bounds.relativeReferenceX;
-    const anchorY = svgHeight * bounds.relativeReferenceY;
-    ctx.drawImage(svgInfo.image, -anchorX, -anchorY, svgWidth, svgHeight);
+    
+    // Calculate anchor point using bounds dimensions (which are display-scaled)
+    const width = bounds.width;
+    const height = bounds.height;
+    const refX = width * bounds.refRatioPosition.x;
+    const refY = height * bounds.refRatioPosition.y;
+    
+    // Draw SVG directly at display size (bounds dimensions)
+    // In canvas coordinates (Y down), the top-left corner is at (refY - height)
+    ctx.drawImage(svgInfo.image, -refX, refY - height, width, height);
     ctx.restore();
   }
 
@@ -75,6 +79,9 @@ export class LaunchingWeaponFigure {
     } else {
       this.renderBasic({ ctx, transform, launcher });
     }
+
+    // Debug: render bounding box
+    BoundingBoxFigure.renderRotated({ ctx, boundingBox: bounds, transform });
 
     if (showAimLine) {
       const muzzleTransform = launcher.getMuzzleTransform(transform);

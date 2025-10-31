@@ -1,4 +1,4 @@
-import { Vector2 } from "./types";
+import { Vector2, Vector2Utils } from "./Vector2";
 import { EntityTransform } from "./EntityTransform";
 
 export interface AbsoluteBoundingBox {
@@ -13,31 +13,28 @@ export interface BoundingPositions {
 export class BoundingBox {
   width: number;
   height: number;
-  relativeReferenceX: number; // 0-1, fraction of width (e.g., 0.5 is center)
-  relativeReferenceY: number; // 0-1, fraction of height (e.g., 0.5 is center)
+  refRatioPosition: Vector2; // 0-1, fraction of dimensions for reference point (e.g., {x: 0.5, y: 0.5} is center)
 
   constructor(
     width: number,
     height: number,
-    relativeReferenceX: number,
-    relativeReferenceY: number
+    refRatioPosition: Vector2
   ) {
     this.width = width;
     this.height = height;
-    this.relativeReferenceX = relativeReferenceX;
-    this.relativeReferenceY = relativeReferenceY;
+    this.refRatioPosition = refRatioPosition;
   }
 
   getAbsoluteCenter(referencePoint: Vector2): Vector2 {
     return {
-      x: referencePoint.x + this.width * (0.5 - this.relativeReferenceX),
-      y: referencePoint.y + this.height * (0.5 - this.relativeReferenceY)
+      x: referencePoint.x + this.width * (0.5 - this.refRatioPosition.x),
+      y: referencePoint.y + this.height * (0.5 - this.refRatioPosition.y)
     };
   }
 
   getAbsoluteBounds(referencePoint: Vector2): AbsoluteBoundingBox {
-    const refX = this.width * this.relativeReferenceX;
-    const refY = this.height * this.relativeReferenceY;
+    const refX = this.width * this.refRatioPosition.x;
+    const refY = this.height * this.refRatioPosition.y;
     
     const result = {
       upperLeft: {
@@ -54,8 +51,8 @@ export class BoundingBox {
   }
 
   getBoundingPositions(referencePoint: Vector2): BoundingPositions {
-    const refX = this.width * this.relativeReferenceX;
-    const refY = this.height * this.relativeReferenceY;
+    const refX = this.width * this.refRatioPosition.x;
+    const refY = this.height * this.refRatioPosition.y;
     
     // Four corners in clockwise order: top-left, top-right, bottom-right, bottom-left
     const positions = [
@@ -100,12 +97,53 @@ export class BoundingBox {
     };
   }
 
+  /**
+   * Calculate the relative position delta between two ratio positions
+   * @param ratioPosition1 - First ratio position (0-1)
+   * @param ratioPosition2 - Second ratio position (0-1)
+   * @returns Local offset in weapon coordinates
+   */
+  getRelPositionDelta(ratioPosition1: Vector2, ratioPosition2: Vector2): Vector2 {
+    return {
+      x: this.width * (ratioPosition1.x - ratioPosition2.x),
+      y: this.height * (ratioPosition1.y - ratioPosition2.y)
+    };
+  }
+
+  /**
+   * Get a transform for the relative position delta between two ratio positions, rotated by an angle
+   * @param ratioPosition1 - First ratio position (0-1)
+   * @param ratioPosition2 - Second ratio position (0-1)
+   * @param rotation - Rotation angle to apply to the position delta
+   * @returns EntityTransform with the rotated offset, no additional rotation or facing
+   */
+  getTransformForRatioPositions(ratioPosition1: Vector2, ratioPosition2: Vector2, rotation: number): EntityTransform {
+    const positionDelta = this.getRelPositionDelta(ratioPosition1, ratioPosition2);
+    const rotatedPosition = Vector2Utils.rotate(positionDelta, rotation);
+    return new EntityTransform(rotatedPosition, 0, 1);
+  }
+
+  /**
+   * Convert a relative position (in pixels, relative to anchor) to ratio coordinates
+   * @param relPosition - Position in pixels relative to the reference point
+   * @param clamp - Whether to clamp the result to [0, 1] range (default: true)
+   * @returns Ratio coordinates (clamped if clamp is true, otherwise may be outside 0-1 range)
+   */
+  convertRelToRatioPosition(relPosition: Vector2, clamp: boolean = true): Vector2 {
+    // Convert pixel offset to ratio offset by dividing by size
+    // Add the reference position to get the absolute ratio
+    const ratioX = this.refRatioPosition.x + (relPosition.x / this.width);
+    const ratioY = this.refRatioPosition.y + (relPosition.y / this.height);
+    const result = { x: ratioX, y: ratioY };
+    
+    return clamp ? Vector2Utils.clampToRatioBounds(result) : result;
+  }
+
   static create(
     width: number,
     height: number,
-    relativeReferenceX: number,
-    relativeReferenceY: number
+    refRatioPosition: Vector2
   ): BoundingBox {
-    return new BoundingBox(width, height, relativeReferenceX, relativeReferenceY);
+    return new BoundingBox(width, height, refRatioPosition);
   }
 } 

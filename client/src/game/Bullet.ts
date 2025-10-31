@@ -1,4 +1,5 @@
-import { GameObject, Vector2 } from "./types";
+import { GameObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
 import { BulletFigure } from "../figures/BulletFigure";
@@ -34,7 +35,7 @@ export class Bullet implements GameObject {
       x: direction.x * speed,
       y: direction.y * speed
     };
-    this.bounds = new BoundingBox(bulletSize, bulletSize, 0.5, 0.5);
+    this.bounds = new BoundingBox(bulletSize, bulletSize, { x: 0.5, y: 0.5 });
     this.active = true;
     this.damage = damage;
   }

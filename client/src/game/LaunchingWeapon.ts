@@ -1,4 +1,5 @@
-import { LauncherType, RocketType, GameObject, Vector2, Holder } from "./types";
+import { LauncherType, RocketType, GameObject, Holder, HoldableObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
@@ -6,7 +7,7 @@ import { Rocket } from "./Rocket";
 import { EntityTransform } from "./EntityTransform";
 import { LaunchingWeaponFigure } from "../figures/LaunchingWeaponFigure";
 
-export class LaunchingWeapon implements GameObject, Holder {
+export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   // GameObject interface fields
   id: string;
   transform: EntityTransform;
@@ -46,11 +47,10 @@ export class LaunchingWeapon implements GameObject, Holder {
     this.bounds = new BoundingBox(
       launcherType.size,
       10,
-      launcherType.holdRelativeX,
-      launcherType.holdRelativeY
+      launcherType.primaryHoldRatioPosition
     );
 
-    this._loadPromise = loadSVGAndCreateBounds(launcherType, 10).then(({ bounds, svgInfo }) => {
+    this._loadPromise = loadSVGAndCreateBounds(launcherType, 10, launcherType.primaryHoldRatioPosition).then(({ bounds, svgInfo }) => {
       this.bounds = bounds;
       this.svgInfo = svgInfo;
       this.isLoaded = true;
@@ -93,7 +93,7 @@ export class LaunchingWeapon implements GameObject, Holder {
 
   getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
     // Distance from reference point to right edge of weapon
-    const distanceToRightEdge = (1 - this.bounds.relativeReferenceX) * this.bounds.width;
+    const distanceToRightEdge = (1 - this.bounds.refRatioPosition.x) * this.bounds.width;
     
     const endX = weaponTransform.position.x + Math.cos(weaponTransform.rotation) * distanceToRightEdge * weaponTransform.facing;
     const endY = weaponTransform.position.y + Math.sin(weaponTransform.rotation) * distanceToRightEdge;
@@ -107,27 +107,19 @@ export class LaunchingWeapon implements GameObject, Holder {
 
   getAbsoluteBounds() {
     if (this.holder) {
-      const transform = this.holder.getAbsoluteHeldObjectTransform();
+      const transform = this.holder.getPrimaryHandAbsTransform();
       return this.bounds.getAbsoluteBounds(transform.position);
     } else {
       return this.bounds.getAbsoluteBounds(this.transform.position);
     }
   }
 
-  getAbsoluteHeldObjectTransform(): EntityTransform {
-    const selfAbsoluteTransform = this.holder?.getAbsoluteHeldObjectTransform() || this.transform;
+  getPrimaryHandAbsTransform(): EntityTransform {
+    const selfAbsoluteTransform = this.holder?.getPrimaryHandAbsTransform() || this.transform;
     return this.getMuzzleTransform(selfAbsoluteTransform);
   }
 
-  render({
-    ctx,
-    transform,
-    showAimLine = false
-  }: {
-    ctx: CanvasRenderingContext2D;
-    transform: EntityTransform;
-    showAimLine?: boolean;
-  }) {
+  render(ctx: CanvasRenderingContext2D, transform: EntityTransform, showAimLine: boolean = true) {
     LaunchingWeaponFigure.render({
       ctx,
       transform,
@@ -146,6 +138,15 @@ export class LaunchingWeapon implements GameObject, Holder {
     console.log(`LaunchingWeapon loaded: ${this.type.name}`);
   }
 
+  updatePrimaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.primaryHoldRatioPosition = ratioPosition;
+    this.bounds.refRatioPosition = ratioPosition;
+  }
+
+  updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
+    this.type.secondaryHoldRatioPosition = ratioPosition;
+  }
+
   static readonly RPG_8: LauncherType = {
     name: "RPG-8",
     rocketType: "RPG-8 Rocket",
@@ -153,8 +154,9 @@ export class LaunchingWeapon implements GameObject, Holder {
     reloadAnimationDuration: 2500,
     size: 50,
     svgPath: "svg/rpg-8.svg",
-    holdRelativeX: 0.6,
-    holdRelativeY: 0.5,
+    // Launcher: secondary hand on barrel support, primary hand on trigger grip
+    primaryHoldRatioPosition: { x: 0.5, y: 0.5 },
+    secondaryHoldRatioPosition: { x: 0.7, y: 0.4 },
   };
 
   static readonly ALL_LAUNCHERS: LauncherType[] = [

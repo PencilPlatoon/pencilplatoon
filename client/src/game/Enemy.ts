@@ -1,4 +1,5 @@
-import { GameObject, Vector2 } from "./types";
+import { GameObject } from "./types";
+import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { Bullet } from "./Bullet";
 import { Terrain } from "./Terrain";
@@ -40,7 +41,7 @@ export class Enemy implements GameObject {
     // position.y is now feet (bottom of enemy)
     this.transform = new EntityTransform({ x, y }, 0, 1);
     this.velocity = { x: 0, y: 1 };
-    this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), 0.5, 0.0);
+    this.bounds = new BoundingBox(HumanFigure.getWidth(), HumanFigure.getHeight(), { x: 0.5, y: 0.0 });
     this.active = true;
     this.health = Enemy.MAX_HEALTH;
     this.previousPosition = { x, y };
@@ -205,11 +206,7 @@ export class Enemy implements GameObject {
   render(ctx: CanvasRenderingContext2D) {
     if (!this.active) return;
     
-    this.weapon.render({
-      ctx,
-      transform: this.getAbsoluteWeaponTransform(),
-      showAimLine: false
-    });
+    this.weapon.render(ctx, this.getAbsoluteWeaponTransform(), false);
     HealthBarFigure.render({
       ctx,
       transform: new EntityTransform({

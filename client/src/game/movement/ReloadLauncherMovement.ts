@@ -128,12 +128,12 @@ export class ReloadLauncherMovement {
     playerTransform,
     aimAngle,
     arsenal,
-    weaponTransform
+    weaponAbsTransform
   }: {
     playerTransform: EntityTransform;
     aimAngle: number;
     arsenal: Arsenal;
-    weaponTransform: EntityTransform;
+    weaponAbsTransform: EntityTransform;
   }): EntityTransform | null {
     const state = this.getAnimationState();
     if (!state) return null;
@@ -161,7 +161,7 @@ export class ReloadLauncherMovement {
       const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
       const absoluteBackHand = playerTransform.applyTransform(backHandTransform);
       
-      const muzzleTransform = launcher.getMuzzleTransform(weaponTransform);
+      const muzzleTransform = launcher.getMuzzleTransform(weaponAbsTransform);
       
       // Interpolate position from back hand to launcher muzzle
       const startX = absoluteBackHand.position.x;
@@ -179,7 +179,7 @@ export class ReloadLauncherMovement {
       );
     } else if (phase === 5) {
       // Phase 5: Rocket is loaded in launcher, render at launcher position
-      const muzzleTransform = launcher.getMuzzleTransform(weaponTransform);
+      const muzzleTransform = launcher.getMuzzleTransform(weaponAbsTransform);
       return new EntityTransform(
         muzzleTransform.position,
         aimAngle,

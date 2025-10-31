@@ -1,5 +1,6 @@
 import { BoundingBox, AbsoluteBoundingBox } from "./BoundingBox";
 import { EntityTransform } from "./EntityTransform";
+import { Vector2 } from "./Vector2";
 
 declare global {
   interface Window {
@@ -7,17 +8,10 @@ declare global {
   }
 }
 
-export interface Vector2 {
-  x: number;
-  y: number;
-}
-
 export interface SVGObjectType {
   name: string;
   svgPath: string;
   size: number;
-  holdRelativeX: number;
-  holdRelativeY: number;
 }
 
 export interface GameObject {
@@ -32,7 +26,7 @@ export interface GameObject {
 }
 
 export interface Holder extends GameObject {
-  getAbsoluteHeldObjectTransform(): EntityTransform;
+  getPrimaryHandAbsTransform(): EntityTransform;
 }
 
 export interface DamageableEntity extends GameObject {
@@ -56,22 +50,34 @@ export interface ExplodingEntity extends GameObject {
   getExplosionParameters(): ExplosionParameters;
 }
 
-export interface ShootingWeaponType extends SVGObjectType {
+export interface HoldableObjectType extends SVGObjectType {
+  /**
+   * Primary hand hold position (grip/trigger area) as fraction of weapon dimensions (0-1).
+   * x: 0 = base of weapon, 1 = tip of weapon
+   * y: 0.5 = center of weapon
+   * Required for all weapons.
+   */
+  primaryHoldRatioPosition: Vector2;
+  /**
+   * Secondary hand hold position (barrel/foregrip area) as fraction of weapon dimensions (0-1).
+   * x: 0 = base of weapon, 1 = tip of weapon
+   * y: 0.5 = center of weapon
+   * null = secondary hand does not hold weapon (e.g., pistols)
+   */
+  secondaryHoldRatioPosition: Vector2 | null;
+}
+
+export interface ShootingWeaponType extends HoldableObjectType {
   damage: number;
   fireInterval: number;
   bulletSpeed: number;
   bulletSize: number;
   soundEffect?: string;
-  /**
-   * The relative X coordinate of the hand position along the weapon, as a fraction of weapon length.
-   * A value of 0.5 means the hand is at the middle of the weapon.
-   * Values range from 0 (base of weapon) to 1 (tip of weapon).
-   */
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
 }
 
-export interface GrenadeType extends SVGObjectType {
+export interface GrenadeType extends HoldableObjectType {
   damage: number;
   explosionRadius: number;
   explosionDelay: number;
@@ -83,7 +89,7 @@ export interface RocketType extends SVGObjectType {
   speed: number;
 }
 
-export interface LauncherType extends SVGObjectType {
+export interface LauncherType extends HoldableObjectType {
   rocketType: string; // matches a RocketType definition
   capacity: number;
   reloadAnimationDuration: number; // Player reads this and manages reload cycle
@@ -100,14 +106,16 @@ export interface Particle {
 }
 
 export interface TerrainSegment {
-  x: number;
-  y: number;
+  position: Vector2;
   width: number;
   height: number;
   type: 'ground' | 'platform';
 }
 
-export interface TerrainPoint {
-  x: number;
-  y: number;
+export interface HoldableObject {
+  type: HoldableObjectType;
+  bounds: BoundingBox;
+  render(ctx: CanvasRenderingContext2D, transform: EntityTransform): void;
+  updatePrimaryHoldRatioPosition(ratioPosition: Vector2): void;
+  updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void;
 }

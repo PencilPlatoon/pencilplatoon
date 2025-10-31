@@ -1,5 +1,7 @@
 import { toCanvasY } from "../game/Terrain";
 import { EntityTransform } from "../game/EntityTransform";
+import { HoldableObjectType } from "../game/types";
+import { Vector2 } from "../game/Vector2";
 
 export class HumanFigure {
   static readonly LEG_HEIGHT = 15;
@@ -15,9 +17,23 @@ export class HumanFigure {
   static readonly BODY_BOTTOM_OFFSET = HumanFigure.LEG_TOP_OFFSET_Y;
   static readonly BODY_TOP_OFFSET_Y = HumanFigure.BODY_BOTTOM_OFFSET + HumanFigure.BODY_LENGTH;
 
-  static readonly ARM_LENGTH = 12;
+  static readonly UPPER_ARM_LENGTH = 12;
+  static readonly LOWER_ARM_LENGTH = 12;
+  static readonly ARM_LENGTH = 24; // Total arm length (for hand position calculations)
   static readonly ARM_X_OFFSET = 0; // Arm base is at center of figure
   static readonly ARM_Y_OFFSET = HumanFigure.BODY_TOP_OFFSET_Y;
+  
+  // Weapon offsets for single-handed weapons (pistols, etc.)
+  static readonly WEAPON_HORIZONTAL_OFFSET_SINGLE_HANDED = 16; // Weapons positioned 12px forward from center
+  static readonly WEAPON_VERTICAL_OFFSET_SINGLE_HANDED = 0; // Negative = below shoulder (positive Y is up)
+  
+  // Weapon offsets for two-handed weapons (rifles, etc.)
+  static readonly WEAPON_HORIZONTAL_OFFSET_TWO_HANDED = 6; // Weapons positioned 6px forward from center
+  static readonly WEAPON_VERTICAL_OFFSET_TWO_HANDED = -4; // Negative = below shoulder (positive Y is up)
+  
+  // Back hand resting position (when not holding weapon)
+  static readonly BACK_HAND_RESTING_X_OFFSET = -10; // Negative = backward (positive X is forward)
+  static readonly BACK_HAND_RESTING_Y_OFFSET = -15; // Negative = downward (positive Y is up, 2:1 ratio with X)
 
   static readonly NECK_LENGTH = 8;
   static readonly NECK_BOTTOM_OFFSET_Y = HumanFigure.BODY_TOP_OFFSET_Y;
@@ -28,9 +44,9 @@ export class HumanFigure {
   static readonly HEAD_CENTER_OFFSET_Y = HumanFigure.HEAD_BOTTOM_OFFSET_Y + HumanFigure.HEAD_RADIUS;
   static readonly HEAD_TOP_OFFSET = HumanFigure.HEAD_BOTTOM_OFFSET_Y + 2*HumanFigure.HEAD_RADIUS;
 
-  static readonly FIGURE_WIDTH = 2*Math.max(
+  static readonly FIGURE_WIDTH = 2 * Math.max(
     HumanFigure.HEAD_RADIUS,
-    HumanFigure.ARM_LENGTH,
+    HumanFigure.ARM_LENGTH, // 18px - longer arms extend further
     HumanFigure.LEG_WIDTH
   );
   static readonly FIGURE_HEIGHT = HumanFigure.HEAD_TOP_OFFSET;
@@ -61,8 +77,10 @@ export class HumanFigure {
    */
   static getForwardHandTransform(aimAngle: number): EntityTransform {
     // Calculate the hand position by extending the arm at the aim angle
-    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle) * HumanFigure.ARM_LENGTH;
-    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle) * HumanFigure.ARM_LENGTH;
+    // Use 85% of max reach to ensure visible elbow bend (not fully extended)
+    const reachDistance = HumanFigure.ARM_LENGTH * 0.85;
+    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle) * reachDistance;
+    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle) * reachDistance;
     
     return new EntityTransform({ x: handX, y: handY }, aimAngle, 1);
   }
@@ -91,11 +109,63 @@ export class HumanFigure {
   static getBackHandTransform(aimAngle: number): EntityTransform {
     // Calculate the hand position by extending the arm at the mirrored angle
     // Back hand is on the opposite side of the body
+    // Use 85% of max reach to ensure visible elbow bend (not fully extended)
     const actualAngle = Math.PI - aimAngle;
-    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(actualAngle) * HumanFigure.ARM_LENGTH;
-    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(actualAngle) * HumanFigure.ARM_LENGTH;
+    const reachDistance = HumanFigure.ARM_LENGTH * 0.85;
+    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(actualAngle) * reachDistance;
+    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(actualAngle) * reachDistance;
     
     return new EntityTransform({ x: handX, y: handY }, actualAngle, 1);
+  }
+
+  /**
+   * Get the resting position for the back hand when not holding anything.
+   * Hand positioned down and back at 2:1 ratio (down:back).
+   * Upper arm slopes down and back, lower arm slopes down and forward.
+   */
+  static getBackHandRestingTransform(): EntityTransform {
+    const handX = HumanFigure.ARM_X_OFFSET + HumanFigure.BACK_HAND_RESTING_X_OFFSET;
+    const handY = HumanFigure.ARM_Y_OFFSET + HumanFigure.BACK_HAND_RESTING_Y_OFFSET;
+    
+    // Calculate angle for this position (used for weapon orientation if needed)
+    const angle = Math.atan2(HumanFigure.BACK_HAND_RESTING_Y_OFFSET, HumanFigure.BACK_HAND_RESTING_X_OFFSET);
+    
+    return new EntityTransform({ x: handX, y: handY }, angle, 1);
+  }
+
+  /**
+   * Calculate hand position for a single hold point on a weapon.
+   * 
+   * Note: weaponTransform.position is already positioned so that (pivotGripX, pivotGripY) is at the body pivot.
+   * 
+   * @param weaponTransform - Weapon's position in player-relative coords (origin at weapon reference)
+   * @param holdableObjectType - Weapon type with hold position data
+   * @param weaponHeight - Weapon height
+   * @param holdRatioPosition - Hold position as 2D vector (0-1)
+   * @returns Hand position (relative to player)
+   */
+  static getHandPositionForWeapon(
+    weaponTransform: EntityTransform,
+    holdableObjectType: HoldableObjectType,
+    weaponHeight: number,
+    holdRatioPosition: Vector2
+  ): Vector2 {
+    const weaponPos = weaponTransform.position;
+    const rotation = weaponTransform.rotation;
+    const weaponSize = holdableObjectType.size;
+    const pivotGripRatioX = holdableObjectType.primaryHoldRatioPosition.x;
+    const pivotGripRatioY = holdableObjectType.primaryHoldRatioPosition.y;
+
+    // IMPORTANT: weaponPos is the position of the weapon's ANCHOR (which is at pivotGrip)
+    // The weapon's bounding box is anchored at (pivotGripX, pivotGripY), so weaponPos represents that point
+    // To get other hold points, calculate their 2D offset FROM the anchor point, then rotate
+    // X offset (along weapon): (holdRatioPosition.x - pivotGripX) * weaponSize
+    // Y offset (perpendicular): (holdRatioPosition.y - pivotGripY) * weaponHeight
+    
+    return {
+      x: weaponPos.x + Math.cos(rotation) * weaponSize * (holdRatioPosition.x - pivotGripRatioX) - Math.sin(rotation) * weaponHeight * (holdRatioPosition.y - pivotGripRatioY),
+      y: weaponPos.y + Math.sin(rotation) * weaponSize * (holdRatioPosition.x - pivotGripRatioX) + Math.cos(rotation) * weaponHeight * (holdRatioPosition.y - pivotGripRatioY)
+    };
   }
 
   static updateWalkCycle(
@@ -112,6 +182,65 @@ export class HumanFigure {
     return phase;
   }
 
+  /**
+   * Calculate the position of a joint in a two-bar linkage using inverse kinematics.
+   * 
+   * Uses the Law of Cosines to find the bend angle, then positions the joint
+   * perpendicular to the start→end line based on the bend direction.
+   * 
+   * @param startPos - Start position (e.g., shoulder or hip)
+   * @param endPos - End position (e.g., hand or foot)
+   * @param length1 - Length of first segment (e.g., upper arm or upper leg)
+   * @param length2 - Length of second segment (e.g., forearm or lower leg)
+   * @param bendMultiplier - Combined bend direction: 1 (forward/up), -1 (downward), multiplied by facing
+   * @returns Joint position (e.g., elbow or knee)
+   */
+  static calculateTwoBarJointPosition({
+    startPos,
+    endPos,
+    length1,
+    length2,
+    bendMultiplier
+  }: {
+    startPos: Vector2;
+    endPos: Vector2;
+    length1: number;
+    length2: number;
+    bendMultiplier: number;
+  }): Vector2 {
+    // Vector from start to end
+    const dx = endPos.x - startPos.x;
+    const dy = endPos.y - startPos.y;
+    let distance = Math.hypot(dx, dy);
+
+    // Clamp distance so end point is always reachable
+    const maxReach = length1 + length2 - 1e-3;
+    if (distance > maxReach) {
+      distance = maxReach;
+    }
+
+    // Unit vector from start to end
+    const ux = dx / (distance || 1e-6);
+    const uy = dy / (distance || 1e-6);
+
+    // Angle at the start joint using Law of Cosines
+    const cosAngle = (length1 * length1 + distance * distance - length2 * length2) / (2 * length1 * distance);
+    const angle = Math.acos(Math.min(1, Math.max(-1, cosAngle)));
+
+    // Perpendicular vector (rotated 90° from start→end direction)
+    const px = -uy;
+    const py = ux;
+
+    // Calculate joint position
+    const alongDistance = Math.cos(angle) * length1;
+    const perpDistance = Math.sin(angle) * length1 * bendMultiplier;
+    
+    return {
+      x: startPos.x + ux * alongDistance + px * perpDistance,
+      y: startPos.y + uy * alongDistance + py * perpDistance
+    };
+  }
+
   static render({
     ctx,
     transform,
@@ -120,7 +249,9 @@ export class HumanFigure {
     isWalking,
     walkCycle,
     throwingAnimation = 0,
-    reloadBackArmAngle = null
+    reloadBackArmAngle = null,
+    forwardHandPosition = null,
+    backHandPosition = null
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
@@ -130,15 +261,17 @@ export class HumanFigure {
     walkCycle: number;
     throwingAnimation?: number;
     reloadBackArmAngle?: number | null;
+    forwardHandPosition?: Vector2 | null;
+    backHandPosition?: Vector2 | null;
   }) {
     if (!active) return;
     const position = transform.position;
     ctx.save();
     ctx.lineWidth = 2;
     
-    // Debug mode: draw in blue
+    // Debug mode: draw in dark pink
     if (window.__DEBUG_MODE__) {
-      ctx.strokeStyle = 'blue';
+      ctx.strokeStyle = '#c2185b';
     }
     // Head
     ctx.beginPath();
@@ -156,33 +289,73 @@ export class HumanFigure {
     ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.NECK_BOTTOM_OFFSET_Y));
     ctx.lineTo(position.x, toCanvasY(position.y + HumanFigure.NECK_TOP_OFFSET_Y));
     ctx.stroke();
-    // Arms
+    // Arms with elbows
+    const shoulder = {
+      x: position.x,
+      y: position.y + HumanFigure.ARM_Y_OFFSET
+    };
     
-    // Backward arm (opposite to facing direction)
-    let backArmAngle = 0;
-    if (reloadBackArmAngle !== null) {
+    // Calculate back hand position
+    let backHandPos: Vector2;
+    let backArmBendDownward = true;
+    let backArmElbowBackward = false;
+    
+    if (backHandPosition) {
+      // Use provided hand position (from weapon dual-hold system)
+      const absoluteBackHand = transform.applyTransform(new EntityTransform(backHandPosition, 0, 1));
+      backHandPos = absoluteBackHand.position;
+    } else if (reloadBackArmAngle !== null) {
       // During reloading, use the reload animation angle
-      backArmAngle = reloadBackArmAngle;
+      const backHandTransform = HumanFigure.getBackHandTransform(reloadBackArmAngle);
+      const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
+      backHandPos = absoluteBackHandTransform.position;
     } else if (throwingAnimation > 0) {
       // During throwing, the back arm swings up and forward
-      // Animation goes from 1 (start) to 0 (end)
       const throwProgress = 1 - throwingAnimation;
-      backArmAngle = Math.PI * 0.3 * throwProgress; // Swing up to 30 degrees (positive for upward motion)
+      const throwAngle = Math.PI * 0.3 * throwProgress;
+      const backHandTransform = HumanFigure.getBackHandTransform(throwAngle);
+      const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
+      backHandPos = absoluteBackHandTransform.position;
+    } else {
+      // Resting position: down and back at 2:1 ratio
+      const backHandTransform = HumanFigure.getBackHandRestingTransform();
+      const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
+      backHandPos = absoluteBackHandTransform.position;
+      backArmBendDownward = true;
+      backArmElbowBackward = true; // Elbow points backward (opposite facing)
     }
-    const backHandTransform = HumanFigure.getBackHandTransform(backArmAngle);
-    const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
-    ctx.beginPath();
-    ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
-    ctx.lineTo(absoluteBackHandTransform.position.x, toCanvasY(absoluteBackHandTransform.position.y));
-    ctx.stroke();
     
-    // Forward arm (same as facing direction) - aiming
-    const forwardHandTransform = HumanFigure.getForwardHandTransform(aimAngle);
-    const absoluteForwardHandTransform = transform.applyTransform(forwardHandTransform);
-    ctx.beginPath();
-    ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.ARM_Y_OFFSET));
-    ctx.lineTo(absoluteForwardHandTransform.position.x, toCanvasY(absoluteForwardHandTransform.position.y));
-    ctx.stroke();
+    HumanFigure.renderArm(
+      ctx,
+      shoulder,
+      backHandPos,
+      transform.facing,
+      backArmBendDownward,
+      backArmElbowBackward
+    );
+    
+    // Calculate forward hand position
+    let forwardHandPos: Vector2;
+    
+    if (forwardHandPosition) {
+      // Use provided hand position (from weapon dual-hold system)
+      const absoluteForwardHand = transform.applyTransform(new EntityTransform(forwardHandPosition, 0, 1));
+      forwardHandPos = absoluteForwardHand.position;
+    } else {
+      // Default: use aim angle to calculate hand position
+      const forwardHandTransform = HumanFigure.getForwardHandTransform(aimAngle);
+      const absoluteForwardHandTransform = transform.applyTransform(forwardHandTransform);
+      forwardHandPos = absoluteForwardHandTransform.position;
+    }
+    
+    HumanFigure.renderArm(
+      ctx,
+      shoulder,
+      forwardHandPos,
+      transform.facing,
+      true, // Forward arm: elbow bends downward
+      false
+    );
 
     // Animated legs
     HumanFigure.renderLegs(ctx, position, isWalking, walkCycle, transform.facing);
@@ -190,9 +363,47 @@ export class HumanFigure {
     ctx.restore();
   }
 
+  /**
+   * Render an arm with elbow joint using 2-bar IK
+   */
+  private static renderArm(
+    ctx: CanvasRenderingContext2D,
+    shoulderPos: Vector2,
+    handPos: Vector2,
+    facing: number,
+    bendDownward: boolean = true,
+    elbowBackward: boolean = false
+  ) {
+    // Calculate bend multiplier for IK
+    // When elbowBackward is true, invert BOTH facing and bendDownward
+    const effectiveFacing = elbowBackward ? -facing : facing;
+    const effectiveBendDownward = elbowBackward ? !bendDownward : bendDownward;
+    const bendMultiplier = (effectiveBendDownward ? -1 : 1) * effectiveFacing;
+    
+    const elbow = HumanFigure.calculateTwoBarJointPosition({
+      startPos: shoulderPos,
+      endPos: handPos,
+      length1: HumanFigure.UPPER_ARM_LENGTH,
+      length2: HumanFigure.LOWER_ARM_LENGTH,
+      bendMultiplier
+    });
+
+    // Draw upper arm: shoulder → elbow
+    ctx.beginPath();
+    ctx.moveTo(shoulderPos.x, toCanvasY(shoulderPos.y));
+    ctx.lineTo(elbow.x, toCanvasY(elbow.y));
+    ctx.stroke();
+
+    // Draw forearm: elbow → hand
+    ctx.beginPath();
+    ctx.moveTo(elbow.x, toCanvasY(elbow.y));
+    ctx.lineTo(handPos.x, toCanvasY(handPos.y));
+    ctx.stroke();
+  }
+
   private static renderLegs(
     ctx: CanvasRenderingContext2D, 
-    position: { x: number; y: number }, 
+    position: Vector2, 
     isWalking: boolean, 
     walkCycle: number,
     facing: number,
@@ -215,7 +426,7 @@ export class HumanFigure {
 
   private static renderAnimatedLeg(
     ctx: CanvasRenderingContext2D,
-    position: { x: number; y: number },
+    position: Vector2,
     legOffsetX: number,
     phase: number,
     facing: number
@@ -251,41 +462,17 @@ export class HumanFigure {
     // Vertical motion
     foot.y = position.y + HumanFigure.LEG_BOTTOM_OFFSET_Y +
              (swing ? LIFT * Math.sin(t) : 0);   // lift only in swing
-  
+
     // ----------------------------------------------------------------------
-    // 2-bar IK to find the knee position (same math as before)
+    // Use shared 2-bar IK to find the knee position
     // ----------------------------------------------------------------------
-    const L1 = HumanFigure.UPPER_LEG_LENGTH;
-    const L2 = HumanFigure.LOWER_LEG_LENGTH;
-  
-    // Vector hip→foot
-    const dx = foot.x - hip.x;
-    const dy = foot.y - hip.y;
-    let d = Math.hypot(dx, dy);
-  
-    // Clamp so the foot is always reachable
-    const maxReach = L1 + L2 - 1e-3;
-    if (d > maxReach) d = maxReach;
-  
-    // Unit vector hip→foot
-    const ux = dx / (d || 1e-6);
-    const uy = dy / (d || 1e-6);
-  
-    // Angle at the hip (law of cosines)
-    const cosHip = (L1*L1 + d*d - L2*L2) / (2*L1*d);
-    const hipAngle = Math.acos(Math.min(1, Math.max(-1, cosHip)));
-  
-    // Knee bends “forward” relative to facing
-    const px = -uy;
-    const py =  ux;
-  
-    const along = Math.cos(hipAngle) * L1;
-    const perp  = Math.sin(hipAngle) * L1 * facing;
-  
-    const knee = {
-      x: hip.x + ux * along + px * perp,
-      y: hip.y + uy * along + py * perp
-    };
+    const knee = HumanFigure.calculateTwoBarJointPosition({
+      startPos: hip,
+      endPos: foot,
+      length1: HumanFigure.UPPER_LEG_LENGTH,
+      length2: HumanFigure.LOWER_LEG_LENGTH,
+      bendMultiplier: facing // Knees bend forward in facing direction
+    });
   
     // ----------------------------------------------------------------------
     // Draw the leg
@@ -299,7 +486,7 @@ export class HumanFigure {
 
   private static renderStaticLeg(
     ctx: CanvasRenderingContext2D,
-    position: { x: number; y: number },
+    position: Vector2,
     legOffsetX: number
   ) {
     // Simple straight leg for standing

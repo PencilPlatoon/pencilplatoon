@@ -1,6 +1,6 @@
 import { toCanvasY } from "../game/Terrain";
 import { EntityTransform } from "../game/EntityTransform";
-import { Vector2 } from "../game/types";
+import { Vector2 } from "../game/Vector2";
 import { Physics } from "../game/Physics";
 
 export class ThrowingAimLineFigure {

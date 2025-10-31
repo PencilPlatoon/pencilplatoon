@@ -1,5 +1,4 @@
 import { AbsoluteBoundingBox, BoundingBox, BoundingPositions } from "../game/BoundingBox";
-import { Vector2 } from "../game/types";
 import { toCanvasY } from "../game/Terrain";
 import { EntityTransform } from "../game/EntityTransform";
 
@@ -71,10 +70,13 @@ export class BoundingBoxFigure {
     // Draw the bounding box as a rectangle
     const width = boundingBox.width;
     const height = boundingBox.height;
-    const refX = width * boundingBox.relativeReferenceX;
-    const refY = height * boundingBox.relativeReferenceY;
+    const refX = width * boundingBox.refRatioPosition.x;
+    const refY = height * boundingBox.refRatioPosition.y;
     
-    ctx.strokeRect(-refX, -refY, width, height);
+    // In canvas coordinates (Y down), the top-left corner is at:
+    // X: -refX (left of reference)
+    // Y: -(height - refY) = refY - height (above reference in canvas Y)
+    ctx.strokeRect(-refX, refY - height, width, height);
     
     ctx.restore();
   }

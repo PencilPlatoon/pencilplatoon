@@ -4,8 +4,11 @@ import { ShootingAimLineFigure } from "./ShootingAimLineFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { EntityTransform } from "../game/EntityTransform";
 import { ShootingWeapon } from "../game/ShootingWeapon";
+import { BoundingBoxFigure } from "./BoundingBoxFigure";
 
 export class WeaponFigure {
+  private static loggedWeapons = new Set<string>();
+
   static renderSVG({
     ctx,
     transform,
@@ -25,13 +28,28 @@ export class WeaponFigure {
     ctx.translate(position.x, toCanvasY(position.y));
     ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
     ctx.scale(transform.facing, 1);
-    const svgWidth = svgInfo.boundingBox.width;
-    const svgHeight = svgInfo.boundingBox.height;
-    const scale = weapon.type.size / svgWidth;
-    ctx.scale(scale, scale);
-    const anchorX = svgWidth * boundingBox.relativeReferenceX;
-    const anchorY = svgHeight * boundingBox.relativeReferenceY;
-    ctx.drawImage(svgInfo.image, -anchorX, -anchorY, svgWidth, svgHeight);
+    
+    // Calculate anchor point using boundingBox dimensions (which are display-scaled)
+    const width = boundingBox.width;
+    const height = boundingBox.height;
+    const refX = width * boundingBox.refRatioPosition.x;
+    const refY = height * boundingBox.refRatioPosition.y;
+    
+    // Debug logging (once per weapon type)
+    if (typeof window !== 'undefined' && window.__DEBUG_MODE__ && !WeaponFigure.loggedWeapons.has(weapon.type.name)) {
+      WeaponFigure.loggedWeapons.add(weapon.type.name);
+      console.log('[WeaponFigure.renderSVG]', weapon.type.name, {
+        svgOriginalDimensions: { width: svgInfo.boundingBox.width, height: svgInfo.boundingBox.height },
+        boundingBoxDimensions: { width, height },
+        refRatioPosition: { x: boundingBox.refRatioPosition.x, y: boundingBox.refRatioPosition.y },
+        anchor: { x: refX, y: refY },
+        drawPosition: { x: -refX, y: refY - height }
+      });
+    }
+    
+    // Draw SVG directly at display size (boundingBox dimensions)
+    // In canvas coordinates (Y down), the top-left corner is at (refY - height)
+    ctx.drawImage(svgInfo.image, -refX, refY - height, width, height);
     ctx.restore();
   }
 
@@ -81,6 +99,9 @@ export class WeaponFigure {
     } else {
       this.renderBasic({ ctx, transform, weapon });
     }
+
+    // Debug: render bounding box
+    BoundingBoxFigure.renderRotated({ ctx, boundingBox, transform });
 
     if (showAimLine) {
       const position = transform.position;

@@ -1,4 +1,4 @@
-import { TerrainPoint } from "../game/types";
+import { Vector2 } from "../game/Vector2";
 import { toCanvasY } from "../game/Terrain";
 
 export class TerrainFigure {
@@ -9,7 +9,7 @@ export class TerrainFigure {
     worldBottom,
   }: {
     ctx: CanvasRenderingContext2D;
-    terrainPoints: TerrainPoint[];
+    terrainPoints: Vector2[];
     terrainColor: string;
     worldBottom: number;
   }) {
