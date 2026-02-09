@@ -17,6 +17,7 @@ import { Physics } from "./Physics";
 import { ReloadLauncherMovement } from "./movement/ReloadLauncherMovement";
 import { ThrowGrenadeMovement } from "./movement/ThrowGrenadeMovement";
 import { PlayerInput } from "./InputResolver";
+import { ALL_LAUNCHERS, ALL_GRENADES } from "./WeaponCatalog";
 
 /** Maps throwPower [0.0, 1.0] to [0.2, 1.0] */
 export const getThrowMultiplier = (throwPower: number): number =>
@@ -328,7 +329,7 @@ export class Player implements GameObject, Holder {
         console.log(`Launcher already loaded`);
         return;
       }
-      const reloadDuration = LaunchingWeapon.ALL_LAUNCHERS[this.arsenal.currentLauncherIndex].reloadAnimationDuration;
+      const reloadDuration = ALL_LAUNCHERS[this.arsenal.currentLauncherIndex].reloadAnimationDuration;
       this.reloadMovement.startReload(reloadDuration);
       this.arsenal.startReloadingRocket(this);
       console.log(`Started reloading launcher: ${this.arsenal.heldLaunchingWeapon.type.name}`);
@@ -361,41 +362,28 @@ export class Player implements GameObject, Holder {
     this.arsenal.grenadeCount--;
     // Start throwing animation (throwPower is already set by GameEngine)
     this.throwMovement.startThrow();
-    console.log(`[PLAYER] Started grenade throw with power: ${this.throwPower.toFixed(2)} (multiplier: ${this.getThrowMultiplier().toFixed(2)}). Remaining: ${this.arsenal.grenadeCount}/${this.arsenal.maxGrenades}`);
   }
 
   private releaseThrow(): void {
-    console.log(`[PLAYER] Releasing grenade throw with power: ${this.throwPower.toFixed(2)}`);
     if (this.throwPower <= 0) return;
-    
+
     const multiplier = this.getThrowMultiplier();
     const velocity = Player.MAX_THROW_VELOCITY * multiplier;
-    
-    console.log(`[GRENADE THROW] throwPower: ${this.throwPower.toFixed(2)}, multiplier: ${multiplier.toFixed(2)}, velocity magnitude: ${velocity.toFixed(1)}`);
-    
     const releaseTransform = this.getThrowingReleaseAbsTransform();
-    
+
     const throwAngle = this.aimAngle;
     const throwVelocity = {
       x: Math.cos(throwAngle) * this.transform.facing * velocity,
       y: Math.sin(throwAngle) * velocity
     };
-    
-    const grenadeX = releaseTransform.position.x;
-    const grenadeY = releaseTransform.position.y;
-    
-    console.log(`[GRENADE THROW] Player hand position: (${grenadeX.toFixed(1)}, ${grenadeY.toFixed(1)}), throw angle: ${(throwAngle * 180 / Math.PI).toFixed(1)}°, velocity: (${throwVelocity.x.toFixed(1)}, ${throwVelocity.y.toFixed(1)})`);
-    console.log(`[PLAYER] Executed queued grenade throw with multiplier: ${multiplier.toFixed(2)}. Player position: (${this.transform.position.x.toFixed(1)}, ${this.transform.position.y.toFixed(1)}), aim angle: ${(this.aimAngle * 180 / Math.PI).toFixed(1)}°`);
-    
+
     this.throwPower = 0;
-    
+
     const thrownGrenade = this.arsenal.heldGrenade;
-    thrownGrenade.prepareForThrow(grenadeX, grenadeY, throwVelocity);
-    
-    this.arsenal.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.ALL_GRENADES[this.arsenal.currentGrenadeIndex]);
-    
+    thrownGrenade.prepareForThrow(releaseTransform.position.x, releaseTransform.position.y, throwVelocity);
+
+    this.arsenal.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, ALL_GRENADES[this.arsenal.currentGrenadeIndex]);
     this.completedGrenade = thrownGrenade;
-    console.log(`[PLAYER] Completed grenade throw: ${thrownGrenade}`);
   }
 
   getCompletedGrenadeThrow(): Grenade | null {
@@ -417,7 +405,7 @@ export class Player implements GameObject, Holder {
       this.arsenal.rocketCount--;
       
       if (this.arsenal.rocketCount > 0) {
-        const reloadDuration = LaunchingWeapon.ALL_LAUNCHERS[this.arsenal.currentLauncherIndex].reloadAnimationDuration;
+        const reloadDuration = ALL_LAUNCHERS[this.arsenal.currentLauncherIndex].reloadAnimationDuration;
         this.reloadMovement.startReload(reloadDuration);
         this.arsenal.startReloadingRocket(this);
         console.log(`[PLAYER] Auto-reloading launcher: ${this.arsenal.heldLaunchingWeapon.type.name}`);

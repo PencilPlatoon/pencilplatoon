@@ -1,4 +1,5 @@
 import { GameObject, GrenadeType, HoldableObject } from "./types";
+import { HAND_GRENADE } from "./WeaponCatalog";
 import { Vector2 } from "./Vector2";
 import { BoundingBox } from "./BoundingBox";
 import { Terrain } from "./Terrain";
@@ -7,6 +8,28 @@ import { Physics } from "./Physics";
 import { GrenadeFigure } from "../figures/GrenadeFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
+
+/** Apply friction and slope forces to rolling velocity; returns updated velocityX. */
+export const applyRollingPhysics = (
+  velocityX: number,
+  slope: number,
+  friction: number,
+  slopeForce: number,
+  minVelocity: number
+): number => {
+  const currentSpeed = Math.abs(velocityX);
+  const currentDirection = Math.sign(velocityX);
+
+  // Friction opposes movement
+  let newSpeed = currentSpeed - currentSpeed * (1 - friction);
+
+  // Slope: positive slope opposes rightward, assists leftward
+  const slopeEffect = slope * slopeForce;
+  newSpeed -= slopeEffect * currentDirection;
+
+  const result = Math.max(0, newSpeed) * currentDirection;
+  return Math.abs(result) < minVelocity ? 0 : result;
+};
 
 export class Grenade implements GameObject, HoldableObject {
   // Physics constants
@@ -38,7 +61,7 @@ export class Grenade implements GameObject, HoldableObject {
     x: number,
     y: number,
     velocity: Vector2,
-    grenadeType: GrenadeType = Grenade.HAND_GRENADE
+    grenadeType: GrenadeType = HAND_GRENADE
   ) {
     this.id = `grenade_${Date.now()}_${Math.random()}`;
     this.transform = new EntityTransform({ x, y }, 0, 1);
@@ -89,66 +112,35 @@ export class Grenade implements GameObject, HoldableObject {
 
   private handleTerrainCollision(terrain: Terrain) {
     const terrainHeight = terrain.getHeightAt(this.transform.position.x);
-    if (terrainHeight !== null) {
-      const grenadeBottom = this.transform.position.y - this.bounds.height / 2;
-      
-      if (grenadeBottom <= terrainHeight) {
-        // Hit terrain
-        this.transform.position.y = terrainHeight + this.bounds.height / 2;
-        
-        // Calculate terrain slope for rolling
-        const slope = terrain.calculateSlopeAt(this.transform.position.x);
-        
-        if (this.isRolling) {
-          // Already rolling - apply friction and slope effects
-          const currentSpeed = Math.abs(this.velocity.x);
-          const currentDirection = Math.sign(this.velocity.x);
-          
-          // Friction always opposes movement (subtracts from absolute speed)
-          const frictionForce = currentSpeed * (1 - Grenade.ROLL_FRICTION); // Amount lost to friction
-          let newSpeed = currentSpeed - frictionForce;
-          
-          // Slope effect: positive slope (uphill right) opposes rightward movement
-          // Negative slope (downhill right) assists rightward movement
-          const slopeForce = slope * Grenade.ROLLING_SLOPE_FORCE;
-          if (currentDirection > 0) {
-            // Moving right: uphill slope opposes, downhill slope assists
-            newSpeed -= slopeForce;
-          } else {
-            // Moving left: uphill slope assists, downhill slope opposes
-            newSpeed += slopeForce;
-          }
-          
-          // Apply new speed in the same direction (or opposite if it went negative)
-          this.velocity.x = Math.max(0, newSpeed) * currentDirection;
-          
-          // Stop if moving too slowly
-          if (Math.abs(this.velocity.x) < Grenade.MIN_VELOCITY_TO_STOP) {
-            this.velocity.x = 0;
-          }
-        } else {
-          // Start rolling if horizontal velocity is sufficient
-          if (Math.abs(this.velocity.x) > Grenade.MIN_VELOCITY_TO_ROLL) {
-            this.isRolling = true;
-            this.velocity.x *= Grenade.BOUNCE_DAMPING;
-            this.velocity.x -= slope * Grenade.INITIAL_SLOPE_FORCE;
-          } else {
-            // Stop bouncing, start rolling
-            this.isRolling = true;
-            // Apply friction and slope for initial roll
-            const currentSpeed = Math.abs(this.velocity.x);
-            const currentDirection = Math.sign(this.velocity.x);
-            const frictionForce = currentSpeed * (1 - Grenade.ROLL_FRICTION);
-            const slopeForce = slope * Grenade.INITIAL_SLOPE_FORCE;
-            let newSpeed = currentSpeed - frictionForce;
-            newSpeed -= slopeForce * currentDirection; // Slope opposes uphill, assists downhill
-            this.velocity.x = Math.max(0, newSpeed) * currentDirection;
-          }
-        }
-        
-        this.velocity.y = 0;
-      }
+    if (terrainHeight === null) return;
+
+    const grenadeBottom = this.transform.position.y - this.bounds.height / 2;
+    if (grenadeBottom > terrainHeight) return;
+
+    // Hit terrain — snap to surface
+    this.transform.position.y = terrainHeight + this.bounds.height / 2;
+    const slope = terrain.calculateSlopeAt(this.transform.position.x);
+
+    if (this.isRolling) {
+      this.velocity.x = applyRollingPhysics(
+        this.velocity.x, slope, Grenade.ROLL_FRICTION,
+        Grenade.ROLLING_SLOPE_FORCE, Grenade.MIN_VELOCITY_TO_STOP
+      );
+    } else if (Math.abs(this.velocity.x) > Grenade.MIN_VELOCITY_TO_ROLL) {
+      // Fast enough to bounce into a roll
+      this.isRolling = true;
+      this.velocity.x *= Grenade.BOUNCE_DAMPING;
+      this.velocity.x -= slope * Grenade.INITIAL_SLOPE_FORCE;
+    } else {
+      // Too slow to bounce — start rolling with friction/slope
+      this.isRolling = true;
+      this.velocity.x = applyRollingPhysics(
+        this.velocity.x, slope, Grenade.ROLL_FRICTION,
+        Grenade.INITIAL_SLOPE_FORCE, Grenade.MIN_VELOCITY_TO_STOP
+      );
     }
+
+    this.velocity.y = 0;
   }
 
   private explode() {
@@ -216,20 +208,4 @@ export class Grenade implements GameObject, HoldableObject {
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
     this.type.secondaryHoldRatioPosition = ratioPosition;
   }
-
-  static readonly HAND_GRENADE: GrenadeType = {
-    name: "Hand Grenade",
-    damage: 150,
-    explosionRadius: 200,
-    explosionDelay: 3,
-    size: 10,
-    svgPath: "svg/grenade.svg",
-    // Grenade: one-handed, only held in primary hand (throwing hand)
-    primaryHoldRatioPosition: { x: 0.5, y: 0.5 },
-    secondaryHoldRatioPosition: null, // Secondary hand is free
-  };
-
-  static readonly ALL_GRENADES: GrenadeType[] = [
-    Grenade.HAND_GRENADE,
-  ];
 }

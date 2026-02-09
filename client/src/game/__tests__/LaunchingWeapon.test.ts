@@ -3,6 +3,7 @@ import { LaunchingWeapon } from "../LaunchingWeapon";
 import { Rocket } from "../Rocket";
 import { EntityTransform } from "../EntityTransform";
 import { BoundingBox } from "../BoundingBox";
+import { RPG_8 } from "../WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -18,7 +19,7 @@ describe("LaunchingWeapon", () => {
   const transform = new EntityTransform({ x: 100, y: 300 }, 0, 1);
 
   beforeEach(() => {
-    launcher = new LaunchingWeapon(LaunchingWeapon.RPG_8);
+    launcher = new LaunchingWeapon(RPG_8);
   });
 
   describe("canLaunch", () => {

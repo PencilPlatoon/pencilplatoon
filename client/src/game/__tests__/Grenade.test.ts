@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Grenade } from "../Grenade";
 import { Terrain } from "../Terrain";
 import { BoundingBox } from "../BoundingBox";
+import { HAND_GRENADE } from "../WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -138,7 +139,7 @@ describe("Grenade", () => {
       const grenade = new Grenade(150, 250, { x: 0, y: 0 });
       const params = grenade.getExplosionParameters();
       expect(params.position).toEqual({ x: 150, y: 250 });
-      expect(params.radius).toBe(Grenade.HAND_GRENADE.explosionRadius);
+      expect(params.radius).toBe(HAND_GRENADE.explosionRadius);
       expect(params.particleCount).toBe(20);
     });
   });

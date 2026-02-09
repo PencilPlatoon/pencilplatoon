@@ -8,6 +8,7 @@ import { HealthBarFigure } from "../figures/HealthBarFigure";
 import { BoundingBoxFigure } from "../figures/BoundingBoxFigure";
 import { ShootingWeapon } from "./ShootingWeapon";
 import { EntityTransform } from "./EntityTransform";
+import { RIFLE_A_MAIN_OFFENSIVE } from "./WeaponCatalog";
 import { Physics } from "./Physics";
 
 export class Enemy implements GameObject {
@@ -51,7 +52,7 @@ export class Enemy implements GameObject {
     this.patrolStartX = x;
     this.lastX = x;
 
-    this.weapon = new ShootingWeapon(ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE, this.getNow);
+    this.weapon = new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE, this.getNow);
   }
 
   private getAbsoluteWeaponTransform(): EntityTransform {

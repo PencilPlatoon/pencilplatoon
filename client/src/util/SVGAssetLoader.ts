@@ -2,10 +2,7 @@ import { SVGInfo, SVGLoader } from './SVGLoader';
 import { SVGObjectType } from '../game/types';
 import { Vector2 } from '../game/Vector2';
 import { BoundingBox } from '../game/BoundingBox';
-import { ShootingWeapon } from '../game/ShootingWeapon';
-import { LaunchingWeapon } from '../game/LaunchingWeapon';
-import { Grenade } from '../game/Grenade';
-import { Rocket } from '../game/Rocket';
+import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES, ALL_ROCKETS } from '../game/WeaponCatalog';
 
 export interface DisplaySize {
   displayWidth: number;
@@ -102,10 +99,10 @@ export const loadAsset = async (weaponType: SVGObjectType): Promise<LoadedAsset 
 
 export const loadAllAssets = async (): Promise<LoadedAsset[]> => {
   const allWeaponTypes: SVGObjectType[] = [
-    ...ShootingWeapon.ALL_WEAPONS,
-    ...LaunchingWeapon.ALL_LAUNCHERS,
-    ...Grenade.ALL_GRENADES,
-    ...Rocket.ALL_ROCKETS,
+    ...ALL_SHOOTING_WEAPONS,
+    ...ALL_LAUNCHERS,
+    ...ALL_GRENADES,
+    ...ALL_ROCKETS,
   ];
 
   const results = await Promise.all(

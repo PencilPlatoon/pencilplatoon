@@ -10,11 +10,12 @@ export class ReloadLauncherMovement {
   constructor(private getNow: () => number = Date.now) {}
 
   // Reload animation phase durations (as fractions of total duration)
-  private static readonly RELOAD_PHASE_1_DURATION = 0.2; // Arm swings down
-  private static readonly RELOAD_PHASE_2_DURATION = 0.1; // Rocket appears
-  private static readonly RELOAD_PHASE_3_DURATION = 0.25; // Arm + rocket swing forward
-  private static readonly RELOAD_PHASE_4_DURATION = 0.3; // Rocket slides into launcher
-  private static readonly RELOAD_PHASE_5_DURATION = 0.15; // Arm returns to original position
+  private static readonly PHASE_DURATIONS = [0.2, 0.1, 0.25, 0.3, 0.15] as const;
+  // Precomputed cumulative boundaries: [0.2, 0.3, 0.55, 0.85, 1.0]
+  private static readonly PHASE_BOUNDARIES = ReloadLauncherMovement.PHASE_DURATIONS.reduce<number[]>(
+    (acc, d) => { acc.push((acc[acc.length - 1] ?? 0) + d); return acc; },
+    []
+  );
 
   startReload(duration: number): void {
     this.isReloading = true;
@@ -47,38 +48,22 @@ export class ReloadLauncherMovement {
 
   private getAnimationState(): { phase: number; progress: number } | null {
     if (!this.isReloading) return null;
-    
+
     const elapsedTime = this.getElapsedTime();
     const totalProgress = Math.min(1, elapsedTime / this.reloadAnimationDuration);
-    
-    // Calculate cumulative phase boundaries
-    const phase1End = ReloadLauncherMovement.RELOAD_PHASE_1_DURATION;
-    const phase2End = phase1End + ReloadLauncherMovement.RELOAD_PHASE_2_DURATION;
-    const phase3End = phase2End + ReloadLauncherMovement.RELOAD_PHASE_3_DURATION;
-    const phase4End = phase3End + ReloadLauncherMovement.RELOAD_PHASE_4_DURATION;
-    const phase5End = phase4End + ReloadLauncherMovement.RELOAD_PHASE_5_DURATION;
-    
-    let phase = 0;
-    let progress = 0;
-    
-    if (totalProgress < phase1End) {
-      phase = 1;
-      progress = totalProgress / ReloadLauncherMovement.RELOAD_PHASE_1_DURATION;
-    } else if (totalProgress < phase2End) {
-      phase = 2;
-      progress = (totalProgress - phase1End) / ReloadLauncherMovement.RELOAD_PHASE_2_DURATION;
-    } else if (totalProgress < phase3End) {
-      phase = 3;
-      progress = (totalProgress - phase2End) / ReloadLauncherMovement.RELOAD_PHASE_3_DURATION;
-    } else if (totalProgress < phase4End) {
-      phase = 4;
-      progress = (totalProgress - phase3End) / ReloadLauncherMovement.RELOAD_PHASE_4_DURATION;
-    } else {
-      phase = 5;
-      progress = (totalProgress - phase4End) / ReloadLauncherMovement.RELOAD_PHASE_5_DURATION;
+
+    const boundaries = ReloadLauncherMovement.PHASE_BOUNDARIES;
+    const durations = ReloadLauncherMovement.PHASE_DURATIONS;
+
+    for (let i = 0; i < boundaries.length; i++) {
+      if (totalProgress < boundaries[i] || i === boundaries.length - 1) {
+        const phaseStart = i === 0 ? 0 : boundaries[i - 1];
+        const progress = Math.min(1, (totalProgress - phaseStart) / durations[i]);
+        return { phase: i + 1, progress };
+      }
     }
-    
-    return { phase, progress: Math.min(1, progress) };
+
+    return null;
   }
 
   getBackArmAngle(aimAngle: number): number | null {

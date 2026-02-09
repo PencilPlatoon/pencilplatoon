@@ -6,11 +6,11 @@ import { EntityTransform } from "./EntityTransform";
 import { RocketFigure } from "../figures/RocketFigure";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
-import { CollisionSystem } from "./CollisionSystem";
+import { checkAABBOverlap } from "./CollisionSystem";
+import { STANDARD_ROCKET } from "./WeaponCatalog";
 
 export class Rocket implements GameObject {
   private static readonly STABILIZER_ROTATION_SPEED = 30;
-  private static readonly collisionSystem = new CollisionSystem();
 
   id: string;
   transform: EntityTransform;
@@ -36,7 +36,7 @@ export class Rocket implements GameObject {
     x: number,
     y: number,
     velocity: Vector2,
-    rocketType: RocketType = Rocket.STANDARD_ROCKET,
+    rocketType: RocketType = STANDARD_ROCKET,
     holder: Holder | null = null
   ) {
     this.id = `rocket_${Date.now()}_${Math.random()}`;
@@ -79,7 +79,7 @@ export class Rocket implements GameObject {
       const rocketBounds = this.bounds.getAbsoluteBounds(this.transform.position);
       const holderBounds = this.lastHolder.getAbsoluteBounds();
       // Check if rocket no longer overlaps with holder
-      if (!Rocket.collisionSystem.checkCollision(rocketBounds, holderBounds)) {
+      if (!checkAABBOverlap(rocketBounds, holderBounds)) {
         console.log(`[ROCKET] Cleared holder`);
         this.lastHolder = null; // Clear the reference once it's no longer needed
       }
@@ -190,18 +190,5 @@ export class Rocket implements GameObject {
     await this._loadPromise;
     console.log(`Rocket loaded: ${this.type.name}`);
   }
-
-  static readonly STANDARD_ROCKET: RocketType = {
-    name: "RPG-8 Rocket",
-    damage: 150,
-    explosionRadius: 250,
-    speed: 400,
-    size: 40,
-    svgPath: "svg/rpg-8-rocket.svg",
-  };
-
-  static readonly ALL_ROCKETS: RocketType[] = [
-    Rocket.STANDARD_ROCKET,
-  ];
 }
 

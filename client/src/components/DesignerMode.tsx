@@ -3,6 +3,7 @@ import { Player } from '../game/Player';
 import { ShootingWeapon } from '../game/ShootingWeapon';
 import { LaunchingWeapon } from '../game/LaunchingWeapon';
 import { Vector2, Vector2Utils } from '../game/Vector2';
+import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS } from '../game/WeaponCatalog';
 import { MoveableControl, WeaponPositionControl, SecondaryHandControl, ControlId, DesignerModePositions } from '../designer';
 import { HumanFigure } from '../figures/HumanFigure';
 import { Button } from './ui/button';
@@ -27,7 +28,7 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
   const hoveredControlRef = useRef<ControlId | null>(null);
   const dragOffsetRef = useRef<Vector2 | null>(null);
 
-  const allWeapons = selectedCategory === 'gun' ? ShootingWeapon.ALL_WEAPONS : LaunchingWeapon.ALL_LAUNCHERS;
+  const allWeapons = selectedCategory === 'gun' ? ALL_SHOOTING_WEAPONS : ALL_LAUNCHERS;
   
   const detectControlUnderMouse = (mousePos: Vector2): MoveableControl | null => {
     if (!playerRef.current) return null;
@@ -71,7 +72,7 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
       // Update player's selected category so correct object renders/positions
       player.selectedWeaponCategory = 'gun';
       player.arsenal.currentWeaponIndex = selectedWeaponIndex;
-      const newWeapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[selectedWeaponIndex]);
+      const newWeapon = new ShootingWeapon(ALL_SHOOTING_WEAPONS[selectedWeaponIndex]);
       player.arsenal.heldShootingWeapon = newWeapon;
       newWeapon.waitForLoaded().then(() => {
         weaponDefinitionBoxRef.current?.updateDefinition();
@@ -79,7 +80,7 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
     } else {
       player.selectedWeaponCategory = 'launcher';
       player.arsenal.currentLauncherIndex = selectedWeaponIndex;
-      const newLauncher = new LaunchingWeapon(LaunchingWeapon.ALL_LAUNCHERS[selectedWeaponIndex]);
+      const newLauncher = new LaunchingWeapon(ALL_LAUNCHERS[selectedWeaponIndex]);
       player.arsenal.heldLaunchingWeapon = newLauncher;
       // Ensure launcher attaches to player for transforms
       player.arsenal.heldLaunchingWeapon.holder = playerRef.current;

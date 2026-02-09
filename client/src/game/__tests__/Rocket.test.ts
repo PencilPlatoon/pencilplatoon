@@ -5,6 +5,7 @@ import { EntityTransform } from "../EntityTransform";
 import { BoundingBox } from "../BoundingBox";
 import { Holder } from "../types";
 import { Vector2 } from "../Vector2";
+import { STANDARD_ROCKET } from "../WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -117,7 +118,7 @@ describe("Rocket", () => {
   describe("update - holder clearing", () => {
     it("clears lastHolder once rocket no longer overlaps", () => {
       const holder = makeHolder({ x: 100, y: 300 });
-      const rocket = new Rocket(100, 300, { x: 400, y: 0 }, Rocket.STANDARD_ROCKET, null);
+      const rocket = new Rocket(100, 300, { x: 400, y: 0 }, STANDARD_ROCKET, null);
       // Simulate launch to set lastHolder
       rocket.prepareForLaunch(100, 300, { x: 400, y: 0 }, holder);
       expect(rocket.hasLastHolder()).toBe(true);
@@ -147,7 +148,7 @@ describe("Rocket", () => {
   describe("prepareForLaunch", () => {
     it("sets up rocket for independent flight", () => {
       const holder = makeHolder({ x: 200, y: 400 });
-      const rocket = new Rocket(0, 0, { x: 0, y: 0 }, Rocket.STANDARD_ROCKET, holder);
+      const rocket = new Rocket(0, 0, { x: 0, y: 0 }, STANDARD_ROCKET, holder);
       expect(rocket.hasHolder()).toBe(true);
 
       rocket.prepareForLaunch(200, 400, { x: 300, y: 100 }, holder);
@@ -169,7 +170,7 @@ describe("Rocket", () => {
 
     it("uses holder position when held", () => {
       const holder = makeHolder({ x: 500, y: 400 });
-      const rocket = new Rocket(100, 300, { x: 0, y: 0 }, Rocket.STANDARD_ROCKET, holder);
+      const rocket = new Rocket(100, 300, { x: 0, y: 0 }, STANDARD_ROCKET, holder);
       const abs = rocket.getAbsoluteBounds();
       // Should be centered on holder's primary hand position (500, 400)
       expect(abs.upperLeft.x).toBeCloseTo(480);
@@ -182,7 +183,7 @@ describe("Rocket", () => {
       const rocket = new Rocket(150, 250, { x: 0, y: 0 });
       const params = rocket.getExplosionParameters();
       expect(params.position).toEqual({ x: 150, y: 250 });
-      expect(params.radius).toBe(Rocket.STANDARD_ROCKET.explosionRadius);
+      expect(params.radius).toBe(STANDARD_ROCKET.explosionRadius);
     });
   });
 });

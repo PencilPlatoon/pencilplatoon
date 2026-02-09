@@ -8,6 +8,34 @@ import { useGameStore } from "../lib/stores/useGameStore";
 import { useAssetLoader } from "../hooks/useAssetLoader";
 import AssetGrid from "./AssetGrid";
 
+function ToggleCheckbox({ id, checked, onCheckedChange, label }: {
+  id: string;
+  checked: boolean;
+  onCheckedChange: () => void;
+  label: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-center gap-2 mb-2">
+      <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <label htmlFor={id} className="text-sm text-gray-800 select-none cursor-pointer">{label}</label>
+    </div>
+  );
+}
+
+function ToggleIconCheckbox({ id, checked, onCheckedChange, icon }: {
+  id: string;
+  checked: boolean;
+  onCheckedChange: () => void;
+  icon: React.ReactNode;
+}) {
+  return (
+    <div className="flex items-center justify-center">
+      <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
+      <label htmlFor={id} className="ml-2 text-lg select-none cursor-pointer">{icon}</label>
+    </div>
+  );
+}
+
 interface GameUIProps {
   phase: GamePhase;
   onStart: () => void;
@@ -31,43 +59,11 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
   const generateRandomSeed = useGameStore((state) => state.generateRandomSeed);
   const { loadedAssets, isLoading } = useAssetLoader();
 
-  const SoundCheckbox = (
-    <div className="flex items-center justify-center gap-2 mb-2">
-      <Checkbox id="sound-toggle" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} />
-      <label htmlFor="sound-toggle" className="text-sm text-gray-800 select-none cursor-pointer">Sound Effects</label>
-    </div>
-  );
-  const MusicCheckbox = (
-    <div className="flex items-center justify-center gap-2 mb-2">
-      <Checkbox id="music-toggle" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} />
-      <label htmlFor="music-toggle" className="text-sm text-gray-800 select-none cursor-pointer">Music</label>
-    </div>
-  );
-  const DebugCheckbox = (
-    <div className="flex items-center justify-center gap-2 mb-2">
-      <Checkbox id="debug-mode" checked={debugMode} onCheckedChange={toggleDebugMode} />
-      <label htmlFor="debug-mode" className="text-sm text-gray-800 select-none cursor-pointer">Debug Mode</label>
-    </div>
-  );
-
-  const SoundIconCheckbox = (
-    <div className="flex items-center justify-center">
-      <Checkbox id="sound-toggle-icon" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} />
-      <label htmlFor="sound-toggle-icon" className="ml-2 text-lg select-none cursor-pointer">{isSoundMuted ? "🔇" : "🔊"}</label>
-    </div>
-  );
-  const MusicIconCheckbox = (
-    <div className="flex items-center justify-center">
-      <Checkbox id="music-toggle-icon" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} />
-      <label htmlFor="music-toggle-icon" className="ml-2 text-lg select-none cursor-pointer">🎵</label>
-    </div>
-  );
-
   const CheckboxGroup = (
     <div className="flex flex-col items-start mx-auto mb-2" style={{width: 'fit-content'}}>
-      {SoundCheckbox}
-      {MusicCheckbox}
-      {DebugCheckbox}
+      <ToggleCheckbox id="sound-toggle" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} label="Sound Effects" />
+      <ToggleCheckbox id="music-toggle" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} label="Music" />
+      <ToggleCheckbox id="debug-mode" checked={debugMode} onCheckedChange={toggleDebugMode} label="Debug Mode" />
     </div>
   );
 
@@ -225,8 +221,8 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
       <div className="text-xs text-gray-500 bg-white bg-opacity-80 px-2 py-1 rounded">
         Seed: {seed}
       </div>
-      {MusicIconCheckbox}
-      {SoundIconCheckbox}
+      <ToggleIconCheckbox id="music-toggle-icon" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} icon="🎵" />
+      <ToggleIconCheckbox id="sound-toggle-icon" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} icon={isSoundMuted ? "🔇" : "🔊"} />
       {onPause && (
         <Button 
           onClick={onPause} 

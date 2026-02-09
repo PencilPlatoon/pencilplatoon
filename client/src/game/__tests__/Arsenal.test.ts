@@ -1,11 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cycleIndex, Arsenal } from "../Arsenal";
-import { ShootingWeapon } from "../ShootingWeapon";
-import { LaunchingWeapon } from "../LaunchingWeapon";
-import { Grenade } from "../Grenade";
 import { Rocket } from "../Rocket";
 import { BoundingBox } from "../BoundingBox";
 import { EntityTransform } from "../EntityTransform";
+import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES } from "../WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -60,7 +58,7 @@ describe("Arsenal", () => {
     it("cycles the weapon index", () => {
       const initialIndex = arsenal.currentWeaponIndex;
       arsenal.switchToNextWeapon();
-      const expectedIndex = (initialIndex + 1) % ShootingWeapon.ALL_WEAPONS.length;
+      const expectedIndex = (initialIndex + 1) % ALL_SHOOTING_WEAPONS.length;
       expect(arsenal.currentWeaponIndex).toBe(expectedIndex);
     });
 
@@ -71,7 +69,7 @@ describe("Arsenal", () => {
     });
 
     it("wraps around to index 0", () => {
-      for (let i = 0; i < ShootingWeapon.ALL_WEAPONS.length; i++) {
+      for (let i = 0; i < ALL_SHOOTING_WEAPONS.length; i++) {
         arsenal.switchToNextWeapon();
       }
       expect(arsenal.currentWeaponIndex).toBe(0);
@@ -82,7 +80,7 @@ describe("Arsenal", () => {
     it("cycles the launcher index", () => {
       const initialIndex = arsenal.currentLauncherIndex;
       arsenal.switchToNextLauncher();
-      const expectedIndex = (initialIndex + 1) % LaunchingWeapon.ALL_LAUNCHERS.length;
+      const expectedIndex = (initialIndex + 1) % ALL_LAUNCHERS.length;
       expect(arsenal.currentLauncherIndex).toBe(expectedIndex);
     });
 
@@ -97,7 +95,7 @@ describe("Arsenal", () => {
     it("cycles the grenade index", () => {
       const initialIndex = arsenal.currentGrenadeIndex;
       arsenal.switchToNextGrenade();
-      const expectedIndex = (initialIndex + 1) % Grenade.ALL_GRENADES.length;
+      const expectedIndex = (initialIndex + 1) % ALL_GRENADES.length;
       expect(arsenal.currentGrenadeIndex).toBe(expectedIndex);
     });
 

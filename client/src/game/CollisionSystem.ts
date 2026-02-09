@@ -10,6 +10,12 @@ import { Terrain } from "./Terrain";
 import { ParticleSystem } from "./ParticleSystem";
 import { SoundManager } from "./SoundManager";
 
+export const checkAABBOverlap = (a: AbsoluteBoundingBox, b: AbsoluteBoundingBox): boolean =>
+  a.upperLeft.x < b.lowerRight.x &&
+  a.lowerRight.x > b.upperLeft.x &&
+  a.lowerRight.y < b.upperLeft.y &&
+  a.upperLeft.y > b.lowerRight.y;
+
 export const applyExplosionDamage = (
   entity: DamageableEntity,
   explosionPos: Vector2,
@@ -17,10 +23,7 @@ export const applyExplosionDamage = (
   explosionDamage: number
 ): void => {
   const center = entity.getCenterOfGravity();
-  const distance = Math.sqrt(
-    Math.pow(center.x - explosionPos.x, 2) +
-    Math.pow(center.y - explosionPos.y, 2)
-  );
+  const distance = Math.hypot(center.x - explosionPos.x, center.y - explosionPos.y);
 
   if (distance <= explosionRadius) {
     const damageMultiplier = 1 - (distance / explosionRadius);
@@ -32,10 +35,7 @@ export const applyExplosionDamage = (
 
 export class CollisionSystem {
   checkCollision(a: AbsoluteBoundingBox, b: AbsoluteBoundingBox): boolean {
-    return a.upperLeft.x < b.lowerRight.x &&
-           a.lowerRight.x > b.upperLeft.x &&
-           a.lowerRight.y < b.upperLeft.y &&
-           a.upperLeft.y > b.lowerRight.y;
+    return checkAABBOverlap(a, b);
   }
 
   checkPointInRect(point: Vector2, rect: AbsoluteBoundingBox): boolean {
@@ -187,15 +187,6 @@ export class CollisionSystem {
     }
   }
 
-  private applyExplosionDamage(
-    entity: DamageableEntity,
-    explosionPos: Vector2,
-    explosionRadius: number,
-    explosionDamage: number
-  ): void {
-    applyExplosionDamage(entity, explosionPos, explosionRadius, explosionDamage);
-  }
-
   private handleExplosion(
     explosive: ExplodingEntity,
     entities: DamageableEntity[],
@@ -215,7 +206,7 @@ export class CollisionSystem {
     
     // Damage entities within explosion radius
     entities.forEach(entity => {
-      this.applyExplosionDamage(entity, explosionPos, explosionRadius, explosionDamage);
+      applyExplosionDamage(entity, explosionPos, explosionRadius, explosionDamage);
     });
   }
 }

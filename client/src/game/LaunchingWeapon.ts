@@ -4,6 +4,7 @@ import { BoundingBox } from "./BoundingBox";
 import { SVGInfo } from "../util/SVGLoader";
 import { loadSVGAndCreateBounds } from "../util/SVGAssetLoader";
 import { Rocket } from "./Rocket";
+import { ALL_ROCKETS, STANDARD_ROCKET } from "./WeaponCatalog";
 import { EntityTransform } from "./EntityTransform";
 import { LaunchingWeaponFigure } from "../figures/LaunchingWeaponFigure";
 
@@ -40,8 +41,8 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
 
     // Resolve rocket type from string
     const rocketTypeName = launcherType.rocketType;
-    const matchingRocket = Rocket.ALL_ROCKETS.find(r => r.name === rocketTypeName);
-    this.rocketType = matchingRocket || Rocket.STANDARD_ROCKET;
+    const matchingRocket = ALL_ROCKETS.find(r => r.name === rocketTypeName);
+    this.rocketType = matchingRocket || STANDARD_ROCKET;
 
     // Default bounding box
     this.bounds = new BoundingBox(
@@ -146,21 +147,5 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
     this.type.secondaryHoldRatioPosition = ratioPosition;
   }
-
-  static readonly RPG_8: LauncherType = {
-    name: "RPG-8",
-    rocketType: "RPG-8 Rocket",
-    capacity: 1,
-    reloadAnimationDuration: 2500,
-    size: 50,
-    svgPath: "svg/rpg-8.svg",
-    // Launcher: secondary hand on barrel support, primary hand on trigger grip
-    primaryHoldRatioPosition: { x: 0.5, y: 0.5 },
-    secondaryHoldRatioPosition: { x: 0.7, y: 0.4 },
-  };
-
-  static readonly ALL_LAUNCHERS: LauncherType[] = [
-    LaunchingWeapon.RPG_8,
-  ];
 }
 
