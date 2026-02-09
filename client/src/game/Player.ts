@@ -494,7 +494,7 @@ export class Player implements GameObject, Holder {
       
       // Render the held grenade
       this.arsenal.heldGrenade.transform = weaponAbsTransform;
-      this.arsenal.heldGrenade.render(ctx, weaponAbsTransform);
+      this.arsenal.heldGrenade.render(ctx);
       
       ThrowingAimLineFigure.render({
         ctx,

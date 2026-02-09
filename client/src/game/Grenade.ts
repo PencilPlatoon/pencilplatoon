@@ -176,7 +176,7 @@ export class Grenade implements GameObject, HoldableObject {
     return this.bounds.getAbsoluteBounds(this.transform.position);
   }
 
-  render(ctx: CanvasRenderingContext2D, transform: EntityTransform) {
+  render(ctx: CanvasRenderingContext2D) {
     GrenadeFigure.render({
       ctx,
       grenade: this

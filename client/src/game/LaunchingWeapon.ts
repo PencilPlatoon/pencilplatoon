@@ -115,8 +115,8 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   }
 
   getPrimaryHandAbsTransform(): EntityTransform {
-    const selfAbsoluteTransform = this.holder?.getPrimaryHandAbsTransform() || this.transform;
-    return this.getMuzzleTransform(selfAbsoluteTransform);
+    const selfAbsTransform = this.holder?.getPrimaryHandAbsTransform() || this.transform;
+    return this.getMuzzleTransform(selfAbsTransform);
   }
 
   render(ctx: CanvasRenderingContext2D, transform: EntityTransform, showAimLine: boolean = true) {
