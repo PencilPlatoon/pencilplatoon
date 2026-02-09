@@ -1,5 +1,14 @@
 import React, { useRef, useEffect, useState } from 'react';
 
+export const ACTION_TO_INPUT_KEY: Record<string, keyof MobileInput> = {
+  left: 'left',
+  right: 'right',
+  jump: 'jump',
+  shoot: 'triggerPressed',
+  aimUp: 'aimUp',
+  aimDown: 'aimDown',
+};
+
 interface TouchArea {
   id: string;
   x: number;
@@ -9,17 +18,19 @@ interface TouchArea {
   action: string;
 }
 
+export interface MobileInput {
+  left: boolean;
+  right: boolean;
+  up: boolean;
+  down: boolean;
+  jump: boolean;
+  triggerPressed: boolean;
+  aimUp: boolean;
+  aimDown: boolean;
+}
+
 interface MobileControlsProps {
-  onInput: (input: {
-    left: boolean;
-    right: boolean;
-    up: boolean;
-    down: boolean;
-    jump: boolean;
-    triggerPressed: boolean;
-    aimUp: boolean;
-    aimDown: boolean;
-  }) => void;
+  onInput: (input: MobileInput) => void;
 }
 
 export default function MobileControls({ onInput }: MobileControlsProps) {
@@ -66,7 +77,7 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
     ) || null;
   };
 
-  const handleTouchStart = (e: TouchEvent) => {
+  const handleTouch = (e: TouchEvent, isStart: boolean) => {
     const newActiveTouches = new Set(activeTouches);
     const newInput = { ...input };
     let handledTouch = false;
@@ -74,79 +85,21 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
     for (let i = 0; i < e.changedTouches.length; i++) {
       const touch = e.changedTouches[i];
       const area = getTouchArea(touch.clientX, touch.clientY);
-      
+
       if (area) {
-        handledTouch = true;
-        newActiveTouches.add(area.id);
-        switch (area.action) {
-          case 'left':
-            newInput.left = true;
-            break;
-          case 'right':
-            newInput.right = true;
-            break;
-            case 'jump':
-            newInput.jump = true;
-            break;
-          case 'shoot':
-            newInput.triggerPressed = true;
-            break;
-          case 'aimUp':
-            newInput.aimUp = true;
-            break;
-          case 'aimDown':
-            newInput.aimDown = true;
-            break;
+        const inputKey = ACTION_TO_INPUT_KEY[area.action];
+        if (inputKey) {
+          handledTouch = true;
+          if (isStart) {
+            newActiveTouches.add(area.id);
+          } else {
+            newActiveTouches.delete(area.id);
+          }
+          newInput[inputKey] = isStart;
         }
       }
     }
 
-    // Only prevent default if we handled the touch
-    if (handledTouch) {
-      e.preventDefault();
-    }
-
-    setActiveTouches(newActiveTouches);
-    setInput(newInput);
-    onInput(newInput);
-  };
-
-  const handleTouchEnd = (e: TouchEvent) => {
-    const newActiveTouches = new Set(activeTouches);
-    const newInput = { ...input };
-    let handledTouch = false;
-
-    for (let i = 0; i < e.changedTouches.length; i++) {
-      const touch = e.changedTouches[i];
-      const area = getTouchArea(touch.clientX, touch.clientY);
-      
-      if (area) {
-        handledTouch = true;
-        newActiveTouches.delete(area.id);
-        switch (area.action) {
-          case 'left':
-            newInput.left = false;
-            break;
-          case 'right':
-            newInput.right = false;
-            break;
-          case 'jump':
-            newInput.jump = false;
-            break;
-          case 'shoot':
-            newInput.triggerPressed = false;
-            break;
-          case 'aimUp':
-            newInput.aimUp = false;
-            break;
-          case 'aimDown':
-            newInput.aimDown = false;
-            break;
-        }
-      }
-    }
-
-    // Only prevent default if we handled the touch
     if (handledTouch) {
       e.preventDefault();
     }
@@ -184,13 +137,15 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-    canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+    const onTouchStart = (e: TouchEvent) => handleTouch(e, true);
+    const onTouchEnd = (e: TouchEvent) => handleTouch(e, false);
+    canvas.addEventListener('touchstart', onTouchStart, { passive: false });
+    canvas.addEventListener('touchend', onTouchEnd, { passive: false });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
 
     return () => {
-      canvas.removeEventListener('touchstart', handleTouchStart);
-      canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchstart', onTouchStart);
+      canvas.removeEventListener('touchend', onTouchEnd);
       canvas.removeEventListener('touchmove', handleTouchMove);
     };
   }, [activeTouches, input]);

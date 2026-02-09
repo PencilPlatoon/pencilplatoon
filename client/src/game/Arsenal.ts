@@ -4,6 +4,9 @@ import { Grenade } from "./Grenade";
 import { Rocket } from "./Rocket";
 import { Holder } from "./types";
 
+export const cycleIndex = (current: number, length: number): number =>
+  (current + 1) % length;
+
 export class Arsenal {
   heldShootingWeapon: ShootingWeapon;
   heldLaunchingWeapon: LaunchingWeapon;
@@ -30,17 +33,17 @@ export class Arsenal {
   }
 
   switchToNextWeapon(): void {
-    this.currentWeaponIndex = (this.currentWeaponIndex + 1) % ShootingWeapon.ALL_WEAPONS.length;
+    this.currentWeaponIndex = cycleIndex(this.currentWeaponIndex, ShootingWeapon.ALL_WEAPONS.length);
     this.heldShootingWeapon = new ShootingWeapon(ShootingWeapon.ALL_WEAPONS[this.currentWeaponIndex]);
   }
 
   switchToNextLauncher(): void {
-    this.currentLauncherIndex = (this.currentLauncherIndex + 1) % LaunchingWeapon.ALL_LAUNCHERS.length;
+    this.currentLauncherIndex = cycleIndex(this.currentLauncherIndex, LaunchingWeapon.ALL_LAUNCHERS.length);
     this.heldLaunchingWeapon = new LaunchingWeapon(LaunchingWeapon.ALL_LAUNCHERS[this.currentLauncherIndex]);
   }
 
   switchToNextGrenade(): void {
-    this.currentGrenadeIndex = (this.currentGrenadeIndex + 1) % Grenade.ALL_GRENADES.length;
+    this.currentGrenadeIndex = cycleIndex(this.currentGrenadeIndex, Grenade.ALL_GRENADES.length);
     this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, Grenade.ALL_GRENADES[this.currentGrenadeIndex]);
   }
 

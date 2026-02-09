@@ -1,20 +1,20 @@
 import { toCanvasY } from "../game/Terrain";
 import { EntityTransform } from "../game/EntityTransform";
 
-export class ShootingAimLineFigure {
-  static readonly AIM_LINE_LENGTH = 100;
-
+export class StraightAimLineFigure {
   static render({
     ctx,
     transform,
+    length,
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
+    length: number;
   }) {
     const position = transform.position;
-    const aimEndX = position.x + Math.cos(transform.rotation) * this.AIM_LINE_LENGTH * transform.facing;
-    const aimEndY = position.y + Math.sin(transform.rotation) * this.AIM_LINE_LENGTH;
-    
+    const aimEndX = position.x + Math.cos(transform.rotation) * length * transform.facing;
+    const aimEndY = position.y + Math.sin(transform.rotation) * length;
+
     ctx.save();
     ctx.strokeStyle = "red";
     ctx.lineWidth = 2;
@@ -27,4 +27,3 @@ export class ShootingAimLineFigure {
     ctx.restore();
   }
 }
-

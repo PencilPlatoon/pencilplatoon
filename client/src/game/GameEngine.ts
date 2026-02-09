@@ -100,55 +100,35 @@ export class GameEngine {
   }
 
   startGame(seed: number) {
-    console.log("GameEngine.startGame");
-    this.seed = seed;
-    setGlobalSeed(this.seed);
-    this.levelStartCounter++;
-    this.initLevelTerrain(this.currentLevelIndex);
-    this.reset();
-    this.spawnEnemies();
-    this.isRunning = true;
-    console.log("Game started");
+    this.initLevel(seed, this.currentLevelIndex);
   }
 
   restartGame(seed: number) {
-    console.log("GameEngine.restartGame");
-    this.currentLevelIndex = 0;
-    this.seed = seed;
-    setGlobalSeed(this.seed);
-    this.levelStartCounter++;
-    this.initLevelTerrain(0);
-    this.reset();
-    this.spawnEnemies();
-    this.isRunning = true;
-    console.log("Game restarted from beginning");
+    this.initLevel(seed, 0);
   }
 
   restartLevel(seed: number) {
-    console.log("GameEngine.restartLevel");
-    this.seed = seed;
-    setGlobalSeed(this.seed);
-    this.levelStartCounter++;
-    this.reset();
-    this.spawnEnemies();
-    this.isRunning = true;
-    console.log(`Level ${this.currentLevelName} restarted`);
+    this.initLevel(seed);
   }
 
   nextLevel(seed: number) {
-    console.log("GameEngine.nextLevel");
     if (this.currentLevelIndex < LEVEL_ORDER.length - 1) {
-      this.seed = seed;
-      setGlobalSeed(this.seed);
-      this.levelStartCounter++;
-      this.initLevelTerrain(this.currentLevelIndex+1);
-      this.reset();
-      this.spawnEnemies();
-      console.log("Next level started");
+      this.initLevel(seed, this.currentLevelIndex + 1);
     } else {
       this.stop();
-      console.log("Game over: All levels completed.");
     }
+  }
+
+  private initLevel(seed: number, levelIndex?: number) {
+    this.seed = seed;
+    setGlobalSeed(this.seed);
+    this.levelStartCounter++;
+    if (levelIndex !== undefined) {
+      this.initLevelTerrain(levelIndex);
+    }
+    this.reset();
+    this.spawnEnemies();
+    this.isRunning = true;
   }
 
   stop() {
@@ -392,73 +372,66 @@ export class GameEngine {
     this.player.update(deltaTime, input, this.terrain);
 
     const category = this.player.getSelectedWeaponCategory();
-    
     if (category === 'gun') {
-      if (input.triggerPressed) {
-        const newTriggerPress = !this.hasThisTriggeringShot;
-        
-        if (this.player.canShoot(newTriggerPress)) {
-          const bullet = this.player.shoot(newTriggerPress);
-          if (bullet) {
-            this.bullets.push(bullet);
-            this.soundManager.playShoot();
-            this.hasThisTriggeringShot = true;
-          }
-        }
-      }
+      this.updateGunInput(input.triggerPressed);
     } else if (category === 'grenade') {
-      if (input.triggerPressed) {
-        const newTriggerPress = !this.hasThisTriggeringShot;
-        
-        // Start charging on first press (only if player can throw)
-        if (newTriggerPress && this.player.canStartThrow()) {
-          this.isChargingThrow = true;
-          this.throwChargeStartTime = Date.now();
-          this.hasThisTriggeringShot = true;
-          console.log(`[GRENADE] Started charging throw`);
-        }
-        
-        // While trigger is held, update current throw power for aim line display
-        if (this.isChargingThrow) {
-          const chargeTime = Date.now() - this.throwChargeStartTime;
-          const currentPower = this.calculateThrowPower(chargeTime);
-          this.player.setThrowPower(currentPower);
-        }
-      } else if (this.isChargingThrow) {
-        // Trigger was released - calculate final power and start throw animation
-        const chargeTime = Date.now() - this.throwChargeStartTime;
-        const finalThrowPower = this.calculateThrowPower(chargeTime);
-        
-        console.log(`[GRENADE] Released after ${chargeTime}ms charge, final power: ${finalThrowPower.toFixed(2)}`);
-        this.player.setThrowPower(finalThrowPower);
-        this.player.startThrow();
-        this.isChargingThrow = false;
-      }
-
-      const completedGrenade = this.player.getCompletedGrenadeThrow();
-      if (completedGrenade) {
-        console.log(`[GameEngine] Completed grenade throw: ${completedGrenade}`);
-        this.grenades.push(completedGrenade);
-      }
+      this.updateGrenadeInput(input.triggerPressed);
     } else {
-      // launcher category
-      if (input.triggerPressed) {
-        const newTriggerPress = !this.hasThisTriggeringShot;
-        
-        const rocket = this.player.launch(newTriggerPress);
-        if (rocket) {
-          this.rockets.push(rocket);
-          this.soundManager.playShoot();
-          this.hasThisTriggeringShot = true;
-          console.log(`[ROCKET] Launched rocket`);
-        }
-      }
+      this.updateLauncherInput(input.triggerPressed);
     }
 
-    // Check if player died
     if (this.player.health <= 0) {
       this.stop();
       useGameStore.getState().end();
+    }
+  }
+
+  private updateGunInput(triggerPressed: boolean) {
+    if (!triggerPressed) return;
+    const newTriggerPress = !this.hasThisTriggeringShot;
+    if (this.player.canShoot(newTriggerPress)) {
+      const bullet = this.player.shoot(newTriggerPress);
+      if (bullet) {
+        this.bullets.push(bullet);
+        this.soundManager.playShoot();
+        this.hasThisTriggeringShot = true;
+      }
+    }
+  }
+
+  private updateGrenadeInput(triggerPressed: boolean) {
+    if (triggerPressed) {
+      const newTriggerPress = !this.hasThisTriggeringShot;
+      if (newTriggerPress && this.player.canStartThrow()) {
+        this.isChargingThrow = true;
+        this.throwChargeStartTime = Date.now();
+        this.hasThisTriggeringShot = true;
+      }
+      if (this.isChargingThrow) {
+        const chargeTime = Date.now() - this.throwChargeStartTime;
+        this.player.setThrowPower(this.calculateThrowPower(chargeTime));
+      }
+    } else if (this.isChargingThrow) {
+      const chargeTime = Date.now() - this.throwChargeStartTime;
+      this.player.setThrowPower(this.calculateThrowPower(chargeTime));
+      this.player.startThrow();
+      this.isChargingThrow = false;
+    }
+
+    const completedGrenade = this.player.getCompletedGrenadeThrow();
+    if (completedGrenade) {
+      this.grenades.push(completedGrenade);
+    }
+  }
+
+  private updateLauncherInput(triggerPressed: boolean) {
+    if (!triggerPressed) return;
+    const newTriggerPress = !this.hasThisTriggeringShot;
+    const rocket = this.player.launch(newTriggerPress);
+    if (rocket) {
+      this.rockets.push(rocket);
+      this.soundManager.playShoot();
+      this.hasThisTriggeringShot = true;
     }
   }
 

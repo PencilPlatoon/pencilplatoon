@@ -42,43 +42,18 @@ export default function Game() {
 
 
 
-  const handleStartGame = () => {
-    if (gameEngineRef.current) {
-      gameEngineRef.current.startGame(seed);
-      setIsPaused(false);
-      start();
-      gameEngineRef.current.start();
-    }
+  const executeGameAction = (action: (engine: GameEngine) => void) => {
+    if (!gameEngineRef.current) return;
+    action(gameEngineRef.current);
+    setIsPaused(false);
+    start();
+    gameEngineRef.current.start();
   };
 
-  const handleRestartLevel = () => {
-    if (gameEngineRef.current) {
-      restart();
-      gameEngineRef.current.restartLevel(seed);
-      setIsPaused(false);
-      start();
-      gameEngineRef.current.start();
-    }
-  };
-
-  const handleRestartGame = () => {
-    if (gameEngineRef.current) {
-      restart();
-      gameEngineRef.current.restartGame(seed);
-      setIsPaused(false);
-      start();
-      gameEngineRef.current.start();
-    }
-  };
-
-  const handleNextLevel = () => {
-    if (gameEngineRef.current) {
-      gameEngineRef.current.nextLevel(seed);
-      setIsPaused(false);
-      start();
-      gameEngineRef.current.start();
-    }
-  };
+  const handleStartGame = () => executeGameAction(engine => engine.startGame(seed));
+  const handleRestartLevel = () => executeGameAction(engine => { restart(); engine.restartLevel(seed); });
+  const handleRestartGame = () => executeGameAction(engine => { restart(); engine.restartGame(seed); });
+  const handleNextLevel = () => executeGameAction(engine => engine.nextLevel(seed));
 
   const handleMobileInput = (input: {
     left: boolean;

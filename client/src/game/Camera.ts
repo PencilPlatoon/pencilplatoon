@@ -66,7 +66,7 @@ export class Camera {
 
     // If this is the first frame, position camera immediately
     if (!this.isInitialized) {
-      this.bottomLeftWorldX = Math.max(0, Math.min(desiredPosition.x, 8000 - this.width));
+      this.bottomLeftWorldX = Math.max(0, Math.min(desiredPosition.x, Terrain.LEVEL_WIDTH - this.width));
       this.bottomLeftWorldY = Math.max(Terrain.WORLD_BOTTOM, desiredPosition.y);
       this.isInitialized = true;
       return;
@@ -77,7 +77,7 @@ export class Camera {
       this.bottomLeftWorldY += (desiredPosition.y - this.bottomLeftWorldY) * this.followSpeed * deltaTime;
 
       // Clamp camera to world boundaries
-      this.bottomLeftWorldX = Math.max(0, Math.min(this.bottomLeftWorldX, 8000 - this.width));
+      this.bottomLeftWorldX = Math.max(0, Math.min(this.bottomLeftWorldX, Terrain.LEVEL_WIDTH - this.width));
       this.bottomLeftWorldY = Math.max(Terrain.WORLD_BOTTOM, this.bottomLeftWorldY);
     }
   }

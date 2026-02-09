@@ -1,6 +1,7 @@
 import { BoundingBox } from "../game/BoundingBox";
 import { toCanvasY } from "../game/Terrain";
-import { LaunchingAimLineFigure } from "./LaunchingAimLineFigure";
+import { StraightAimLineFigure } from "./StraightAimLineFigure";
+import { renderSVGAtTransform } from "./SVGRendering";
 import { SVGInfo } from "../util/SVGLoader";
 import { EntityTransform } from "../game/EntityTransform";
 import { LaunchingWeapon } from "../game/LaunchingWeapon";
@@ -10,33 +11,15 @@ export class LaunchingWeaponFigure {
   static renderSVG({
     ctx,
     transform,
-    launcher,
     svgInfo,
     bounds
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
-    launcher: LaunchingWeapon;
     svgInfo: SVGInfo;
     bounds: BoundingBox;
   }) {
-    const position = transform.position;
-
-    ctx.save();
-    ctx.translate(position.x, toCanvasY(position.y));
-    ctx.rotate(transform.facing === 1 ? -transform.rotation : transform.rotation);
-    ctx.scale(transform.facing, 1);
-    
-    // Calculate anchor point using bounds dimensions (which are display-scaled)
-    const width = bounds.width;
-    const height = bounds.height;
-    const refX = width * bounds.refRatioPosition.x;
-    const refY = height * bounds.refRatioPosition.y;
-    
-    // Draw SVG directly at display size (bounds dimensions)
-    // In canvas coordinates (Y down), the top-left corner is at (refY - height)
-    ctx.drawImage(svgInfo.image, -refX, refY - height, width, height);
-    ctx.restore();
+    renderSVGAtTransform({ ctx, transform, svgInfo, boundingBox: bounds });
   }
 
   static renderBasic({
@@ -75,7 +58,7 @@ export class LaunchingWeaponFigure {
     const { svgInfo, bounds } = launcher;
 
     if (svgInfo) {
-      this.renderSVG({ ctx, transform, launcher, svgInfo, bounds });
+      this.renderSVG({ ctx, transform, svgInfo, bounds });
     } else {
       this.renderBasic({ ctx, transform, launcher });
     }
@@ -86,10 +69,10 @@ export class LaunchingWeaponFigure {
     if (showAimLine) {
       const muzzleTransform = launcher.getMuzzleTransform(transform);
       
-      LaunchingAimLineFigure.render({
+      StraightAimLineFigure.render({
         ctx,
         transform: muzzleTransform,
-        rocketSpeed: launcher.rocketType.speed
+        length: launcher.rocketType.speed
       });
     }
   }
