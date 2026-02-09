@@ -1,11 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Rocket } from "../Rocket";
-import { Terrain } from "../Terrain";
-import { EntityTransform } from "../EntityTransform";
-import { BoundingBox } from "../BoundingBox";
-import { Holder } from "../types";
-import { Vector2 } from "../Vector2";
-import { STANDARD_ROCKET } from "../WeaponCatalog";
+import { Rocket } from "../entities/Rocket";
+import { Terrain } from "../world/Terrain";
+import { EntityTransform } from "../types/EntityTransform";
+import { BoundingBox } from "../types/BoundingBox";
+import { Holder } from "../types/interfaces";
+import { Vector2 } from "../types/Vector2";
+import { STANDARD_ROCKET } from "../weapons/WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ParticleSystem } from "../ParticleSystem";
+import { ParticleSystem } from "../systems/ParticleSystem";
 
 describe("ParticleSystem", () => {
   let system: ParticleSystem;

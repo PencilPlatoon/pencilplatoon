@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Player, getThrowMultiplier } from "../Player";
-import { Terrain } from "../Terrain";
-import { LaunchingWeapon } from "../LaunchingWeapon";
+import { Player, getThrowMultiplier } from "../entities/Player";
+import { Terrain } from "../world/Terrain";
+import { LaunchingWeapon } from "../weapons/LaunchingWeapon";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,4 +1,4 @@
-import { Vector2 } from '../game/Vector2';
+import { Vector2 } from '../game/types/Vector2';
 
 export type ControlId = 'primary' | 'secondary' | 'weapon';
 

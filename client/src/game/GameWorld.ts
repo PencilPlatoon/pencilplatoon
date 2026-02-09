@@ -1,15 +1,15 @@
-import { Player } from "./Player";
-import { Enemy } from "./Enemy";
-import { Terrain } from "./Terrain";
-import { ParticleSystem } from "./ParticleSystem";
-import { Camera } from "./Camera";
-import { CollisionSystem } from "./CollisionSystem";
-import { Bullet } from "./Bullet";
-import { Grenade } from "./Grenade";
-import { Rocket } from "./Rocket";
-import { SoundManager } from "./SoundManager";
-import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
-import { setGlobalSeed, seededRandom } from "../lib/utils";
+import { Player } from "./entities/Player";
+import { Enemy } from "./entities/Enemy";
+import { Terrain } from "./world/Terrain";
+import { ParticleSystem } from "./systems/ParticleSystem";
+import { Camera } from "./systems/Camera";
+import { CollisionSystem } from "./systems/CollisionSystem";
+import { Bullet } from "./entities/Bullet";
+import { Grenade } from "./entities/Grenade";
+import { Rocket } from "./entities/Rocket";
+import { SoundManager } from "./systems/SoundManager";
+import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./world/LevelConfig";
+import { setGlobalSeed, seededRandom } from "../util/random";
 import { PlayerInput } from "./InputResolver";
 
 export const calculateThrowPower = (chargeTime: number, maxChargeTimeMs: number): number =>

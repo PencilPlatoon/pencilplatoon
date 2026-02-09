@@ -1,10 +1,10 @@
-import { GamePhase } from "../lib/stores/useGameStore";
-import { useAudio } from "../lib/stores/useAudio";
+import { GamePhase } from "../stores/useGameStore";
+import { useAudio } from "../stores/useAudio";
 import { Button } from "./ui/button";
 import { Card, CardContent } from "./ui/card";
 import { Checkbox } from "./ui/checkbox";
 import { Input } from "./ui/input";
-import { useGameStore } from "../lib/stores/useGameStore";
+import { useGameStore } from "../stores/useGameStore";
 import { useAssetLoader } from "../hooks/useAssetLoader";
 import AssetGrid from "./AssetGrid";
 

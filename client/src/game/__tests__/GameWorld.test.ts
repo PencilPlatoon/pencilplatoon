@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { GameWorld, calculateThrowPower, GameWorldOptions } from "../GameWorld";
 import { EMPTY_INPUT, PlayerInput } from "../InputResolver";
-import { Terrain } from "../Terrain";
-import { LEVEL_ORDER } from "../LevelConfig";
-import { Player } from "../Player";
-import { Bullet } from "../Bullet";
+import { Terrain } from "../world/Terrain";
+import { LEVEL_ORDER } from "../world/LevelConfig";
+import { Player } from "../entities/Player";
+import { Bullet } from "../entities/Bullet";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -22,7 +22,7 @@ vi.mock("@/util/SVGAssetLoader", () => ({
   ),
 }));
 
-vi.mock("../SoundManager", () => {
+vi.mock("../systems/SoundManager", () => {
   return {
     SoundManager: class {
       playHit = vi.fn();

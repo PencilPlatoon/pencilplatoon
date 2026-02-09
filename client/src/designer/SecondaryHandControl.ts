@@ -1,8 +1,8 @@
 import { MoveableControl } from './MoveableControl';
 import { DesignerModePositions } from './DesignerModePositions';
-import { Player } from '../game/Player';
-import { Vector2 } from '../game/Vector2';
-import { HandControlFigure } from './figures/HandControlFigure';
+import { Player } from '../game/entities/Player';
+import { Vector2 } from '../game/types/Vector2';
+import { HandControlFigure } from './rendering/HandControlFigure';
 
 export class SecondaryHandControl implements MoveableControl {
   id = 'secondary' as const;

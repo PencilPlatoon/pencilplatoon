@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Bullet } from "../Bullet";
-import { Terrain } from "../Terrain";
+import { Bullet } from "../entities/Bullet";
+import { Terrain } from "../world/Terrain";
 
 describe("Bullet", () => {
   const makeBullet = (

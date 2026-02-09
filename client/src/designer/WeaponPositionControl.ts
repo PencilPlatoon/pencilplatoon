@@ -1,8 +1,8 @@
 import { MoveableControl } from './MoveableControl';
 import { DesignerModePositions } from './DesignerModePositions';
-import { Player } from '../game/Player';
-import { Vector2 } from '../game/Vector2';
-import { WeaponPositionControlFigure } from './figures/WeaponPositionControlFigure';
+import { Player } from '../game/entities/Player';
+import { Vector2 } from '../game/types/Vector2';
+import { WeaponPositionControlFigure } from './rendering/WeaponPositionControlFigure';
 
 export class WeaponPositionControl implements MoveableControl {
   static readonly CONTROL_RATIO_POSITION: Vector2 = { x: 1, y: 1 };

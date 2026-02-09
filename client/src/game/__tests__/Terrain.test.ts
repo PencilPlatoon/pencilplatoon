@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Terrain, toCanvasY } from "../Terrain";
+import { Terrain, toCanvasY } from "../world/Terrain";
 
 const FLAT_CONFIG = { amplitude: 0, frequency: 0.001, roughness: 0 };
 const HILLY_CONFIG = { amplitude: 40, frequency: 0.001, roughness: 1 };

@@ -1,8 +1,8 @@
-import { useGameStore } from "../lib/stores/useGameStore";
+import { useGameStore } from "../stores/useGameStore";
 import { GameWorld } from "./GameWorld";
 import { resolveInput, PlayerInput, EMPTY_INPUT } from "./InputResolver";
 import { renderWorld } from "./GameRenderer";
-import { LEVEL_ORDER } from "./LevelConfig";
+import { LEVEL_ORDER } from "./world/LevelConfig";
 
 export { calculateThrowPower } from "./GameWorld";
 

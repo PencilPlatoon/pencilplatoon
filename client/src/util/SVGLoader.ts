@@ -1,6 +1,6 @@
 // Utility for loading and parsing SVGs to extract bounding box info
 
-import { BoundingBox } from "../game/BoundingBox";
+import { BoundingBox } from "../game/types/BoundingBox";
 
 export type SVGInfo = {
   image: HTMLImageElement;

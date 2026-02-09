@@ -1,5 +1,5 @@
-import { Player } from "./Player";
-import { Terrain } from "./Terrain";
+import { Player } from "./entities/Player";
+import { Terrain } from "./world/Terrain";
 import { GameWorld } from "./GameWorld";
 
 export const renderWorld = (

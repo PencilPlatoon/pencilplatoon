@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { LaunchingWeapon } from "../LaunchingWeapon";
-import { Rocket } from "../Rocket";
-import { EntityTransform } from "../EntityTransform";
-import { BoundingBox } from "../BoundingBox";
-import { RPG_8 } from "../WeaponCatalog";
+import { LaunchingWeapon } from "../weapons/LaunchingWeapon";
+import { Rocket } from "../entities/Rocket";
+import { EntityTransform } from "../types/EntityTransform";
+import { BoundingBox } from "../types/BoundingBox";
+import { RPG_8 } from "../weapons/WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { Vector2Utils } from "../Vector2";
+import { Vector2Utils } from "../types/Vector2";
 
 describe("Vector2Utils", () => {
   describe("subtract", () => {

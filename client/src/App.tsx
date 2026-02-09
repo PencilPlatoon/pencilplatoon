@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import Game from "./components/Game";
-import { useAudio } from "./lib/stores/useAudio";
+import { useAudio } from "./stores/useAudio";
 import "./index.css";
 
 function App() {
