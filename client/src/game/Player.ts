@@ -524,7 +524,7 @@ export class Player implements GameObject, Holder {
         const rocketTransform = this.reloadMovement.getRocketTransform({
           playerTransform: this.transform,
           aimAngle: this.aimAngle,
-          arsenal: this.arsenal,
+          launcher: this.arsenal.heldLaunchingWeapon,
           weaponAbsTransform
         });
         if (rocketTransform) {

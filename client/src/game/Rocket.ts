@@ -10,6 +10,7 @@ import { CollisionSystem } from "./CollisionSystem";
 
 export class Rocket implements GameObject {
   private static readonly STABILIZER_ROTATION_SPEED = 30;
+  private static readonly collisionSystem = new CollisionSystem();
 
   id: string;
   transform: EntityTransform;
@@ -77,10 +78,8 @@ export class Rocket implements GameObject {
     if (this.lastHolder) {
       const rocketBounds = this.bounds.getAbsoluteBounds(this.transform.position);
       const holderBounds = this.lastHolder.getAbsoluteBounds();
-      const collisionSystem = new CollisionSystem();
-      
       // Check if rocket no longer overlaps with holder
-      if (!collisionSystem.checkCollision(rocketBounds, holderBounds)) {
+      if (!Rocket.collisionSystem.checkCollision(rocketBounds, holderBounds)) {
         console.log(`[ROCKET] Cleared holder`);
         this.lastHolder = null; // Clear the reference once it's no longer needed
       }

@@ -16,8 +16,10 @@ export class ShootingWeapon implements HoldableObject {
   bulletsLeft: number;
   private lastShotTime = 0;
   private _loadPromise: Promise<void>;
+  private getNow: () => number;
 
-  constructor(weaponType: ShootingWeaponType) {
+  constructor(weaponType: ShootingWeaponType, getNow: () => number = Date.now) {
+    this.getNow = getNow;
     this.type = weaponType;
     this.bulletsLeft = weaponType.capacity;
     this.isLoaded = false;
@@ -42,7 +44,7 @@ export class ShootingWeapon implements HoldableObject {
 
   canShoot(newTriggerPress: boolean): boolean {
     const hasAmmo = this.bulletsLeft > 0;
-    const fireIntervalPassed = Date.now() - this.lastShotTime > this.type.fireInterval;
+    const fireIntervalPassed = this.getNow() - this.lastShotTime > this.type.fireInterval;
 
     const canFire = fireIntervalPassed && hasAmmo;
     if (this.type.autoFiringType === 'auto') {
@@ -54,7 +56,7 @@ export class ShootingWeapon implements HoldableObject {
 
   shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet | null {
     if (!this.canShoot(newTriggerPress)) return null;
-    this.lastShotTime = Date.now();
+    this.lastShotTime = this.getNow();
     this.bulletsLeft--;
     const weaponEndX = transform.position.x + Math.cos(transform.rotation) * this.type.size * transform.facing;
     const weaponEndY = transform.position.y + Math.sin(transform.rotation) * this.type.size;

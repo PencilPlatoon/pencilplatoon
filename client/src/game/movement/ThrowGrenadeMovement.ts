@@ -8,9 +8,11 @@ export class ThrowGrenadeMovement {
   private throwCycleStartTime: number = 0;
   private throwAnimationDuration: number = ThrowGrenadeMovement.THROW_CYCLE_DURATION_MS;
 
+  constructor(private getNow: () => number = Date.now) {}
+
   startThrow(duration: number = ThrowGrenadeMovement.THROW_CYCLE_DURATION_MS): void {
     this.throwCycle = 1;
-    this.throwCycleStartTime = Date.now();
+    this.throwCycleStartTime = this.getNow();
     this.throwAnimationDuration = duration;
   }
 
@@ -24,7 +26,7 @@ export class ThrowGrenadeMovement {
 
   getThrowProgress(): number {
     if (!this.isInThrowState()) return 0;
-    const animationTime = Date.now() - this.throwCycleStartTime;
+    const animationTime = this.getNow() - this.throwCycleStartTime;
     // throwCycle goes from 1 (start) to 0 (end)
     return Math.max(0, 1 - (animationTime / this.throwAnimationDuration));
   }

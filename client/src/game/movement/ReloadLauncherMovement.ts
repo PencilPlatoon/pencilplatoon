@@ -1,11 +1,13 @@
 import { EntityTransform } from "../EntityTransform";
-import { Arsenal } from "../Arsenal";
+import { LaunchingWeapon } from "../LaunchingWeapon";
 import { HumanFigure } from "../../figures/HumanFigure";
 
 export class ReloadLauncherMovement {
   private isReloading: boolean = false;
   private reloadStartTime: number = 0;
   private reloadAnimationDuration: number = 0;
+
+  constructor(private getNow: () => number = Date.now) {}
 
   // Reload animation phase durations (as fractions of total duration)
   private static readonly RELOAD_PHASE_1_DURATION = 0.2; // Arm swings down
@@ -16,7 +18,7 @@ export class ReloadLauncherMovement {
 
   startReload(duration: number): void {
     this.isReloading = true;
-    this.reloadStartTime = Date.now();
+    this.reloadStartTime = this.getNow();
     this.reloadAnimationDuration = duration;
   }
 
@@ -30,7 +32,7 @@ export class ReloadLauncherMovement {
 
   getElapsedTime(): number {
     if (!this.isReloading) return 0;
-    return Date.now() - this.reloadStartTime;
+    return this.getNow() - this.reloadStartTime;
   }
 
   isReloadComplete(): boolean {
@@ -127,19 +129,18 @@ export class ReloadLauncherMovement {
   getRocketTransform({
     playerTransform,
     aimAngle,
-    arsenal,
+    launcher,
     weaponAbsTransform
   }: {
     playerTransform: EntityTransform;
     aimAngle: number;
-    arsenal: Arsenal;
+    launcher: LaunchingWeapon;
     weaponAbsTransform: EntityTransform;
   }): EntityTransform | null {
     const state = this.getAnimationState();
     if (!state) return null;
-    
+
     const { phase, progress } = state;
-    const launcher = arsenal.heldLaunchingWeapon;
     
     // Rocket appears in phase 2 and onwards
     if (phase < 2) return null;
