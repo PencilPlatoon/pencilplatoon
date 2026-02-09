@@ -14,5 +14,12 @@ export default defineConfig({
   },
   test: {
     include: ["**/*.test.ts"],
+    coverage: {
+      provider: "v8",
+      include: ["client/src/**/*.ts", "shared/**/*.ts"],
+      exclude: ["**/*.test.ts", "**/__tests__/**"],
+      reporter: ["text", "html"],
+      reportsDirectory: "coverage",
+    },
   },
 });
