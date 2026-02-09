@@ -10,6 +10,26 @@ import { Terrain } from "./Terrain";
 import { ParticleSystem } from "./ParticleSystem";
 import { SoundManager } from "./SoundManager";
 
+export const applyExplosionDamage = (
+  entity: DamageableEntity,
+  explosionPos: Vector2,
+  explosionRadius: number,
+  explosionDamage: number
+): void => {
+  const center = entity.getCenterOfGravity();
+  const distance = Math.sqrt(
+    Math.pow(center.x - explosionPos.x, 2) +
+    Math.pow(center.y - explosionPos.y, 2)
+  );
+
+  if (distance <= explosionRadius) {
+    const damageMultiplier = 1 - (distance / explosionRadius);
+    const finalDamage = explosionDamage * damageMultiplier;
+    entity.takeDamage(finalDamage);
+    console.log(`[GRENADE] ${entity.getEntityLabel()} hit for ${finalDamage.toFixed(1)} damage at distance ${distance.toFixed(1)}`);
+  }
+};
+
 export class CollisionSystem {
   checkCollision(a: AbsoluteBoundingBox, b: AbsoluteBoundingBox): boolean {
     return a.upperLeft.x < b.lowerRight.x &&
@@ -173,19 +193,7 @@ export class CollisionSystem {
     explosionRadius: number,
     explosionDamage: number
   ): void {
-    const center = entity.getCenterOfGravity();
-    const distance = Math.sqrt(
-      Math.pow(center.x - explosionPos.x, 2) + 
-      Math.pow(center.y - explosionPos.y, 2)
-    );
-    
-    if (distance <= explosionRadius) {
-      // Calculate damage based on distance (more damage closer to center)
-      const damageMultiplier = 1 - (distance / explosionRadius);
-      const finalDamage = explosionDamage * damageMultiplier;
-      entity.takeDamage(finalDamage);
-      console.log(`[GRENADE] ${entity.getEntityLabel()} hit for ${finalDamage.toFixed(1)} damage at distance ${distance.toFixed(1)}`);
-    }
+    applyExplosionDamage(entity, explosionPos, explosionRadius, explosionDamage);
   }
 
   private handleExplosion(
