@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { SVGLoader } from '../util/SVGLoader';
+import { SVGLoader } from '@/util/SVGLoader';
 
 interface WeaponIconProps {
   weaponType: any;

@@ -1,5 +1,5 @@
-import { toCanvasY } from "../game/world/Terrain";
-import { EntityTransform } from "../game/types/EntityTransform";
+import { toCanvasY } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 export class HealthBarFigure {
   static readonly WIDTH = 30;

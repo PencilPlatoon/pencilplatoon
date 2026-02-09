@@ -9,7 +9,7 @@ import { Grenade } from "./entities/Grenade";
 import { Rocket } from "./entities/Rocket";
 import { SoundManager } from "./systems/SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./world/LevelConfig";
-import { setGlobalSeed, seededRandom } from "../util/random";
+import { setGlobalSeed, seededRandom } from "@/util/random";
 import { PlayerInput } from "./InputResolver";
 
 export const calculateThrowPower = (chargeTime: number, maxChargeTimeMs: number): number =>

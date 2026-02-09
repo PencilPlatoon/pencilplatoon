@@ -1,5 +1,5 @@
-import { EntityTransform } from "../types/EntityTransform";
-import { HumanFigure } from "../../rendering/HumanFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { HumanFigure } from "@/rendering/HumanFigure";
 
 export class ThrowGrenadeMovement {
   static readonly THROW_CYCLE_DURATION_MS = 300;

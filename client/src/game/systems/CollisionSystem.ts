@@ -1,12 +1,12 @@
-import { DamageableEntity, GameObject, ExplodingEntity } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { AbsoluteBoundingBox } from "../types/BoundingBox";
-import { Player } from "../entities/Player";
-import { Enemy } from "../entities/Enemy";
-import { Bullet } from "../entities/Bullet";
-import { Grenade } from "../entities/Grenade";
-import { Rocket } from "../entities/Rocket";
-import { Terrain } from "../world/Terrain";
+import { DamageableEntity, GameObject, ExplodingEntity } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { AbsoluteBoundingBox } from "@/game/types/BoundingBox";
+import { Player } from "@/game/entities/Player";
+import { Enemy } from "@/game/entities/Enemy";
+import { Bullet } from "@/game/entities/Bullet";
+import { Grenade } from "@/game/entities/Grenade";
+import { Rocket } from "@/game/entities/Rocket";
+import { Terrain } from "@/game/world/Terrain";
 import { ParticleSystem } from "./ParticleSystem";
 import { SoundManager } from "./SoundManager";
 

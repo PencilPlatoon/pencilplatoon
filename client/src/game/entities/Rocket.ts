@@ -1,13 +1,13 @@
-import { GameObject, RocketType, Holder } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
-import { Terrain } from "../world/Terrain";
-import { EntityTransform } from "../types/EntityTransform";
-import { RocketFigure } from "../../rendering/RocketFigure";
-import { SVGInfo } from "../../util/SVGLoader";
-import { loadSVGAndCreateBounds } from "../../util/SVGAssetLoader";
-import { checkAABBOverlap } from "../systems/CollisionSystem";
-import { STANDARD_ROCKET } from "../weapons/WeaponCatalog";
+import { GameObject, RocketType, Holder } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { Terrain } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { RocketFigure } from "@/rendering/RocketFigure";
+import { SVGInfo } from "@/util/SVGLoader";
+import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
+import { checkAABBOverlap } from "@/game/systems/CollisionSystem";
+import { STANDARD_ROCKET } from "@/game/weapons/WeaponCatalog";
 
 export class Rocket implements GameObject {
   private static readonly STABILIZER_ROTATION_SPEED = 30;

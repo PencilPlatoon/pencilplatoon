@@ -1,8 +1,8 @@
 import { ShootingWeapon } from "./ShootingWeapon";
 import { LaunchingWeapon } from "./LaunchingWeapon";
-import { Grenade } from "../entities/Grenade";
-import { Rocket } from "../entities/Rocket";
-import { Holder } from "../types/interfaces";
+import { Grenade } from "@/game/entities/Grenade";
+import { Rocket } from "@/game/entities/Rocket";
+import { Holder } from "@/game/types/interfaces";
 import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES } from "./WeaponCatalog";
 
 export const cycleIndex = (current: number, length: number): number =>

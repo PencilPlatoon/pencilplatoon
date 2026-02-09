@@ -1,5 +1,5 @@
-import { toCanvasY } from "../game/world/Terrain";
-import type { Grenade } from "../game/entities/Grenade";
+import { toCanvasY } from "@/game/world/Terrain";
+import type { Grenade } from "@/game/entities/Grenade";
 
 export class GrenadeFigure {
   static render({

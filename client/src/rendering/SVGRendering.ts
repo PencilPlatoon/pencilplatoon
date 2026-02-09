@@ -1,7 +1,7 @@
-import { BoundingBox } from "../game/types/BoundingBox";
-import { toCanvasY } from "../game/world/Terrain";
-import { SVGInfo } from "../util/SVGLoader";
-import { EntityTransform } from "../game/types/EntityTransform";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { toCanvasY } from "@/game/world/Terrain";
+import { SVGInfo } from "@/util/SVGLoader";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 export function renderSVGAtTransform({
   ctx,

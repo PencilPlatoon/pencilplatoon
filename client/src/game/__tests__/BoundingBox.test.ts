@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { BoundingBox } from "../types/BoundingBox";
-import { EntityTransform } from "../types/EntityTransform";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 describe("BoundingBox", () => {
   describe("create", () => {

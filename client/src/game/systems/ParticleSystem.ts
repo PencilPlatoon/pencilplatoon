@@ -1,6 +1,6 @@
-import { Particle, ExplosionParameters } from "../types/interfaces";
-import { ParticleFigure } from "../../rendering/ParticleFigure";
-import { EntityTransform } from "../types/EntityTransform";
+import { Particle, ExplosionParameters } from "@/game/types/interfaces";
+import { ParticleFigure } from "@/rendering/ParticleFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 export class ParticleSystem {
   private particles: Particle[] = [];

@@ -1,15 +1,15 @@
-import { GameObject } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
+import { GameObject } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
 import { Bullet } from "./Bullet";
-import { Terrain } from "../world/Terrain";
-import { HumanFigure } from "../../rendering/HumanFigure";
-import { HealthBarFigure } from "../../rendering/HealthBarFigure";
-import { BoundingBoxFigure } from "../../rendering/BoundingBoxFigure";
-import { ShootingWeapon } from "../weapons/ShootingWeapon";
-import { EntityTransform } from "../types/EntityTransform";
-import { RIFLE_A_MAIN_OFFENSIVE } from "../weapons/WeaponCatalog";
-import { Physics } from "../systems/Physics";
+import { Terrain } from "@/game/world/Terrain";
+import { HumanFigure } from "@/rendering/HumanFigure";
+import { HealthBarFigure } from "@/rendering/HealthBarFigure";
+import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
+import { Physics } from "@/game/systems/Physics";
 
 export class Enemy implements GameObject {
   id: string;

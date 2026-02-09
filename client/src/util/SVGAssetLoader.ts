@@ -1,8 +1,8 @@
 import { SVGInfo, SVGLoader } from './SVGLoader';
-import { SVGObjectType } from '../game/types/interfaces';
-import { Vector2 } from '../game/types/Vector2';
-import { BoundingBox } from '../game/types/BoundingBox';
-import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES, ALL_ROCKETS } from '../game/weapons/WeaponCatalog';
+import { SVGObjectType } from '@/game/types/interfaces';
+import { Vector2 } from '@/game/types/Vector2';
+import { BoundingBox } from '@/game/types/BoundingBox';
+import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES, ALL_ROCKETS } from '@/game/weapons/WeaponCatalog';
 
 export interface DisplaySize {
   displayWidth: number;

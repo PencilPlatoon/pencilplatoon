@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ThrowGrenadeMovement } from "../ThrowGrenadeMovement";
+import { ThrowGrenadeMovement } from "@/game/animation/ThrowGrenadeMovement";
 
 describe("ThrowGrenadeMovement", () => {
   let now: number;

@@ -1,6 +1,6 @@
-import { AbsoluteBoundingBox, BoundingBox, BoundingPositions } from "../game/types/BoundingBox";
-import { toCanvasY } from "../game/world/Terrain";
-import { EntityTransform } from "../game/types/EntityTransform";
+import { AbsoluteBoundingBox, BoundingBox, BoundingPositions } from "@/game/types/BoundingBox";
+import { toCanvasY } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 const isDebugMode = (): boolean =>
   typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;

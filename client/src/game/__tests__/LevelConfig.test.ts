@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { LEVEL_DEFINITIONS, LEVEL_ORDER } from "../world/LevelConfig";
+import { LEVEL_DEFINITIONS, LEVEL_ORDER } from "@/game/world/LevelConfig";
 
 describe("LevelConfig", () => {
   it("LEVEL_ORDER references valid definitions", () => {

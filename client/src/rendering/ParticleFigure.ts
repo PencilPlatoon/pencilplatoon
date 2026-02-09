@@ -1,5 +1,5 @@
-import { Particle } from "../game/types/interfaces";
-import { toCanvasY } from "../game/world/Terrain";
+import { Particle } from "@/game/types/interfaces";
+import { toCanvasY } from "@/game/world/Terrain";
 
 export class ParticleFigure {
   static render({

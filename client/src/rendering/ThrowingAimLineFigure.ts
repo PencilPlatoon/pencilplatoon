@@ -1,7 +1,7 @@
-import { toCanvasY } from "../game/world/Terrain";
-import { EntityTransform } from "../game/types/EntityTransform";
-import { Vector2 } from "../game/types/Vector2";
-import { Physics } from "../game/systems/Physics";
+import { toCanvasY } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { Vector2 } from "@/game/types/Vector2";
+import { Physics } from "@/game/systems/Physics";
 
 export class ThrowingAimLineFigure {
   static readonly AIM_LINE_LENGTH = 100;

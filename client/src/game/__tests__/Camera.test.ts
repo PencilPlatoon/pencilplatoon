@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { Camera } from "../systems/Camera";
-import { Terrain } from "../world/Terrain";
+import { Camera } from "@/game/systems/Camera";
+import { Terrain } from "@/game/world/Terrain";
 
 describe("Camera", () => {
   const WIDTH = 800;

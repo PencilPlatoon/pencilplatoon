@@ -1,23 +1,23 @@
-import { GameObject, Holder, HoldableObject } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox, AbsoluteBoundingBox } from "../types/BoundingBox";
+import { GameObject, Holder, HoldableObject } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox, AbsoluteBoundingBox } from "@/game/types/BoundingBox";
 import { Bullet } from "./Bullet";
-import { Terrain } from "../world/Terrain";
-import { HumanFigure } from "../../rendering/HumanFigure";
-import { HealthBarFigure } from "../../rendering/HealthBarFigure";
-import { BoundingBoxFigure } from "../../rendering/BoundingBoxFigure";
-import { ThrowingAimLineFigure } from "../../rendering/ThrowingAimLineFigure";
-import { ShootingWeapon } from "../weapons/ShootingWeapon";
+import { Terrain } from "@/game/world/Terrain";
+import { HumanFigure } from "@/rendering/HumanFigure";
+import { HealthBarFigure } from "@/rendering/HealthBarFigure";
+import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
+import { ThrowingAimLineFigure } from "@/rendering/ThrowingAimLineFigure";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
 import { Grenade } from "./Grenade";
 import { Rocket } from "./Rocket";
-import { Arsenal } from "../weapons/Arsenal";
-import { LaunchingWeapon } from "../weapons/LaunchingWeapon";
-import { EntityTransform } from "../types/EntityTransform";
-import { Physics } from "../systems/Physics";
-import { ReloadLauncherMovement } from "../animation/ReloadLauncherMovement";
-import { ThrowGrenadeMovement } from "../animation/ThrowGrenadeMovement";
-import { PlayerInput } from "../InputResolver";
-import { ALL_LAUNCHERS, ALL_GRENADES } from "../weapons/WeaponCatalog";
+import { Arsenal } from "@/game/weapons/Arsenal";
+import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { Physics } from "@/game/systems/Physics";
+import { ReloadLauncherMovement } from "@/game/animation/ReloadLauncherMovement";
+import { ThrowGrenadeMovement } from "@/game/animation/ThrowGrenadeMovement";
+import { PlayerInput } from "@/game/InputResolver";
+import { ALL_LAUNCHERS, ALL_GRENADES } from "@/game/weapons/WeaponCatalog";
 
 /** Maps throwPower [0.0, 1.0] to [0.2, 1.0] */
 export const getThrowMultiplier = (throwPower: number): number =>

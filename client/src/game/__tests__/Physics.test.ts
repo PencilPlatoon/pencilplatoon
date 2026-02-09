@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { Physics } from "../systems/Physics";
-import { EntityTransform } from "../types/EntityTransform";
+import { Physics } from "@/game/systems/Physics";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 function makeGameObject(x: number, y: number, vx: number, vy: number) {
   return {

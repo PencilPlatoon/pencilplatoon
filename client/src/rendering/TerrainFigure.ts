@@ -1,5 +1,5 @@
-import { Vector2 } from "../game/types/Vector2";
-import { toCanvasY } from "../game/world/Terrain";
+import { Vector2 } from "@/game/types/Vector2";
+import { toCanvasY } from "@/game/world/Terrain";
 
 export class TerrainFigure {
   static render({

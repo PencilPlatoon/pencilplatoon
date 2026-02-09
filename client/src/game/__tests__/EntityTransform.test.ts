@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { EntityTransform } from "../types/EntityTransform";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 describe("EntityTransform", () => {
   describe("constructor and fromPosition", () => {

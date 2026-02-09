@@ -1,7 +1,7 @@
-import { TerrainSegment } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
+import { TerrainSegment } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
 import { TerrainConfig } from "./LevelConfig";
-import { TerrainFigure } from "../../rendering/TerrainFigure";
+import { TerrainFigure } from "@/rendering/TerrainFigure";
 
 export class Terrain {
   static readonly WORLD_TOP = 600; // The top of the world/screen for all entities

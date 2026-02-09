@@ -1,7 +1,7 @@
 import { MoveableControl } from './MoveableControl';
 import { DesignerModePositions } from './DesignerModePositions';
-import { Player } from '../game/entities/Player';
-import { Vector2 } from '../game/types/Vector2';
+import { Player } from '@/game/entities/Player';
+import { Vector2 } from '@/game/types/Vector2';
 import { WeaponPositionControlFigure } from './rendering/WeaponPositionControlFigure';
 
 export class WeaponPositionControl implements MoveableControl {

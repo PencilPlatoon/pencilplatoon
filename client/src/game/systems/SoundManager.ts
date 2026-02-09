@@ -1,4 +1,4 @@
-import { useAudio } from "../../stores/useAudio";
+import { useAudio } from "@/stores/useAudio";
 
 export class SoundManager {
   private hitSound: HTMLAudioElement | null = null;

@@ -1,5 +1,5 @@
 import { useEffect, useState, useImperativeHandle, forwardRef } from 'react';
-import { Player } from '../game/entities/Player';
+import { Player } from '@/game/entities/Player';
 
 export interface WeaponDefinitionBoxRef {
   updateDefinition: () => void;

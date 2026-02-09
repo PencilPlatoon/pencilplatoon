@@ -1,8 +1,8 @@
-import { Player } from '../game/entities/Player';
-import { HumanFigure } from '../rendering/HumanFigure';
-import { EntityTransform } from '../game/types/EntityTransform';
-import { Vector2, Vector2Utils } from '../game/types/Vector2';
-import { toCanvasY as gameToCanvasY } from '../game/world/Terrain';
+import { Player } from '@/game/entities/Player';
+import { HumanFigure } from '@/rendering/HumanFigure';
+import { EntityTransform } from '@/game/types/EntityTransform';
+import { Vector2, Vector2Utils } from '@/game/types/Vector2';
+import { toCanvasY as gameToCanvasY } from '@/game/world/Terrain';
 
 export class DesignerModePositions {
   static readonly CANVAS_WIDTH = 1200;

@@ -1,5 +1,5 @@
-import { Vector2 } from "../types/Vector2";
-import { Terrain } from "../world/Terrain";
+import { Vector2 } from "@/game/types/Vector2";
+import { Terrain } from "@/game/world/Terrain";
 
 export class Camera {
   bottomLeftWorldX: number = 0;

@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { calculateThrowPower, GameEngine } from "../GameEngine";
+import { calculateThrowPower, GameEngine } from "@/game/GameEngine";
 
 describe("calculateThrowPower", () => {
   const MAX = GameEngine.MAX_CHARGE_TIME_MS;

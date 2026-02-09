@@ -1,4 +1,4 @@
-import { LoadedAsset } from '../util/SVGAssetLoader';
+import { LoadedAsset } from '@/util/SVGAssetLoader';
 
 interface AssetGridProps {
   assets: LoadedAsset[];

@@ -1,7 +1,7 @@
-import { toCanvasY } from "../game/world/Terrain";
-import { EntityTransform } from "../game/types/EntityTransform";
-import { HoldableObjectType } from "../game/types/interfaces";
-import { Vector2 } from "../game/types/Vector2";
+import { toCanvasY } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { HoldableObjectType } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
 
 export class HumanFigure {
   static readonly LEG_HEIGHT = 15;

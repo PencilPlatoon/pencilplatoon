@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ReloadLauncherMovement } from "../ReloadLauncherMovement";
-import { EntityTransform } from "../../types/EntityTransform";
-import { BoundingBox } from "../../types/BoundingBox";
+import { ReloadLauncherMovement } from "@/game/animation/ReloadLauncherMovement";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { BoundingBox } from "@/game/types/BoundingBox";
 
 describe("ReloadLauncherMovement", () => {
   let now: number;

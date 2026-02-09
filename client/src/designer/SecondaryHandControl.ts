@@ -1,7 +1,7 @@
 import { MoveableControl } from './MoveableControl';
 import { DesignerModePositions } from './DesignerModePositions';
-import { Player } from '../game/entities/Player';
-import { Vector2 } from '../game/types/Vector2';
+import { Player } from '@/game/entities/Player';
+import { Vector2 } from '@/game/types/Vector2';
 import { HandControlFigure } from './rendering/HandControlFigure';
 
 export class SecondaryHandControl implements MoveableControl {

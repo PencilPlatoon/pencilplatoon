@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { resolveInput, EMPTY_INPUT, PlayerInput } from "../InputResolver";
+import { resolveInput, EMPTY_INPUT, PlayerInput } from "@/game/InputResolver";
 
 describe("resolveInput", () => {
   const emptyKeys = new Set<string>();

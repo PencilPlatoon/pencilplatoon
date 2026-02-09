@@ -2,11 +2,11 @@ import { useEffect, useRef, useState } from "react";
 import GameCanvas from "./GameCanvas";
 import GameUI from "./GameUI";
 import MobileControls from "./MobileControls";
-import { DesignerMode } from "../designer/DesignerMode";
-import { GameEngine } from "../game/GameEngine";
-import { useGameStore } from "../stores/useGameStore";
-import { useAudio } from "../stores/useAudio";
-import { useIsMobile } from "../hooks/useIsMobile";
+import { DesignerMode } from "@/designer/DesignerMode";
+import { GameEngine } from "@/game/GameEngine";
+import { useGameStore } from "@/stores/useGameStore";
+import { useAudio } from "@/stores/useAudio";
+import { useIsMobile } from "@/hooks/useIsMobile";
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);

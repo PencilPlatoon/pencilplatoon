@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { useGameStore } from "../useGameStore";
+import { useGameStore } from "@/stores/useGameStore";
 
 const getState = () => useGameStore.getState();
 

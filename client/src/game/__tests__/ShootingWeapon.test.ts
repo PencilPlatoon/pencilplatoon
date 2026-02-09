@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { ShootingWeapon } from "../weapons/ShootingWeapon";
-import { ShootingWeaponType } from "../types/interfaces";
-import { EntityTransform } from "../types/EntityTransform";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { ShootingWeaponType } from "@/game/types/interfaces";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,11 +1,11 @@
-import { GameObject } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
-import { Terrain } from "../world/Terrain";
-import { BulletFigure } from "../../rendering/BulletFigure";
-import { BoundingBoxFigure } from "../../rendering/BoundingBoxFigure";
-import { EntityTransform } from "../types/EntityTransform";
-import { DamageableEntity } from "../types/interfaces";
+import { GameObject } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { Terrain } from "@/game/world/Terrain";
+import { BulletFigure } from "@/rendering/BulletFigure";
+import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { DamageableEntity } from "@/game/types/interfaces";
 
 export class Bullet implements GameObject {
   id: string;

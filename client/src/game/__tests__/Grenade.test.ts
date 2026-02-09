@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Grenade } from "../entities/Grenade";
-import { Terrain } from "../world/Terrain";
-import { BoundingBox } from "../types/BoundingBox";
-import { HAND_GRENADE } from "../weapons/WeaponCatalog";
+import { Grenade } from "@/game/entities/Grenade";
+import { Terrain } from "@/game/world/Terrain";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { HAND_GRENADE } from "@/game/weapons/WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { Enemy } from "../entities/Enemy";
-import { Terrain } from "../world/Terrain";
+import { Enemy } from "@/game/entities/Enemy";
+import { Terrain } from "@/game/world/Terrain";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

@@ -1,6 +1,6 @@
-import { EntityTransform } from "../types/EntityTransform";
-import { LaunchingWeapon } from "../weapons/LaunchingWeapon";
-import { HumanFigure } from "../../rendering/HumanFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
+import { HumanFigure } from "@/rendering/HumanFigure";
 
 export class ReloadLauncherMovement {
   private isReloading: boolean = false;

@@ -1,10 +1,10 @@
-import { BoundingBox } from "../game/types/BoundingBox";
-import { toCanvasY } from "../game/world/Terrain";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { toCanvasY } from "@/game/world/Terrain";
 import { StraightAimLineFigure } from "./StraightAimLineFigure";
 import { renderSVGAtTransform } from "./SVGRendering";
-import { SVGInfo } from "../util/SVGLoader";
-import { EntityTransform } from "../game/types/EntityTransform";
-import { ShootingWeapon } from "../game/weapons/ShootingWeapon";
+import { SVGInfo } from "@/util/SVGLoader";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
 import { BoundingBoxFigure } from "./BoundingBoxFigure";
 
 export class ShootingWeaponFigure {

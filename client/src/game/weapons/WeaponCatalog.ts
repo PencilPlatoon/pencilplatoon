@@ -1,4 +1,4 @@
-import { ShootingWeaponType, GrenadeType, RocketType, LauncherType } from "../types/interfaces";
+import { ShootingWeaponType, GrenadeType, RocketType, LauncherType } from "@/game/types/interfaces";
 
 // ── Shooting Weapons ──────────────────────────────────────────────
 

@@ -1,13 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
-import { CollisionSystem, applyExplosionDamage } from "../systems/CollisionSystem";
-import { AbsoluteBoundingBox } from "../types/BoundingBox";
-import { Bullet } from "../entities/Bullet";
-import { Enemy } from "../entities/Enemy";
-import { Grenade } from "../entities/Grenade";
-import { Rocket } from "../entities/Rocket";
-import { Player } from "../entities/Player";
-import { Terrain } from "../world/Terrain";
-import { DamageableEntity } from "../types/interfaces";
+import { CollisionSystem, applyExplosionDamage } from "@/game/systems/CollisionSystem";
+import { AbsoluteBoundingBox } from "@/game/types/BoundingBox";
+import { Bullet } from "@/game/entities/Bullet";
+import { Enemy } from "@/game/entities/Enemy";
+import { Grenade } from "@/game/entities/Grenade";
+import { Rocket } from "@/game/entities/Rocket";
+import { Player } from "@/game/entities/Player";
+import { Terrain } from "@/game/world/Terrain";
+import { DamageableEntity } from "@/game/types/interfaces";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>

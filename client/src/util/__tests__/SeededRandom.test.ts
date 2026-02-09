@@ -7,7 +7,7 @@ import {
   seededRandomInt,
   seededRandomChoice,
   seededRandomBoolean,
-} from "../random";
+} from "@/util/random";
 
 describe("SeededRandom", () => {
   describe("determinism", () => {

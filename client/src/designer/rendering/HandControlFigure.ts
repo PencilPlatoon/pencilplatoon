@@ -1,5 +1,5 @@
-import { MoveableControl } from '../MoveableControl';
-import { Vector2 } from '../../game/types/Vector2';
+import { MoveableControl } from '@/designer/MoveableControl';
+import { Vector2 } from '@/game/types/Vector2';
 
 export class HandControlFigure {
   static readonly BOX_SIZE = 5;

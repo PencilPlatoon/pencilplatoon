@@ -1,8 +1,8 @@
 import { describe, it, expect } from "vitest";
-import { calculateDisplaySize } from "../SVGAssetLoader";
-import { SVGObjectType } from "../../game/types/interfaces";
-import { SVGInfo } from "../SVGLoader";
-import { BoundingBox } from "../../game/types/BoundingBox";
+import { calculateDisplaySize } from "@/util/SVGAssetLoader";
+import { SVGObjectType } from "@/game/types/interfaces";
+import { SVGInfo } from "@/util/SVGLoader";
+import { BoundingBox } from "@/game/types/BoundingBox";
 
 const makeSVGInfo = (width: number, height: number): SVGInfo => ({
   image: null as unknown as HTMLImageElement,

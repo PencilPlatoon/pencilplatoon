@@ -1,12 +1,12 @@
-import { ShootingWeaponType, HoldableObject } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
-import { SVGInfo } from "../../util/SVGLoader";
-import { loadSVGAndCreateBounds } from "../../util/SVGAssetLoader";
-import { Bullet } from "../entities/Bullet";
-import { ShootingWeaponFigure } from "../../rendering/ShootingWeaponFigure";
-import { BoundingBoxFigure } from "../../rendering/BoundingBoxFigure";
-import { EntityTransform } from "../types/EntityTransform";
+import { ShootingWeaponType, HoldableObject } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { SVGInfo } from "@/util/SVGLoader";
+import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
+import { Bullet } from "@/game/entities/Bullet";
+import { ShootingWeaponFigure } from "@/rendering/ShootingWeaponFigure";
+import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 export class ShootingWeapon implements HoldableObject {
   type: ShootingWeaponType;

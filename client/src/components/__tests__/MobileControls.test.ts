@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { ACTION_TO_INPUT_KEY, MobileInput } from "../MobileControls";
+import { ACTION_TO_INPUT_KEY, MobileInput } from "@/components/MobileControls";
 
 const ALL_TOUCH_ACTIONS = ["left", "right", "jump", "shoot", "aimUp", "aimDown"];
 

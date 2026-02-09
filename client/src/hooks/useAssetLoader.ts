@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { loadAllAssets, LoadedAsset } from '../util/SVGAssetLoader';
+import { loadAllAssets, LoadedAsset } from '@/util/SVGAssetLoader';
 
 export function useAssetLoader() {
   const [loadedAssets, setLoadedAssets] = useState<LoadedAsset[]>([]);

@@ -1,6 +1,6 @@
-import { toCanvasY } from "../game/world/Terrain";
-import type { Rocket } from "../game/entities/Rocket";
-import type { EntityTransform } from "../game/types/EntityTransform";
+import { toCanvasY } from "@/game/world/Terrain";
+import type { Rocket } from "@/game/entities/Rocket";
+import type { EntityTransform } from "@/game/types/EntityTransform";
 
 export class RocketFigure {
   private static readonly STABILIZER_LENGTH_RATIO = 0.3;

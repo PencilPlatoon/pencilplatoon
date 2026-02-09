@@ -1,13 +1,13 @@
-import { GameObject, GrenadeType, HoldableObject } from "../types/interfaces";
-import { HAND_GRENADE } from "../weapons/WeaponCatalog";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
-import { Terrain } from "../world/Terrain";
-import { EntityTransform } from "../types/EntityTransform";
-import { Physics } from "../systems/Physics";
-import { GrenadeFigure } from "../../rendering/GrenadeFigure";
-import { SVGInfo } from "../../util/SVGLoader";
-import { loadSVGAndCreateBounds } from "../../util/SVGAssetLoader";
+import { GameObject, GrenadeType, HoldableObject } from "@/game/types/interfaces";
+import { HAND_GRENADE } from "@/game/weapons/WeaponCatalog";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { Terrain } from "@/game/world/Terrain";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { Physics } from "@/game/systems/Physics";
+import { GrenadeFigure } from "@/rendering/GrenadeFigure";
+import { SVGInfo } from "@/util/SVGLoader";
+import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
 
 /** Apply friction and slope forces to rolling velocity; returns updated velocityX. */
 export const applyRollingPhysics = (

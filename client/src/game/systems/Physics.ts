@@ -1,4 +1,4 @@
-import { GameObject } from "../types/interfaces";
+import { GameObject } from "@/game/types/interfaces";
 
 export class Physics {
   public static readonly GRAVITY = 1500;

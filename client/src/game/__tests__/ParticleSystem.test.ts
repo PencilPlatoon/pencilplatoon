@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from "vitest";
-import { ParticleSystem } from "../systems/ParticleSystem";
+import { ParticleSystem } from "@/game/systems/ParticleSystem";
 
 describe("ParticleSystem", () => {
   let system: ParticleSystem;

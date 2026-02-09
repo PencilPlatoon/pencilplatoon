@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { HumanFigure } from "../HumanFigure";
-import { EntityTransform } from "../../game/types/EntityTransform";
+import { HumanFigure } from "@/rendering/HumanFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 describe("HumanFigure", () => {
   describe("getWidth / getHeight", () => {

@@ -1,12 +1,12 @@
-import { LauncherType, RocketType, GameObject, Holder, HoldableObject } from "../types/interfaces";
-import { Vector2 } from "../types/Vector2";
-import { BoundingBox } from "../types/BoundingBox";
-import { SVGInfo } from "../../util/SVGLoader";
-import { loadSVGAndCreateBounds } from "../../util/SVGAssetLoader";
-import { Rocket } from "../entities/Rocket";
+import { LauncherType, RocketType, GameObject, Holder, HoldableObject } from "@/game/types/interfaces";
+import { Vector2 } from "@/game/types/Vector2";
+import { BoundingBox } from "@/game/types/BoundingBox";
+import { SVGInfo } from "@/util/SVGLoader";
+import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
+import { Rocket } from "@/game/entities/Rocket";
 import { ALL_ROCKETS, STANDARD_ROCKET } from "./WeaponCatalog";
-import { EntityTransform } from "../types/EntityTransform";
-import { LaunchingWeaponFigure } from "../../rendering/LaunchingWeaponFigure";
+import { EntityTransform } from "@/game/types/EntityTransform";
+import { LaunchingWeaponFigure } from "@/rendering/LaunchingWeaponFigure";
 
 export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   // GameObject interface fields
