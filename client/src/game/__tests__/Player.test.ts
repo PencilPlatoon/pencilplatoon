@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Player, getThrowMultiplier } from "../Player";
 import { Terrain } from "../Terrain";
+import { LaunchingWeapon } from "../LaunchingWeapon";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -114,6 +115,28 @@ describe("Player", () => {
     });
   });
 
+  describe("switchWeaponInCategory", () => {
+    it("switches gun within category", () => {
+      const originalWeapon = player.arsenal.heldShootingWeapon;
+      player.switchWeaponInCategory();
+      expect(player.arsenal.heldShootingWeapon).not.toBe(originalWeapon);
+    });
+
+    it("switches grenade within category", () => {
+      player.switchWeaponCategory(); // to grenade
+      const originalGrenade = player.arsenal.heldGrenade;
+      player.switchWeaponInCategory();
+      expect(player.arsenal.heldGrenade).not.toBe(originalGrenade);
+    });
+
+    it("switches launcher within category and sets holder", () => {
+      player.switchWeaponCategory(); // to grenade
+      player.switchWeaponCategory(); // to launcher
+      player.switchWeaponInCategory();
+      expect(player.arsenal.heldLaunchingWeapon.holder).toBe(player);
+    });
+  });
+
   describe("movement via update", () => {
     it("moves right when right input is pressed", () => {
       const startX = player.transform.position.x;
@@ -182,11 +205,177 @@ describe("Player", () => {
       expect(player.canStartThrow()).toBe(true);
     });
 
+    it("canStartThrow returns false when no grenades", () => {
+      player.arsenal.grenadeCount = 0;
+      expect(player.canStartThrow()).toBe(false);
+    });
+
     it("setThrowPower stores power value", () => {
       player.setThrowPower(0.75);
       // We can't directly read throwPower but we can verify startThrow uses it
       // Just verify it doesn't throw
       expect(() => player.setThrowPower(0.5)).not.toThrow();
+    });
+  });
+
+  describe("startThrow", () => {
+    it("decrements grenade count", () => {
+      const before = player.getGrenadeCount();
+      player.setThrowPower(0.5);
+      player.startThrow();
+      expect(player.getGrenadeCount()).toBe(before - 1);
+    });
+
+    it("does nothing when no grenades", () => {
+      player.arsenal.grenadeCount = 0;
+      player.setThrowPower(0.5);
+      player.startThrow();
+      expect(player.getGrenadeCount()).toBe(0);
+    });
+  });
+
+  describe("grenade throw flow", () => {
+    it("completes throw via update cycle", () => {
+      vi.useFakeTimers();
+      try {
+        // Create player AFTER fake timers so ThrowGrenadeMovement captures mocked Date.now
+        const p = new Player(100, 200);
+
+        // Switch to grenade category
+        p.switchWeaponCategory(); // gun → grenade
+        expect(p.getSelectedWeaponCategory()).toBe("grenade");
+
+        // Set throw power and start throw
+        p.setThrowPower(0.8);
+        p.startThrow();
+
+        // Initially no completed grenade
+        expect(p.getCompletedGrenadeThrow()).toBeNull();
+
+        // Advance fake time past 300ms animation duration
+        vi.advanceTimersByTime(350);
+
+        // Run an update so the throw completion is detected
+        p.update(0.016, noInput, mockTerrain);
+
+        // After animation completes, getCompletedGrenadeThrow should return the grenade
+        const grenade = p.getCompletedGrenadeThrow();
+        expect(grenade).not.toBeNull();
+        expect(grenade!.active).toBe(true);
+        expect(grenade!.velocity.x).not.toBe(0);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("getCompletedGrenadeThrow clears after retrieval", () => {
+      vi.useFakeTimers();
+      try {
+        const p = new Player(100, 200);
+        p.switchWeaponCategory(); // gun → grenade
+        p.setThrowPower(0.8);
+        p.startThrow();
+
+        // Advance fake time past animation duration
+        vi.advanceTimersByTime(350);
+        p.update(0.016, noInput, mockTerrain);
+
+        // First retrieval returns grenade
+        const grenade = p.getCompletedGrenadeThrow();
+        expect(grenade).not.toBeNull();
+
+        // Second retrieval returns null (cleared)
+        expect(p.getCompletedGrenadeThrow()).toBeNull();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("launch", () => {
+    it("returns a rocket on new trigger press", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      const rocket = player.launch(true);
+      expect(rocket).not.toBeNull();
+      expect(rocket!.isLaunched).toBe(true);
+    });
+
+    it("decrements rocket count", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      const before = player.getRocketsLeft();
+      player.launch(true);
+      expect(player.getRocketsLeft()).toBe(before - 1);
+    });
+
+    it("returns null without new trigger press", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      expect(player.launch(false)).toBeNull();
+    });
+
+    it("auto-reloads when rockets remain after launch", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      expect(player.getRocketsLeft()).toBe(3);
+
+      player.launch(true);
+      // Should have started reloading (rocketCount = 2 > 0)
+      expect(player.arsenal.reloadingRocket).not.toBeNull();
+    });
+
+    it("does not auto-reload when no rockets remain", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      player.arsenal.rocketCount = 1; // only 1 left
+
+      player.launch(true);
+      // After launch, rocketCount = 0, no auto-reload
+      expect(player.getRocketsLeft()).toBe(0);
+      expect(player.arsenal.reloadingRocket).toBeNull();
+    });
+  });
+
+  describe("reload", () => {
+    it("reloads gun weapon", () => {
+      // Deplete ammo first
+      player.arsenal.heldShootingWeapon.bulletsLeft = 0;
+      player.reload();
+      expect(player.arsenal.heldShootingWeapon.bulletsLeft).toBe(
+        player.arsenal.heldShootingWeapon.type.capacity
+      );
+    });
+
+    it("starts launcher reload when rockets available", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      // Clear the loaded rocket so reload is needed
+      player.arsenal.heldLaunchingWeapon.heldRocket = null;
+
+      player.reload();
+      expect(player.arsenal.reloadingRocket).not.toBeNull();
+    });
+
+    it("does not reload launcher when already loaded", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      // Launcher already has a rocket from constructor
+      expect(player.arsenal.heldLaunchingWeapon.heldRocket).not.toBeNull();
+
+      player.reload();
+      // reloadingRocket should still be null since launcher is already loaded
+      expect(player.arsenal.reloadingRocket).toBeNull();
+    });
+
+    it("does not reload launcher when no rockets in inventory", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      player.switchWeaponCategory(); // grenade → launcher
+      player.arsenal.heldLaunchingWeapon.heldRocket = null;
+      player.arsenal.rocketCount = 0;
+
+      player.reload();
+      expect(player.arsenal.reloadingRocket).toBeNull();
     });
   });
 
@@ -231,6 +420,14 @@ describe("Player", () => {
       expect(held).toBeDefined();
       expect(held.type).toBeDefined();
       expect(held.type.name).toBeDefined();
+    });
+  });
+
+  describe("getCenterOfGravity", () => {
+    it("returns center point above feet", () => {
+      const cog = player.getCenterOfGravity();
+      expect(cog.x).toBeCloseTo(player.transform.position.x);
+      expect(cog.y).toBeGreaterThan(player.transform.position.y);
     });
   });
 });

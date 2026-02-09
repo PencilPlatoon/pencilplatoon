@@ -105,4 +105,67 @@ describe("LaunchingWeapon", () => {
       expect(launcher.getCapacity()).toBe(1);
     });
   });
+
+  describe("getAbsoluteBounds", () => {
+    it("uses holder transform when holder is set", () => {
+      const holderTransform = new EntityTransform({ x: 500, y: 400 }, 0, 1);
+      launcher.holder = {
+        getPrimaryHandAbsTransform: () => holderTransform,
+      } as any;
+
+      const bounds = launcher.getAbsoluteBounds();
+      // Bounds should be based on holder position (500), not self position (0)
+      expect(bounds.upperLeft.x).toBeCloseTo(500 - launcher.bounds.width * launcher.bounds.refRatioPosition.x);
+      expect(bounds.lowerRight.x).toBeCloseTo(500 + launcher.bounds.width * (1 - launcher.bounds.refRatioPosition.x));
+    });
+
+    it("uses own transform when no holder", () => {
+      launcher.holder = null;
+      launcher.transform.setPosition(300, 200);
+
+      const bounds = launcher.getAbsoluteBounds();
+      // Bounds should be based on self position (300)
+      expect(bounds.upperLeft.x).toBeCloseTo(300 - launcher.bounds.width * launcher.bounds.refRatioPosition.x);
+      expect(bounds.lowerRight.x).toBeCloseTo(300 + launcher.bounds.width * (1 - launcher.bounds.refRatioPosition.x));
+    });
+  });
+
+  describe("getPrimaryHandAbsTransform", () => {
+    it("returns muzzle transform based on holder", () => {
+      const holderTransform = new EntityTransform({ x: 100, y: 200 }, 0, 1);
+      launcher.holder = {
+        getPrimaryHandAbsTransform: () => holderTransform,
+      } as any;
+
+      const result = launcher.getPrimaryHandAbsTransform();
+      // Should be at the muzzle (right edge) of the weapon
+      expect(result.position.x).toBeGreaterThan(100);
+    });
+
+    it("uses own transform when no holder", () => {
+      launcher.holder = null;
+      launcher.transform.setPosition(100, 200);
+
+      const result = launcher.getPrimaryHandAbsTransform();
+      // Muzzle position from self transform
+      expect(result.position.x).toBeGreaterThan(100);
+    });
+  });
+
+  describe("updatePrimaryHoldRatioPosition", () => {
+    it("updates the type and bounds ref position", () => {
+      const newPos = { x: 0.3, y: 0.7 };
+      launcher.updatePrimaryHoldRatioPosition(newPos);
+      expect(launcher.type.primaryHoldRatioPosition).toEqual(newPos);
+      expect(launcher.bounds.refRatioPosition).toEqual(newPos);
+    });
+  });
+
+  describe("updateSecondaryHoldRatioPosition", () => {
+    it("updates the type secondary hold position", () => {
+      const newPos = { x: 0.8, y: 0.2 };
+      launcher.updateSecondaryHoldRatioPosition(newPos);
+      expect(launcher.type.secondaryHoldRatioPosition).toEqual(newPos);
+    });
+  });
 });

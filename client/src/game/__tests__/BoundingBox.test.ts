@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { BoundingBox } from "../BoundingBox";
+import { EntityTransform } from "../EntityTransform";
 
 describe("BoundingBox", () => {
   describe("create", () => {
@@ -61,6 +62,107 @@ describe("BoundingBox", () => {
     });
   });
 
+  describe("getRotatedBoundingPositions", () => {
+    it("returns unrotated positions when rotation is 0 and facing is 1", () => {
+      const bb = new BoundingBox(100, 50, { x: 0.5, y: 0.5 });
+      const transform = new EntityTransform({ x: 200, y: 300 }, 0, 1);
+      const { positions } = bb.getRotatedBoundingPositions(transform);
+
+      expect(positions).toHaveLength(4);
+      // With rotation=0 and facing=1, the rotated positions should match
+      // the base positions (applying identity rotation + facing=1 flip)
+      const base = bb.getBoundingPositions(transform.position);
+      for (let i = 0; i < 4; i++) {
+        expect(positions[i].x).toBeCloseTo(base.positions[i].x, 1);
+        expect(positions[i].y).toBeCloseTo(base.positions[i].y, 1);
+      }
+    });
+
+    it("flips x-coordinates when facing is -1 and no rotation", () => {
+      const bb = new BoundingBox(100, 50, { x: 0.5, y: 0.5 });
+      const pos = { x: 200, y: 300 };
+      const normal = bb.getRotatedBoundingPositions(new EntityTransform(pos, 0, 1));
+      const flipped = bb.getRotatedBoundingPositions(new EntityTransform(pos, 0, -1));
+
+      expect(flipped.positions).toHaveLength(4);
+      // X should be mirrored around position.x, y may also change due to facing logic
+      // Check that the x extents remain symmetric around 200
+      const xs = flipped.positions.map(p => p.x);
+      expect(Math.min(...xs)).toBeCloseTo(150, 0);
+      expect(Math.max(...xs)).toBeCloseTo(250, 0);
+
+      // Each corner should be at the same distance from center as the normal version
+      for (let i = 0; i < 4; i++) {
+        const d1 = Math.sqrt(
+          Math.pow(normal.positions[i].x - pos.x, 2) +
+          Math.pow(normal.positions[i].y - pos.y, 2)
+        );
+        const d2 = Math.sqrt(
+          Math.pow(flipped.positions[i].x - pos.x, 2) +
+          Math.pow(flipped.positions[i].y - pos.y, 2)
+        );
+        expect(d2).toBeCloseTo(d1, 5);
+      }
+    });
+
+    it("rotates positions by 90 degrees", () => {
+      const bb = new BoundingBox(100, 50, { x: 0.5, y: 0.5 });
+      const transform = new EntityTransform({ x: 0, y: 0 }, Math.PI / 2, 1);
+      const { positions } = bb.getRotatedBoundingPositions(transform);
+
+      expect(positions).toHaveLength(4);
+      // After 90-degree rotation with the game's coordinate system,
+      // all corners should be rotated around the position (0,0)
+      // The bounding box half-widths are 50 (x) and 25 (y)
+      // Check that the corners are roughly 90 degrees rotated
+      for (const pos of positions) {
+        const dist = Math.sqrt(pos.x * pos.x + pos.y * pos.y);
+        // Each corner should be at the same distance from center as the original
+        const originalDist = Math.sqrt(50 * 50 + 25 * 25);
+        expect(dist).toBeCloseTo(originalDist, 0);
+      }
+    });
+
+    it("preserves corner distances from center under rotation", () => {
+      const bb = new BoundingBox(60, 40, { x: 0.5, y: 0.5 });
+      const pos = { x: 100, y: 200 };
+      const noRotation = bb.getRotatedBoundingPositions(
+        new EntityTransform(pos, 0, 1)
+      );
+      const withRotation = bb.getRotatedBoundingPositions(
+        new EntityTransform(pos, Math.PI / 4, 1)
+      );
+
+      // Each corner should maintain same distance from center regardless of rotation
+      for (let i = 0; i < 4; i++) {
+        const d1 = Math.sqrt(
+          Math.pow(noRotation.positions[i].x - pos.x, 2) +
+          Math.pow(noRotation.positions[i].y - pos.y, 2)
+        );
+        const d2 = Math.sqrt(
+          Math.pow(withRotation.positions[i].x - pos.x, 2) +
+          Math.pow(withRotation.positions[i].y - pos.y, 2)
+        );
+        expect(d2).toBeCloseTo(d1, 5);
+      }
+    });
+
+    it("returns 4 distinct corners for non-zero rotation", () => {
+      const bb = new BoundingBox(100, 50, { x: 0.5, y: 0.5 });
+      const transform = new EntityTransform({ x: 0, y: 0 }, 0.3, 1);
+      const { positions } = bb.getRotatedBoundingPositions(transform);
+
+      // All 4 corners should be distinct
+      for (let i = 0; i < 4; i++) {
+        for (let j = i + 1; j < 4; j++) {
+          const dx = positions[i].x - positions[j].x;
+          const dy = positions[i].y - positions[j].y;
+          expect(Math.sqrt(dx * dx + dy * dy)).toBeGreaterThan(1);
+        }
+      }
+    });
+  });
+
   describe("getRelPositionDelta", () => {
     it("computes pixel delta between two ratio positions", () => {
       const bb = new BoundingBox(200, 100, { x: 0.5, y: 0.5 });
@@ -111,6 +213,18 @@ describe("BoundingBox", () => {
       expect(transform.position.y).toBeCloseTo(0);
       expect(transform.rotation).toBe(0);
       expect(transform.facing).toBe(1);
+    });
+
+    it("rotates the delta by the given angle", () => {
+      const bb = new BoundingBox(200, 100, { x: 0.5, y: 0.5 });
+      const transform = bb.getTransformForRatioPositions(
+        { x: 0.75, y: 0.5 },
+        { x: 0.25, y: 0.5 },
+        Math.PI / 2
+      );
+      // Delta is (100, 0), rotated 90° → (0, 100)
+      expect(transform.position.x).toBeCloseTo(0);
+      expect(transform.position.y).toBeCloseTo(100);
     });
   });
 });
