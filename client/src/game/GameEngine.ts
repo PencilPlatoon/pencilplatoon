@@ -12,6 +12,9 @@ import { SoundManager } from "./SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./LevelConfig";
 import { setGlobalSeed, seededRandom } from "../lib/utils";
 
+export const calculateThrowPower = (chargeTime: number, maxChargeTimeMs: number): number =>
+  Math.min(1.0, chargeTime / maxChargeTimeMs);
+
 export class GameEngine {
   static readonly SCREEN_WIDTH = 800;
   static readonly PLAYER_START_X = 50;
@@ -65,9 +68,6 @@ export class GameEngine {
     return LEVEL_DEFINITIONS[this.currentLevelName];
   }
 
-  private calculateThrowPower(chargeTime: number): number {
-    return Math.min(1.0, chargeTime / GameEngine.MAX_CHARGE_TIME_MS);
-  }
   private debugMode = false;
   private paused = false;
   private seed: number = 12345;
@@ -409,11 +409,11 @@ export class GameEngine {
       }
       if (this.isChargingThrow) {
         const chargeTime = Date.now() - this.throwChargeStartTime;
-        this.player.setThrowPower(this.calculateThrowPower(chargeTime));
+        this.player.setThrowPower(calculateThrowPower(chargeTime, GameEngine.MAX_CHARGE_TIME_MS));
       }
     } else if (this.isChargingThrow) {
       const chargeTime = Date.now() - this.throwChargeStartTime;
-      this.player.setThrowPower(this.calculateThrowPower(chargeTime));
+      this.player.setThrowPower(calculateThrowPower(chargeTime, GameEngine.MAX_CHARGE_TIME_MS));
       this.player.startThrow();
       this.isChargingThrow = false;
     }

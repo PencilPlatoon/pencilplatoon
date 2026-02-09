@@ -36,8 +36,11 @@ export class Enemy implements GameObject {
   private isWalking: boolean = false;
   private lastX: number = 0;
 
-  constructor(x: number, y: number, id: string) {
+  private getNow: () => number;
+
+  constructor(x: number, y: number, id: string, getNow: () => number = Date.now) {
     this.id = id;
+    this.getNow = getNow;
     // position.y is now feet (bottom of enemy)
     this.transform = new EntityTransform({ x, y }, 0, 1);
     this.velocity = { x: 0, y: 1 };
@@ -47,8 +50,8 @@ export class Enemy implements GameObject {
     this.previousPosition = { x, y };
     this.patrolStartX = x;
     this.lastX = x;
-    
-    this.weapon = new ShootingWeapon(ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE);
+
+    this.weapon = new ShootingWeapon(ShootingWeapon.RIFLE_A_MAIN_OFFENSIVE, this.getNow);
   }
 
   private getAbsoluteWeaponTransform(): EntityTransform {
@@ -158,7 +161,7 @@ export class Enemy implements GameObject {
     const dx = playerPos.x - weaponTransform.position.x;
     const dy = playerPos.y - weaponTransform.position.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
-    const now = Date.now();
+    const now = this.getNow();
     const enemyCooldown = now - this.lastShotTime > Enemy.FIRE_INTERVAL;
     // Enemies always fire in auto mode (they don't have semi-auto behavior)
     const weaponCooldown = this.weapon.canShoot(false);
@@ -166,7 +169,7 @@ export class Enemy implements GameObject {
   }
 
   shoot(playerPos: Vector2): Bullet | null {
-    this.lastShotTime = Date.now();
+    this.lastShotTime = this.getNow();
     // Update aim angle to aim at player
     this.aimAngle = this.computeAimAngle(playerPos);
     

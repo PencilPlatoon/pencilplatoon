@@ -17,6 +17,10 @@ import { Physics } from "./Physics";
 import { ReloadLauncherMovement } from "./movement/ReloadLauncherMovement";
 import { ThrowGrenadeMovement } from "./movement/ThrowGrenadeMovement";
 
+/** Maps throwPower [0.0, 1.0] to [0.2, 1.0] */
+export const getThrowMultiplier = (throwPower: number): number =>
+  0.2 + throwPower * 0.8;
+
 interface PlayerInput {
   left: boolean;
   right: boolean;
@@ -358,8 +362,7 @@ export class Player implements GameObject, Holder {
   }
 
   private getThrowMultiplier(): number {
-    // Maps throwPower [0.0, 1.0] to [0.2, 1.0]
-    return 0.2 + (this.throwPower * 0.8);
+    return getThrowMultiplier(this.throwPower);
   }
 
   startThrow(): void {
