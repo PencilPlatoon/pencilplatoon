@@ -101,11 +101,11 @@ describe("Enemy", () => {
   });
 
   describe("shoot", () => {
-    it("returns a bullet when shooting", () => {
+    it("returns bullets when shooting", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
       const nearPlayer = { x: 600, y: 100 };
-      const bullet = enemy.shoot(nearPlayer);
-      expect(bullet).not.toBeNull();
+      const bullets = enemy.shoot(nearPlayer);
+      expect(bullets.length).toBeGreaterThan(0);
     });
 
     it("updates lastShotTime via getNow", () => {

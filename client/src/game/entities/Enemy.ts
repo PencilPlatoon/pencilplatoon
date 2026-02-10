@@ -86,11 +86,11 @@ export class Enemy extends Combatant {
     return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown;
   }
 
-  shoot(playerPos: Vector2): Bullet | null {
+  shoot(playerPos: Vector2): Bullet[] {
     this.lastShotTime = this.getNow();
     // Update aim angle to aim at player
     this.aimAngle = this.computeAimAngle(playerPos);
-    
+
     // Get updated weapon transform with new aim angle
     const updatedWeaponTransform = this.getWeaponAbsTransform();
     // Enemies always fire in auto mode (they don't have semi-auto behavior)

@@ -153,10 +153,8 @@ export class GameWorld {
       enemy.update(deltaTime, playerCOG, this.terrain);
 
       if (enemy.canShoot(playerCOG)) {
-        const bullet = enemy.shoot(playerCOG);
-        if (bullet) {
-          this.bullets.push(bullet);
-        }
+        const bullets = enemy.shoot(playerCOG);
+        this.bullets.push(...bullets);
       }
     });
 
@@ -241,9 +239,9 @@ export class GameWorld {
     if (!triggerPressed) return;
     const newTriggerPress = !this.hasThisTriggeringShot;
     if (this.player.canShoot(newTriggerPress)) {
-      const bullet = this.player.shoot(newTriggerPress);
-      if (bullet) {
-        this.bullets.push(bullet);
+      const bullets = this.player.shoot(newTriggerPress);
+      if (bullets.length > 0) {
+        this.bullets.push(...bullets);
         this.soundManager.playShoot();
         this.hasThisTriggeringShot = true;
       }

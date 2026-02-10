@@ -84,12 +84,27 @@ export class ShootingWeaponFigure {
 
     if (showAimLine) {
       const muzzleTransform = weapon.getMuzzleTransform(transform);
+      const spreadAngle = weapon.type.spreadAngle;
 
-      StraightAimLineFigure.render({
-        ctx,
-        transform: muzzleTransform,
-        length: 100
-      });
+      if (spreadAngle) {
+        const halfSpread = spreadAngle / 2;
+        StraightAimLineFigure.render({
+          ctx,
+          transform: muzzleTransform.withRotationOffset(-halfSpread),
+          length: 100
+        });
+        StraightAimLineFigure.render({
+          ctx,
+          transform: muzzleTransform.withRotationOffset(halfSpread),
+          length: 100
+        });
+      } else {
+        StraightAimLineFigure.render({
+          ctx,
+          transform: muzzleTransform,
+          length: 100
+        });
+      }
     }
   }
 

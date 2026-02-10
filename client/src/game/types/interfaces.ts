@@ -67,6 +67,11 @@ export interface HoldableObjectType extends SVGObjectType {
   secondaryHoldRatioPosition: Vector2 | null;
 }
 
+export interface DamageDropoff {
+  effectiveRange: number;
+  minDamageRatio: number;
+}
+
 export interface ShootingWeaponType extends HoldableObjectType {
   damage: number;
   fireInterval: number;
@@ -75,6 +80,9 @@ export interface ShootingWeaponType extends HoldableObjectType {
   soundEffect?: string;
   capacity: number;
   autoFiringType: 'auto' | 'semi-auto';
+  pelletCount?: number;
+  spreadAngle?: number;
+  damageDropoff?: DamageDropoff;
 }
 
 export interface GrenadeType extends HoldableObjectType {

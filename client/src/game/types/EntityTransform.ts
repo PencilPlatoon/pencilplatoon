@@ -59,6 +59,10 @@ export class EntityTransform {
     return new EntityTransform({ x: absoluteX, y: absoluteY } as Vector2, absoluteRotation, absoluteFacing);
   }
 
+  withRotationOffset(offset: number): EntityTransform {
+    return new EntityTransform({ x: this.position.x, y: this.position.y } as Vector2, this.rotation + offset, this.facing);
+  }
+
   // Compute the relative transform that would produce the given absolute transform when applied to this transform
   reverseTransform(absoluteTransform: EntityTransform): EntityTransform {
     // Reverse position calculation: relativeX = (absoluteX - this.position.x) / this.facing

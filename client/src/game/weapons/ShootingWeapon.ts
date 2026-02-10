@@ -60,20 +60,51 @@ export class ShootingWeapon implements HoldableObject {
     return new EntityTransform({ x: endX, y: endY }, weaponTransform.rotation, weaponTransform.facing);
   }
 
-  shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet | null {
-    if (!this.canShoot(newTriggerPress)) return null;
+  shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet[] {
+    if (!this.canShoot(newTriggerPress)) return [];
     this.lastShotTime = this.getNow();
     this.bulletsLeft--;
     const muzzle = this.getMuzzleTransform(transform);
-    const direction = { x: Math.cos(transform.rotation) * transform.facing, y: Math.sin(transform.rotation) };
-    return new Bullet(
-      muzzle.position.x,
-      muzzle.position.y,
-      direction,
-      this.type.bulletSpeed,
-      this.type.damage,
-      this.type.bulletSize
+    const baseAngle = Math.atan2(
+      Math.sin(transform.rotation),
+      Math.cos(transform.rotation) * transform.facing
     );
+
+    const pelletCount = this.type.pelletCount ?? 1;
+    const spreadAngle = this.type.spreadAngle ?? 0;
+
+    return this.createPellets(muzzle, baseAngle, pelletCount, spreadAngle);
+  }
+
+  private createPellets(
+    muzzle: EntityTransform,
+    baseAngle: number,
+    pelletCount: number,
+    spreadAngle: number
+  ): Bullet[] {
+    const isPellet = pelletCount > 1;
+    const damagePerPellet = isPellet ? this.type.damage / pelletCount : this.type.damage;
+
+    if (!isPellet) {
+      const direction = { x: Math.cos(baseAngle), y: Math.sin(baseAngle) };
+      return [new Bullet(
+        muzzle.position.x, muzzle.position.y,
+        direction, this.type.bulletSpeed, damagePerPellet, this.type.bulletSize
+      )];
+    }
+
+    const bullets: Bullet[] = [];
+    for (let i = 0; i < pelletCount; i++) {
+      const offset = spreadAngle * ((i / (pelletCount - 1)) - 0.5);
+      const angle = baseAngle + offset;
+      const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+      bullets.push(new Bullet(
+        muzzle.position.x, muzzle.position.y,
+        direction, this.type.bulletSpeed, damagePerPellet, this.type.bulletSize,
+        true, this.type.damageDropoff
+      ));
+    }
+    return bullets;
   }
 
   reload(): void {

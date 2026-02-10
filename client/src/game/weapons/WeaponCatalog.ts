@@ -102,7 +102,7 @@ export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
 
 export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
   name: "M270 Breacher",
-  damage: 40,
+  damage: 90,
   fireInterval: 1000,
   bulletSpeed: 600,
   bulletSize: 4,
@@ -112,11 +112,14 @@ export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
   secondaryHoldRatioPosition: { x: 0.72, y: 0.46 },
   capacity: 8,
   autoFiringType: 'semi-auto',
+  pelletCount: 6,
+  spreadAngle: 0.26,
+  damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
 };
 
 export const R_200_SHOTGUN: ShootingWeaponType = {
   name: "R-200",
-  damage: 20,
+  damage: 60,
   fireInterval: 1000,
   bulletSpeed: 600,
   bulletSize: 4,
@@ -126,11 +129,14 @@ export const R_200_SHOTGUN: ShootingWeaponType = {
   secondaryHoldRatioPosition: { x: 0.47, y: 0.38 },
   capacity: 15,
   autoFiringType: 'semi-auto',
+  pelletCount: 5,
+  spreadAngle: 0.21,
+  damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
 };
 
 export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
   name: "MR-27 Drumbeat",
-  damage: 60,
+  damage: 160,
   fireInterval: 1500,
   bulletSpeed: 600,
   bulletSize: 4,
@@ -140,6 +146,9 @@ export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
   secondaryHoldRatioPosition: { x: 0.43, y: 0.18 },
   capacity: 30,
   autoFiringType: 'semi-auto',
+  pelletCount: 8,
+  spreadAngle: 0.31,
+  damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
 };
 
 export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {

@@ -176,7 +176,7 @@ export class Player extends Combatant implements Holder {
     }
   }
 
-  shoot(newTriggerPress: boolean): Bullet | null {
+  shoot(newTriggerPress: boolean): Bullet[] {
     const weaponTransform = this.getPrimaryHandAbsTransform();
     return this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
   }

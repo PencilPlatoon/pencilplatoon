@@ -85,9 +85,9 @@ describe("ShootingWeapon", () => {
   describe("shoot", () => {
     it("returns a bullet on success", () => {
       const weapon = new ShootingWeapon(FAST_GUN, getNow);
-      const bullet = weapon.shoot(transform, true);
-      expect(bullet).not.toBeNull();
-      expect(bullet!.damage).toBe(FAST_GUN.damage);
+      const bullets = weapon.shoot(transform, true);
+      expect(bullets.length).toBe(1);
+      expect(bullets[0].damage).toBe(FAST_GUN.damage);
     });
 
     it("decrements ammo", () => {
@@ -97,17 +97,28 @@ describe("ShootingWeapon", () => {
       expect(weapon.getBulletsLeft()).toBe(4);
     });
 
-    it("returns null when canShoot is false", () => {
+    it("returns empty array when canShoot is false", () => {
       const weapon = new ShootingWeapon({ ...FAST_GUN, capacity: 0 }, getNow);
-      expect(weapon.shoot(transform, true)).toBeNull();
+      expect(weapon.shoot(transform, true)).toEqual([]);
     });
 
     it("positions bullet at weapon end", () => {
       const weapon = new ShootingWeapon(FAST_GUN, getNow);
-      const bullet = weapon.shoot(new EntityTransform({ x: 0, y: 0 }, 0, 1), true);
+      const bullets = weapon.shoot(new EntityTransform({ x: 0, y: 0 }, 0, 1), true);
       // x = 0 + cos(0)*20*1 = 20, y = 0 + sin(0)*20 = 0
-      expect(bullet!.transform.position.x).toBeCloseTo(20);
-      expect(bullet!.transform.position.y).toBeCloseTo(0);
+      expect(bullets[0].transform.position.x).toBeCloseTo(20);
+      expect(bullets[0].transform.position.y).toBeCloseTo(0);
+    });
+
+    it("fires multiple pellets for shotgun weapons", () => {
+      const shotgun = { ...FAST_GUN, pelletCount: 6, spreadAngle: 0.26, damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 } };
+      const weapon = new ShootingWeapon(shotgun, getNow);
+      const bullets = weapon.shoot(transform, true);
+      expect(bullets.length).toBe(6);
+      bullets.forEach(b => {
+        expect(b.isPellet).toBe(true);
+        expect(b.damage).toBeCloseTo(shotgun.damage / 6);
+      });
     });
   });
 
