@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react';
 import { SVGLoader } from '@/util/SVGLoader';
+import { HoldableObjectType } from '@/game/types/interfaces';
 
 interface WeaponIconProps {
-  weaponType: any;
+  weaponType: HoldableObjectType;
   isSelected: boolean;
   onClick: () => void;
 }

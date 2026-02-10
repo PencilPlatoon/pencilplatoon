@@ -1,206 +1,40 @@
-import { useEffect, useRef, useState } from 'react';
-import { Player } from '@/game/entities/Player';
-import { ShootingWeapon } from '@/game/weapons/ShootingWeapon';
-import { LaunchingWeapon } from '@/game/weapons/LaunchingWeapon';
-import { Vector2, Vector2Utils } from '@/game/types/Vector2';
-import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS } from '@/game/weapons/WeaponCatalog';
-import { MoveableControl, WeaponPositionControl, SecondaryHandControl, ControlId, DesignerModePositions } from './index';
-import { HumanFigure } from '@/rendering/HumanFigure';
+import { useRef } from 'react';
+import { DesignerModePositions } from './index';
 import { Button } from '@/components/ui/button';
 import { WeaponIcon } from './WeaponIcon';
 import { WeaponDefinitionBox, WeaponDefinitionBoxRef } from './WeaponDefinitionBox';
+import { useDesignerWeapon } from './hooks/useDesignerWeapon';
+import { useControlDrag } from './hooks/useControlDrag';
+import { useDesignerCanvas } from './hooks/useDesignerCanvas';
 import { X } from 'lucide-react';
 
-const { CANVAS_WIDTH, CANVAS_HEIGHT, FIGURE_CENTER_X, FIGURE_CENTER_Y } = DesignerModePositions;
+const { CANVAS_WIDTH, CANVAS_HEIGHT } = DesignerModePositions;
 
 export function DesignerMode({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [selectedWeaponIndex, setSelectedWeaponIndex] = useState(0);
-  const [selectedCategory, setSelectedCategory] = useState<'gun' | 'launcher'>('gun');
-  const [draggedControl, setDraggedControl] = useState<ControlId | null>(null);
-  const [hoveredControl, setHoveredControl] = useState<ControlId | null>(null);
-  const playerRef = useRef<Player | null>(null);
-  const controlsRef = useRef<MoveableControl[]>([]);
   const weaponDefinitionBoxRef = useRef<WeaponDefinitionBoxRef>(null);
-  
-  // Refs to store current state for access from render loop
-  const draggedControlRef = useRef<ControlId | null>(null);
-  const hoveredControlRef = useRef<ControlId | null>(null);
-  const dragOffsetRef = useRef<Vector2 | null>(null);
 
-  const allWeapons = selectedCategory === 'gun' ? ALL_SHOOTING_WEAPONS : ALL_LAUNCHERS;
-  
-  const detectControlUnderMouse = (mousePos: Vector2): MoveableControl | null => {
-    if (!playerRef.current) return null;
-    
-    for (const control of controlsRef.current) {
-      if (control.isMouseWithin(mousePos)) {
-        return control;
-      }
-    }
-    
-    return null;
-  };
+  const onWeaponLoaded = () => weaponDefinitionBoxRef.current?.updateDefinition();
+  const onControlMoved = () => weaponDefinitionBoxRef.current?.updateDefinition();
 
-  useEffect(() => {
-    // Enable debug mode
-    window.__DEBUG_MODE__ = true;
+  const {
+    selectedWeaponIndex,
+    setSelectedWeaponIndex,
+    selectedCategory,
+    selectCategory,
+    allWeapons,
+    playerRef,
+    controlsRef,
+  } = useDesignerWeapon(onWeaponLoaded);
 
-    // Create player (aimAngle defaults to 0 for horizontal weapon)
-    // Move player up by 50% of figure height
-    const playerY = FIGURE_CENTER_Y + (HumanFigure.FIGURE_HEIGHT / 2);
-    const player = new Player(FIGURE_CENTER_X, playerY);
-    playerRef.current = player;
+  const {
+    hoveredControlRef,
+    handleMouseMove,
+    handleMouseDown,
+    handleMouseUp,
+  } = useControlDrag(canvasRef, playerRef, controlsRef, onControlMoved);
 
-    // Create controls with player reference
-    controlsRef.current = [
-      new WeaponPositionControl(player),
-      new SecondaryHandControl(player)
-    ];
-
-    return () => {
-      window.__DEBUG_MODE__ = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!playerRef.current) return;
-
-    const player = playerRef.current as any;
-
-    if (selectedCategory === 'gun') {
-      // Update player's selected category so correct object renders/positions
-      player.selectedWeaponCategory = 'gun';
-      player.arsenal.currentWeaponIndex = selectedWeaponIndex;
-      const newWeapon = new ShootingWeapon(ALL_SHOOTING_WEAPONS[selectedWeaponIndex]);
-      player.arsenal.heldShootingWeapon = newWeapon;
-      newWeapon.waitForLoaded().then(() => {
-        weaponDefinitionBoxRef.current?.updateDefinition();
-      });
-    } else {
-      player.selectedWeaponCategory = 'launcher';
-      player.arsenal.currentLauncherIndex = selectedWeaponIndex;
-      const newLauncher = new LaunchingWeapon(ALL_LAUNCHERS[selectedWeaponIndex]);
-      player.arsenal.heldLaunchingWeapon = newLauncher;
-      // Ensure launcher attaches to player for transforms
-      player.arsenal.heldLaunchingWeapon.holder = playerRef.current;
-      newLauncher.waitForLoaded().then(() => {
-        weaponDefinitionBoxRef.current?.updateDefinition();
-      });
-    }
-  }, [selectedWeaponIndex, selectedCategory]);
-
-  // Keep refs in sync with state
-  useEffect(() => {
-    draggedControlRef.current = draggedControl;
-  }, [draggedControl]);
-
-  useEffect(() => {
-    hoveredControlRef.current = hoveredControl;
-  }, [hoveredControl]);
-
-
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas || !playerRef.current) return;
-
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const render = () => {
-      // Get fresh state values from refs
-      const currentHoveredControl = hoveredControlRef.current;
-      
-      ctx.save();
-      DesignerModePositions.applyGameTransform(ctx);
-
-      ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-      
-      // Draw background
-      ctx.fillStyle = '#f5f5f5';
-      ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-
-      if (playerRef.current) {
-        // Debug mode is enabled, so player will render in dark pink and weapons will show bounding boxes
-        playerRef.current.render(ctx, { skipHealthBar: true });
-
-        for (const control of controlsRef.current) {
-          const pos = control.getAbsPosition();
-          if (pos) {
-            const position = DesignerModePositions.gameToTransformedCanvas(pos);
-            const isHovered = currentHoveredControl === control.id;
-            control.render({ ctx, position, isHovered });
-          }
-        }
-
-      }
-
-      ctx.restore();
-
-      requestAnimationFrame(render);
-    };
-
-    render();
-  }, [selectedWeaponIndex, allWeapons]);
-
-  const handleMouseMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!playerRef.current) return;
-    
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const mousePos = DesignerModePositions.screenToGame({ x: e.clientX, y: e.clientY }, rect);
-    
-    // Update hover state
-    if (!draggedControl) {
-      const controlUnderMouse = detectControlUnderMouse(mousePos);
-      setHoveredControl(controlUnderMouse?.id || null);
-    }
-    
-    // Handle dragging
-    if (draggedControl) {
-      updateControlPosition(mousePos);
-    }
-  };
-
-  const handleMouseDown = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (!playerRef.current) return;
-
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const rect = canvas.getBoundingClientRect();
-    const mousePos = DesignerModePositions.screenToGame({ x: e.clientX, y: e.clientY }, rect);
-
-    const controlUnderMouse = detectControlUnderMouse(mousePos);
-    if (controlUnderMouse) {
-      // Calculate and store the offset from mouse to control center
-      const controlPos = controlUnderMouse.getAbsPosition();
-      if (controlPos) {
-        dragOffsetRef.current = Vector2Utils.subtract(mousePos, controlPos);
-        setDraggedControl(controlUnderMouse.id);
-      }
-    }
-  };
-
-  const updateControlPosition = (mousePos: Vector2) => {
-    if (!playerRef.current || !draggedControl || !dragOffsetRef.current) return;
-
-    // Find and update the dragged control
-    const control = controlsRef.current.find(c => c.id === draggedControl);
-    if (control) {
-      // Apply the stored offset to maintain relative position
-      const controlPos = Vector2Utils.subtract(mousePos, dragOffsetRef.current);
-      control.updateAbsPosition(controlPos);
-      weaponDefinitionBoxRef.current?.updateDefinition();
-    }
-  };
-
-  const handleMouseUp = () => {
-    setDraggedControl(null);
-    dragOffsetRef.current = null;
-  };
+  useDesignerCanvas(canvasRef, playerRef, controlsRef, hoveredControlRef, [selectedWeaponIndex, allWeapons]);
 
   return (
     <div className="fixed inset-0 bg-gray-100 flex flex-col">
@@ -219,19 +53,19 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
             <X className="h-6 w-6" />
           </Button>
         </div>
-        
+
         {/* Scrollable weapon selection with category buttons */}
         <div className="flex items-start gap-4 px-4 pb-4">
           <div className="flex flex-col gap-2 pt-2">
             <Button
               variant={selectedCategory === 'gun' ? 'outline' : 'ghost'}
               size="sm"
-              onClick={() => { setSelectedCategory('gun'); setSelectedWeaponIndex(0); }}
+              onClick={() => selectCategory('gun')}
             >Guns</Button>
             <Button
               variant={selectedCategory === 'launcher' ? 'outline' : 'ghost'}
               size="sm"
-              onClick={() => { setSelectedCategory('launcher'); setSelectedWeaponIndex(0); }}
+              onClick={() => selectCategory('launcher')}
             >Launchers</Button>
           </div>
           <div className="overflow-x-auto flex-1">
@@ -281,4 +115,3 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
     </div>
   );
 }
-

@@ -267,6 +267,10 @@ export class Player extends Combatant implements Holder {
     return this.selectedWeaponCategory;
   }
 
+  setSelectedWeaponCategory(category: 'gun' | 'grenade' | 'launcher'): void {
+    this.selectedWeaponCategory = category;
+  }
+
   getEntityLabel(): string {
     return 'Player';
   }
