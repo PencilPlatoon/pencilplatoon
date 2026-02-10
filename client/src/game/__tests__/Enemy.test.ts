@@ -197,6 +197,104 @@ describe("Enemy", () => {
     });
   });
 
+  describe("aim angle", () => {
+    it("aims higher at an elevated target", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const levelTarget = { x: 600, y: 100 };
+      enemy.update(0.016, levelTarget, mockTerrain);
+      const levelAngle = enemy.getWeaponAbsTransform().rotation;
+
+      const enemy2 = new Enemy(500, 100, "e2", getNow);
+      const highTarget = { x: 600, y: 300 };
+      enemy2.update(0.016, highTarget, mockTerrain);
+      const highAngle = enemy2.getWeaponAbsTransform().rotation;
+
+      expect(highAngle).toBeGreaterThan(levelAngle);
+    });
+
+    it("aims downward at a target below", () => {
+      const enemy = new Enemy(500, 200, "e1", getNow);
+      const lowTarget = { x: 600, y: 50 };
+      enemy.update(0.016, lowTarget, mockTerrain);
+      const angle = enemy.getWeaponAbsTransform().rotation;
+      expect(angle).toBeLessThan(0);
+    });
+
+    it("clamps aim angle to ±π/3", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      // Target directly above — extreme angle
+      const aboveTarget = { x: 501, y: 10000 };
+      enemy.update(0.016, aboveTarget, mockTerrain);
+      const angle = enemy.getWeaponAbsTransform().rotation;
+      expect(angle).toBeLessThanOrEqual(Math.PI / 3 + 0.01);
+      expect(angle).toBeGreaterThanOrEqual(-Math.PI / 3 - 0.01);
+    });
+  });
+
+  describe("chase facing when close", () => {
+    it("faces player even when within 50 units", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      // Player just to the left, within 50 units
+      const closeLeft = { x: 470, y: 100 };
+      enemy.update(0.016, closeLeft, mockTerrain);
+      expect(enemy.transform.facing).toBe(-1);
+    });
+
+    it("stops horizontal movement when within 50 units", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const closeRight = { x: 520, y: 100 };
+      enemy.update(0.016, closeRight, mockTerrain);
+      // velocity.x should be 0 when close
+      expect(enemy.velocity.x).toBe(0);
+    });
+  });
+
+  describe("level width clamping", () => {
+    it("clamps x position to level width", () => {
+      const enemy = new Enemy(7990, 100, "e1", getNow);
+      // Chase player past level bounds
+      const farRight = { x: 7995, y: 100 };
+      for (let i = 0; i < 20; i++) {
+        enemy.update(0.1, farRight, mockTerrain);
+      }
+      expect(enemy.transform.position.x).toBeLessThanOrEqual(8000);
+    });
+  });
+
+  describe("getHeldObject", () => {
+    it("returns the enemy weapon", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const held = enemy.getHeldObject();
+      expect(held).toBeDefined();
+      expect(held.type).toBeDefined();
+      expect(held.type.name).toBeDefined();
+    });
+  });
+
+  describe("getWeaponAbsTransform", () => {
+    it("returns a transform with position near the enemy", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const wt = enemy.getWeaponAbsTransform();
+      // Weapon should be near the enemy's body
+      expect(Math.abs(wt.position.x - 500)).toBeLessThan(100);
+      expect(Math.abs(wt.position.y - 100)).toBeLessThan(100);
+    });
+  });
+
+  describe("previousPosition", () => {
+    it("captures position before update", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const farPlayer = { x: 5000, y: 100 };
+      // Land first
+      enemy.update(0.016, farPlayer, mockTerrain);
+      const xBefore = enemy.transform.position.x;
+      const yBefore = enemy.transform.position.y;
+      enemy.update(0.1, farPlayer, mockTerrain);
+      expect(enemy.previousPosition.x).toBe(xBefore);
+      expect(enemy.previousPosition.y).toBe(yBefore);
+    });
+  });
+
   describe("getEntityLabel", () => {
     it("returns 'Enemy'", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);

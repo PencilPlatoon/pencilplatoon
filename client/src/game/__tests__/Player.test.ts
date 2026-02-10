@@ -198,6 +198,74 @@ describe("Player", () => {
       player.update(0.016, noInput, mockTerrain);
       expect(player.transform.position.y).toBeGreaterThanOrEqual(terrainHeight);
     });
+
+    it("clamps x position to level width", () => {
+      player.transform.position.x = 9000;
+      player.update(0.016, noInput, mockTerrain);
+      expect(player.transform.position.x).toBeLessThanOrEqual(8000);
+    });
+  });
+
+  describe("jump mechanics", () => {
+    it("can jump after landing on terrain", () => {
+      player.transform.position.y = 50;
+      player.velocity.y = -10;
+      player.update(0.016, noInput, mockTerrain); // land
+      player.update(0.016, { ...noInput, jump: true }, mockTerrain);
+      expect(player.velocity.y).toBeGreaterThan(0);
+    });
+
+    it("cannot double jump while airborne", () => {
+      player.transform.position.y = 50;
+      player.velocity.y = -10;
+      player.update(0.016, noInput, mockTerrain); // land
+      player.update(0.016, { ...noInput, jump: true }, mockTerrain); // jump
+      expect(player.velocity.y).toBeGreaterThan(0);
+      const velocityAfterJump = player.velocity.y;
+      // Second jump attempt fails — velocity decreases due to gravity only
+      player.update(0.016, { ...noInput, jump: true }, mockTerrain);
+      expect(player.velocity.y).toBeLessThan(velocityAfterJump);
+    });
+  });
+
+  describe("getWeaponAbsTransform", () => {
+    it("weapon rotation increases when aiming up", () => {
+      const initialRotation = player.getWeaponAbsTransform().rotation;
+      for (let i = 0; i < 5; i++) {
+        player.update(0.1, { ...noInput, aimUp: true }, mockTerrain);
+      }
+      expect(player.getWeaponAbsTransform().rotation).toBeGreaterThan(initialRotation);
+    });
+
+    it("weapon rotation decreases when aiming down", () => {
+      const initialRotation = player.getWeaponAbsTransform().rotation;
+      for (let i = 0; i < 5; i++) {
+        player.update(0.1, { ...noInput, aimDown: true }, mockTerrain);
+      }
+      expect(player.getWeaponAbsTransform().rotation).toBeLessThan(initialRotation);
+    });
+  });
+
+  describe("getPrimaryHandAbsTransform", () => {
+    it("differs between gun and grenade mode", () => {
+      const gunTransform = player.getPrimaryHandAbsTransform();
+      player.switchWeaponCategory(); // gun → grenade
+      const grenadeTransform = player.getPrimaryHandAbsTransform();
+      const positionsDiffer =
+        gunTransform.position.x !== grenadeTransform.position.x ||
+        gunTransform.position.y !== grenadeTransform.position.y;
+      expect(positionsDiffer).toBe(true);
+    });
+  });
+
+  describe("previousPosition", () => {
+    it("captures position before update changes it", () => {
+      const xBefore = player.transform.position.x;
+      const yBefore = player.transform.position.y;
+      player.update(0.016, { ...noInput, right: true }, mockTerrain);
+      expect(player.previousPosition.x).toBe(xBefore);
+      expect(player.previousPosition.y).toBe(yBefore);
+    });
   });
 
   describe("grenade operations", () => {
