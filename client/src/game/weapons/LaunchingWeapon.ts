@@ -7,6 +7,7 @@ import { Rocket } from "@/game/entities/Rocket";
 import { ALL_ROCKETS, STANDARD_ROCKET } from "./WeaponCatalog";
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { LaunchingWeaponFigure } from "@/rendering/LaunchingWeaponFigure";
+import { generateEntityId } from "@/util/random";
 
 export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   // GameObject interface fields
@@ -28,7 +29,7 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
 
   constructor(launcherType: LauncherType) {
     // Initialize GameObject fields
-    this.id = `launcher_${Date.now()}_${Math.random()}`;
+    this.id = generateEntityId('launcher');
     this.transform = new EntityTransform({ x: 0, y: 0 }, 0, 1);
     this.velocity = { x: 0, y: 0 };
     this.previousPosition = { x: 0, y: 0 };

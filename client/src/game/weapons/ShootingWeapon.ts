@@ -54,16 +54,21 @@ export class ShootingWeapon implements HoldableObject {
     }
   }
 
+  getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
+    const endX = weaponTransform.position.x + Math.cos(weaponTransform.rotation) * this.type.size * weaponTransform.facing;
+    const endY = weaponTransform.position.y + Math.sin(weaponTransform.rotation) * this.type.size;
+    return new EntityTransform({ x: endX, y: endY }, weaponTransform.rotation, weaponTransform.facing);
+  }
+
   shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet | null {
     if (!this.canShoot(newTriggerPress)) return null;
     this.lastShotTime = this.getNow();
     this.bulletsLeft--;
-    const weaponEndX = transform.position.x + Math.cos(transform.rotation) * this.type.size * transform.facing;
-    const weaponEndY = transform.position.y + Math.sin(transform.rotation) * this.type.size;
+    const muzzle = this.getMuzzleTransform(transform);
     const direction = { x: Math.cos(transform.rotation) * transform.facing, y: Math.sin(transform.rotation) };
     return new Bullet(
-      weaponEndX,
-      weaponEndY,
+      muzzle.position.x,
+      muzzle.position.y,
       direction,
       this.type.bulletSpeed,
       this.type.damage,

@@ -19,19 +19,19 @@ export class SoundManager {
     }
   }
 
-  playHit() {
-    if (this.hitSound && !useAudio.getState().isSoundMuted) {
-      const clone = this.hitSound.cloneNode() as HTMLAudioElement;
-      clone.volume = 0.3;
+  private playSound(sound: HTMLAudioElement | null, volume: number): void {
+    if (sound && !useAudio.getState().isSoundMuted) {
+      const clone = sound.cloneNode() as HTMLAudioElement;
+      clone.volume = volume;
       clone.play().catch(console.log);
     }
   }
 
+  playHit() {
+    this.playSound(this.hitSound, 0.3);
+  }
+
   playShoot() {
-    if (this.shootSound && !useAudio.getState().isSoundMuted) {
-      const clone = this.shootSound.cloneNode() as HTMLAudioElement;
-      clone.volume = 0.2;
-      clone.play().catch(console.log);
-    }
+    this.playSound(this.shootSound, 0.2);
   }
 }

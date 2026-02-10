@@ -129,4 +129,50 @@ describe("ThrowGrenadeMovement", () => {
       expect(movement.getThrowCycle()).toBe(movement.getThrowProgress());
     });
   });
+
+  describe("getGrenadeRelTransform", () => {
+    it("returns a transform based on back arm angle when not throwing", () => {
+      const transform = movement.getGrenadeRelTransform(0);
+      // When not throwing, back arm angle = aimAngle (0)
+      // Should return a valid EntityTransform from HumanFigure.getBackHandTransform(0)
+      expect(transform.position).toBeDefined();
+      expect(typeof transform.rotation).toBe("number");
+    });
+
+    it("changes position during throw animation", () => {
+      const beforeThrow = movement.getGrenadeRelTransform(0.5);
+      movement.startThrow(300);
+      now = 1150; // mid-throw
+      const duringThrow = movement.getGrenadeRelTransform(0.5);
+      // Arm angle changes during throw, so transform should differ
+      expect(duringThrow.position.x).not.toBeCloseTo(beforeThrow.position.x, 2);
+    });
+  });
+
+  describe("getReleaseRelTransform", () => {
+    it("returns transform at the end-of-throw arm position", () => {
+      const transform = movement.getReleaseRelTransform(0);
+      // Release angle = aimAngle + PI*0.3
+      // Should return a valid EntityTransform
+      expect(transform.position).toBeDefined();
+      expect(typeof transform.rotation).toBe("number");
+    });
+
+    it("is independent of throw state", () => {
+      const before = movement.getReleaseRelTransform(0.5);
+      movement.startThrow(300);
+      now = 1150;
+      const during = movement.getReleaseRelTransform(0.5);
+      // Release position is fixed for a given aim angle
+      expect(during.position.x).toBeCloseTo(before.position.x);
+      expect(during.position.y).toBeCloseTo(before.position.y);
+    });
+
+    it("differs from idle grenade transform", () => {
+      // Release is at aimAngle+PI*0.3, idle is at aimAngle — different positions
+      const idle = movement.getGrenadeRelTransform(0);
+      const release = movement.getReleaseRelTransform(0);
+      expect(release.rotation).not.toBeCloseTo(idle.rotation, 2);
+    });
+  });
 });

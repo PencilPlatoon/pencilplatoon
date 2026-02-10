@@ -1,23 +1,17 @@
-import { GameObject } from "@/game/types/interfaces";
-import { Vector2 } from "@/game/types/Vector2";
 import { BoundingBox } from "@/game/types/BoundingBox";
 import { Terrain } from "@/game/world/Terrain";
 import { BulletFigure } from "@/rendering/BulletFigure";
 import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
-import { EntityTransform } from "@/game/types/EntityTransform";
 import { DamageableEntity } from "@/game/types/interfaces";
+import { generateEntityId } from "@/util/random";
+import { Vector2 } from "@/game/types/Vector2";
+import { Projectile } from "./Projectile";
 
-export class Bullet implements GameObject {
-  id: string;
-  transform: EntityTransform;
-  velocity: Vector2;
-  bounds: BoundingBox;
-  active: boolean;
+export class Bullet extends Projectile {
   damage: number;
   private lifeTime = 0;
   private initialPosition: Vector2;
   private maxTravelDistance = 1500;
-  public previousPosition: Vector2;
 
   constructor(
     x: number,
@@ -27,31 +21,30 @@ export class Bullet implements GameObject {
     damage: number,
     bulletSize: number
   ) {
-    this.id = `bullet_${Date.now()}_${Math.random()}`;
-    this.transform = new EntityTransform({ x, y }, 0, 1);
+    super(
+      generateEntityId('bullet'),
+      x, y,
+      { x: direction.x * speed, y: direction.y * speed },
+      new BoundingBox(bulletSize, bulletSize, { x: 0.5, y: 0.5 })
+    );
     this.initialPosition = { x, y };
-    this.previousPosition = { x, y };
-    this.velocity = {
-      x: direction.x * speed,
-      y: direction.y * speed
-    };
-    this.bounds = new BoundingBox(bulletSize, bulletSize, { x: 0.5, y: 0.5 });
-    this.active = true;
     this.damage = damage;
+  }
+
+  getEntityLabel(): string {
+    return 'bullet';
   }
 
   update(deltaTime: number) {
     if (!this.active) return;
 
-    this.previousPosition = { x: this.transform.position.x, y: this.transform.position.y };
-    // Update position
+    this.savePreviousPosition();
+
     this.transform.position.x += this.velocity.x * deltaTime;
     this.transform.position.y += this.velocity.y * deltaTime;
 
-    // Update lifetime
     this.lifeTime += deltaTime;
 
-    // Deactivate if traveled more than maxTravelDistance
     const dx = this.transform.position.x - this.initialPosition.x;
     const dy = this.transform.position.y - this.initialPosition.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -59,11 +52,7 @@ export class Bullet implements GameObject {
       this.deactivate('max-distance');
     }
 
-    // Check bounds (optional, can keep for extreme out-of-bounds cases)
-    if (this.transform.position.x < -100 || this.transform.position.x > Terrain.LEVEL_WIDTH + 100 || 
-        this.transform.position.y < Terrain.WORLD_BOTTOM || this.transform.position.y > Terrain.WORLD_TOP + 100) {
-      this.deactivate('out-of-bounds');
-    }
+    this.checkOutOfBounds(-100, Terrain.LEVEL_WIDTH + 100, Terrain.WORLD_BOTTOM, Terrain.WORLD_TOP + 100);
   }
 
   render(ctx: CanvasRenderingContext2D) {
@@ -78,14 +67,9 @@ export class Bullet implements GameObject {
     BoundingBoxFigure.renderPositions(ctx, this.bounds.getBoundingPositions(this.transform.position));
   }
 
-  getAbsoluteBounds() {
-    // For Bullet, position is at center, so we can use the BoundingBox method directly
-    return this.bounds.getAbsoluteBounds(this.transform.position);
-  }
-
   getExplosionParameters(entity: DamageableEntity) {
     const config = entity.getBulletExplosionParameters();
-    
+
     return {
       position: this.transform.position,
       radius: config.radius,
@@ -103,7 +87,7 @@ export class Bullet implements GameObject {
     };
   }
 
-  deactivate(reason: string, terrain?: Terrain) {
+  override deactivate(reason: string, terrain?: Terrain) {
     let terrainY = '(n/a)';
     if (terrain) {
       try {

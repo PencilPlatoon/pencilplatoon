@@ -130,11 +130,6 @@ export class CollisionSystem {
       });
     });
 
-    rockets.forEach(rocket => {
-      if (!rocket.active) return;
-      this.handleRocketTerrainCollision(rocket, terrain);
-    });
-
     grenades.forEach(grenade => {
       if (!grenade.active && grenade.isExploded()) {
         this.handleExplosion(grenade, damageableEntities, particleSystem, soundManager);
@@ -176,13 +171,6 @@ export class CollisionSystem {
 
   private handleRocketDamageableEntityCollision(rocket: Rocket, entity: DamageableEntity): void {
     if (this.checkGameObjectCollision(rocket, entity)) {
-      rocket.explode();
-    }
-  }
-
-  private handleRocketTerrainCollision(rocket: Rocket, terrain: Terrain): void {
-    const rocketAbs = rocket.getAbsoluteBounds();
-    if (terrain.checkCollision(rocketAbs)) {
       rocket.explode();
     }
   }

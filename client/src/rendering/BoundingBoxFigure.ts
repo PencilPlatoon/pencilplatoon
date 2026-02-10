@@ -5,17 +5,17 @@ import { EntityTransform } from "@/game/types/EntityTransform";
 const isDebugMode = (): boolean =>
   typeof window !== 'undefined' && window.__DEBUG_MODE__ !== undefined ? window.__DEBUG_MODE__ : false;
 
-const withDebugDraw = (ctx: CanvasRenderingContext2D, draw: () => void): void => {
+const withDebugDraw = (ctx: CanvasRenderingContext2D, draw: () => void, color: string = 'red'): void => {
   if (!isDebugMode()) return;
   ctx.save();
-  ctx.strokeStyle = 'red';
+  ctx.strokeStyle = color;
   ctx.lineWidth = 1;
   draw();
   ctx.restore();
 };
 
 export class BoundingBoxFigure {
-  static render(ctx: CanvasRenderingContext2D, absBounds: AbsoluteBoundingBox) {
+  static render(ctx: CanvasRenderingContext2D, absBounds: AbsoluteBoundingBox, color?: string) {
     withDebugDraw(ctx, () => {
       const width = absBounds.lowerRight.x - absBounds.upperLeft.x;
       const height = absBounds.upperLeft.y - absBounds.lowerRight.y;
@@ -25,7 +25,7 @@ export class BoundingBoxFigure {
         width,
         height
       );
-    });
+    }, color);
   }
 
   static renderPositions(ctx: CanvasRenderingContext2D, boundingPositions: BoundingPositions) {

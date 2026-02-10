@@ -7,6 +7,7 @@ import {
   seededRandomInt,
   seededRandomChoice,
   seededRandomBoolean,
+  generateEntityId,
 } from "@/util/random";
 
 describe("SeededRandom", () => {
@@ -107,6 +108,18 @@ describe("SeededRandom", () => {
       expect(results).toContain(true);
       expect(results).toContain(false);
     });
+  });
+});
+
+describe("generateEntityId", () => {
+  it("starts with the given prefix", () => {
+    expect(generateEntityId("bullet")).toMatch(/^bullet_/);
+    expect(generateEntityId("rocket")).toMatch(/^rocket_/);
+  });
+
+  it("produces unique ids across calls", () => {
+    const ids = Array.from({ length: 10 }, () => generateEntityId("x"));
+    expect(new Set(ids).size).toBe(10);
   });
 });
 

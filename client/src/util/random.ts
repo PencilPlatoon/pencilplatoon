@@ -65,3 +65,6 @@ export function seededRandomChoice<T>(array: T[]): T {
 export function seededRandomBoolean(probability: number = 0.5): boolean {
   return getGlobalSeededRandom().randomBoolean(probability);
 }
+
+export const generateEntityId = (prefix: string): string =>
+  `${prefix}_${Date.now()}_${Math.random()}`;

@@ -1,51 +1,38 @@
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { HumanFigure } from "@/rendering/HumanFigure";
+import { TimedAnimation } from "./TimedAnimation";
 
-export class ThrowGrenadeMovement {
+export class ThrowGrenadeMovement extends TimedAnimation {
   static readonly THROW_CYCLE_DURATION_MS = 300;
 
-  private throwCycle: number = 0; // 0 = not throwing, 1 = full throw motion
-  private throwCycleStartTime: number = 0;
-  private throwAnimationDuration: number = ThrowGrenadeMovement.THROW_CYCLE_DURATION_MS;
-
-  constructor(private getNow: () => number = Date.now) {}
-
   startThrow(duration: number = ThrowGrenadeMovement.THROW_CYCLE_DURATION_MS): void {
-    this.throwCycle = 1;
-    this.throwCycleStartTime = this.getNow();
-    this.throwAnimationDuration = duration;
+    this.startAnimation(duration);
   }
 
   stopThrow(): void {
-    this.throwCycle = 0;
+    this.stopAnimation();
   }
 
   isInThrowState(): boolean {
-    return this.throwCycle > 0;
+    return this.isInProgress();
   }
 
   getThrowProgress(): number {
-    if (!this.isInThrowState()) return 0;
-    const animationTime = this.getNow() - this.throwCycleStartTime;
-    // throwCycle goes from 1 (start) to 0 (end)
-    return Math.max(0, 1 - (animationTime / this.throwAnimationDuration));
+    if (!this.isInProgress()) return 0;
+    // throwCycle goes from 1 (start) to 0 (end) — inverted from base progress
+    return Math.max(0, 1 - this.getProgress());
   }
 
   isThrowComplete(): boolean {
-    if (!this.isInThrowState()) return false;
+    if (!this.isInProgress()) return false;
     return this.getThrowProgress() === 0;
   }
 
-  reset(): void {
-    this.throwCycle = 0;
-    this.throwCycleStartTime = 0;
-  }
-
   getBackArmAngle(aimAngle: number): number {
-    if (!this.isInThrowState()) {
+    if (!this.isInProgress()) {
       return aimAngle;
     }
-    
+
     // During throwing, the back arm swings up and forward
     // Animation goes from 1 (start) to 0 (end)
     const throwProgress = 1 - this.getThrowProgress();
@@ -67,4 +54,3 @@ export class ThrowGrenadeMovement {
     return this.getThrowProgress();
   }
 }
-

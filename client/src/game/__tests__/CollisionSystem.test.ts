@@ -331,30 +331,6 @@ describe("CollisionSystem", () => {
     });
   });
 
-  describe("handleCollisions — rocket vs terrain", () => {
-    it("explodes rocket when terrain collision detected", () => {
-      const rocket = new Rocket(200, 200, { x: 100, y: 0 });
-      rocket.holder = null;
-      (rocket as any).lastHolder = null;
-      const particles = makeMockParticleSystem();
-      const sound = makeMockSoundManager();
-      const terrain = makeMockTerrain(true);
-
-      cs.handleCollisions({
-        bullets: [],
-        enemies: [],
-        grenades: [],
-        rockets: [rocket],
-        player: new Player(100, 400),
-        terrain,
-        particleSystem: particles as any,
-        soundManager: sound as any,
-      });
-
-      expect(rocket.isExploded()).toBe(true);
-    });
-  });
-
   describe("handleCollisions — explosion damage", () => {
     it("damages enemy when grenade explodes nearby", () => {
       const enemy = makeEnemy(500, 100);

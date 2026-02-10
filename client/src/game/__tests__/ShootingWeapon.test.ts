@@ -129,4 +129,37 @@ describe("ShootingWeapon", () => {
       expect(weapon.getCapacity()).toBe(5);
     });
   });
+
+  describe("getMuzzleTransform", () => {
+    it("returns position at weapon tip for rotation=0, facing=1", () => {
+      const weapon = new ShootingWeapon(FAST_GUN, getNow);
+      const muzzle = weapon.getMuzzleTransform(new EntityTransform({ x: 100, y: 200 }, 0, 1));
+      // x = 100 + cos(0)*20*1 = 120, y = 200 + sin(0)*20 = 200
+      expect(muzzle.position.x).toBeCloseTo(120);
+      expect(muzzle.position.y).toBeCloseTo(200);
+    });
+
+    it("flips x-offset when facing left", () => {
+      const weapon = new ShootingWeapon(FAST_GUN, getNow);
+      const muzzle = weapon.getMuzzleTransform(new EntityTransform({ x: 100, y: 200 }, 0, -1));
+      // x = 100 + cos(0)*20*(-1) = 80
+      expect(muzzle.position.x).toBeCloseTo(80);
+      expect(muzzle.position.y).toBeCloseTo(200);
+    });
+
+    it("applies rotation to offset", () => {
+      const weapon = new ShootingWeapon(FAST_GUN, getNow);
+      const muzzle = weapon.getMuzzleTransform(new EntityTransform({ x: 0, y: 0 }, Math.PI / 2, 1));
+      // x = cos(π/2)*20*1 ≈ 0, y = sin(π/2)*20 = 20
+      expect(muzzle.position.x).toBeCloseTo(0);
+      expect(muzzle.position.y).toBeCloseTo(20);
+    });
+
+    it("preserves rotation and facing in returned transform", () => {
+      const weapon = new ShootingWeapon(FAST_GUN, getNow);
+      const muzzle = weapon.getMuzzleTransform(new EntityTransform({ x: 0, y: 0 }, 1.5, -1));
+      expect(muzzle.rotation).toBe(1.5);
+      expect(muzzle.facing).toBe(-1);
+    });
+  });
 });

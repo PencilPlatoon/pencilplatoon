@@ -46,18 +46,14 @@ export class ShootingWeaponFigure {
     weapon: ShootingWeapon;
   }) {
     const position = transform.position;
-    const weaponX = position.x;
-    const weaponY = position.y;
-    
-    const weaponEndX = weaponX + Math.cos(transform.rotation) * weapon.type.size * transform.facing;
-    const weaponEndY = weaponY + Math.sin(transform.rotation) * weapon.type.size;
-    
+    const muzzle = weapon.getMuzzleTransform(transform);
+
     ctx.save();
     ctx.strokeStyle = "black";
     ctx.lineWidth = 3;
     ctx.beginPath();
-    ctx.moveTo(weaponX, toCanvasY(weaponY));
-    ctx.lineTo(weaponEndX, toCanvasY(weaponEndY));
+    ctx.moveTo(position.x, toCanvasY(position.y));
+    ctx.lineTo(muzzle.position.x, toCanvasY(muzzle.position.y));
     ctx.stroke();
     ctx.restore();
   }
@@ -87,14 +83,11 @@ export class ShootingWeaponFigure {
     BoundingBoxFigure.renderRotated({ ctx, boundingBox, transform });
 
     if (showAimLine) {
-      const position = transform.position;
-      const shootLineEndX = position.x + Math.cos(transform.rotation) * weapon.type.size * transform.facing;
-      const shootLineEndY = position.y + Math.sin(transform.rotation) * weapon.type.size;
-      const shootLineTransform = new EntityTransform({ x: shootLineEndX, y: shootLineEndY }, transform.rotation, transform.facing);
-      
+      const muzzleTransform = weapon.getMuzzleTransform(transform);
+
       StraightAimLineFigure.render({
         ctx,
-        transform: shootLineTransform,
+        transform: muzzleTransform,
         length: 100
       });
     }
