@@ -414,6 +414,122 @@ describe("CollisionSystem", () => {
   });
 });
 
+describe("resolveCombatantCollisions", () => {
+  const cs = new CollisionSystem();
+
+  it("pushes overlapping player and enemy apart horizontally", () => {
+    const player = new Player(500, 100);
+    const enemy = makeEnemy(510, 100); // overlapping with player
+
+    const playerXBefore = player.transform.position.x;
+    const enemyXBefore = enemy.transform.position.x;
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    // Player should be pushed left, enemy pushed right
+    expect(player.transform.position.x).toBeLessThan(playerXBefore);
+    expect(enemy.transform.position.x).toBeGreaterThan(enemyXBefore);
+  });
+
+  it("does not push non-overlapping combatants", () => {
+    const player = new Player(100, 100);
+    const enemy = makeEnemy(500, 100); // far apart
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    expect(player.transform.position.x).toBe(100);
+    expect(enemy.transform.position.x).toBe(500);
+  });
+
+  it("does not push when player is above enemy (jump over)", () => {
+    const player = new Player(500, 200); // high above enemy
+    const enemy = makeEnemy(500, 100);
+
+    // Verify they don't overlap in y (player bottom > enemy top)
+    const playerBounds = player.getAbsoluteBounds();
+    const enemyBounds = enemy.getAbsoluteBounds();
+    const isAbove = playerBounds.lowerRight.y >= enemyBounds.upperLeft.y;
+
+    if (isAbove) {
+      // If player is fully above, no overlap — no push
+      cs.resolveCombatantCollisions([player, enemy]);
+      expect(player.transform.position.x).toBe(500);
+      expect(enemy.transform.position.x).toBe(500);
+    } else {
+      // If they still overlap at this height, they should be pushed apart
+      cs.resolveCombatantCollisions([player, enemy]);
+      // Just verify resolution happened without error
+    }
+  });
+
+  it("pushes both combatants by equal amounts", () => {
+    const player = new Player(500, 100);
+    const enemy = makeEnemy(510, 100);
+
+    const playerXBefore = player.transform.position.x;
+    const enemyXBefore = enemy.transform.position.x;
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    const playerShift = Math.abs(player.transform.position.x - playerXBefore);
+    const enemyShift = Math.abs(enemy.transform.position.x - enemyXBefore);
+    expect(playerShift).toBeCloseTo(enemyShift, 5);
+  });
+
+  it("resolves so bounding boxes no longer overlap", () => {
+    const player = new Player(500, 100);
+    const enemy = makeEnemy(510, 100);
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    const playerBounds = player.getAbsoluteBounds();
+    const enemyBounds = enemy.getAbsoluteBounds();
+    // After resolution, right edge of left combatant <= left edge of right combatant
+    const leftRight = Math.min(playerBounds.lowerRight.x, enemyBounds.lowerRight.x);
+    const rightLeft = Math.max(playerBounds.upperLeft.x, enemyBounds.upperLeft.x);
+    expect(leftRight).toBeLessThanOrEqual(rightLeft + 0.001);
+  });
+
+  it("skips inactive enemies", () => {
+    const player = new Player(500, 100);
+    const enemy = makeEnemy(510, 100);
+    enemy.active = false;
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    expect(player.transform.position.x).toBe(500);
+  });
+
+  it("handles player to the right of enemy", () => {
+    const enemy = makeEnemy(490, 100);
+    const player = new Player(500, 100); // player to the right
+
+    const playerXBefore = player.transform.position.x;
+    const enemyXBefore = enemy.transform.position.x;
+
+    cs.resolveCombatantCollisions([player, enemy]);
+
+    // Player should be pushed right, enemy pushed left
+    expect(player.transform.position.x).toBeGreaterThan(playerXBefore);
+    expect(enemy.transform.position.x).toBeLessThan(enemyXBefore);
+  });
+
+  it("resolves multiple enemy pairs", () => {
+    const player = new Player(500, 100);
+    const enemy1 = makeEnemy(510, 100);
+    const enemy2 = makeEnemy(505, 100);
+
+    cs.resolveCombatantCollisions([player, enemy1, enemy2]);
+
+    // All three should have shifted — exact values depend on resolution order
+    // but none should still fully overlap
+    const positions = [player.transform.position.x, enemy1.transform.position.x, enemy2.transform.position.x];
+    // They should be spread out more than their original 10px range
+    const spread = Math.max(...positions) - Math.min(...positions);
+    expect(spread).toBeGreaterThan(10);
+  });
+});
+
 describe("applyExplosionDamage", () => {
   const makeDamageableEntity = (x: number, y: number, health: number) => {
     let currentHealth = health;

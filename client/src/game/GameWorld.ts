@@ -181,6 +181,8 @@ export class GameWorld {
       rocket.update(deltaTime, this.terrain);
     });
 
+    this.collisionSystem.resolveCombatantCollisions([this.player, ...this.enemies]);
+
     this.collisionSystem.handleCollisions({
       bullets: this.bullets,
       enemies: this.enemies,

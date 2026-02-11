@@ -1,6 +1,7 @@
 import { DamageableEntity, GameObject, ExplodingEntity } from "@/game/types/interfaces";
 import { Vector2 } from "@/game/types/Vector2";
 import { AbsoluteBoundingBox } from "@/game/types/BoundingBox";
+import { Combatant } from "@/game/entities/Combatant";
 import { Player } from "@/game/entities/Player";
 import { Enemy } from "@/game/entities/Enemy";
 import { Bullet } from "@/game/entities/Bullet";
@@ -85,6 +86,35 @@ export class CollisionSystem {
         boundsB
       )
     );
+  }
+
+  resolveCombatantCollisions(combatants: Combatant[]): void {
+    for (let i = 0; i < combatants.length; i++) {
+      for (let j = i + 1; j < combatants.length; j++) {
+        const a = combatants[i];
+        const b = combatants[j];
+        if (!a.active || !b.active) continue;
+
+        const boundsA = a.getAbsoluteBounds();
+        const boundsB = b.getAbsoluteBounds();
+        if (!checkAABBOverlap(boundsA, boundsB)) continue;
+
+        const centerAX = (boundsA.upperLeft.x + boundsA.lowerRight.x) / 2;
+        const centerBX = (boundsB.upperLeft.x + boundsB.lowerRight.x) / 2;
+
+        if (centerAX <= centerBX) {
+          const overlap = boundsA.lowerRight.x - boundsB.upperLeft.x;
+          const halfOverlap = overlap / 2;
+          a.transform.position.x -= halfOverlap;
+          b.transform.position.x += halfOverlap;
+        } else {
+          const overlap = boundsB.lowerRight.x - boundsA.upperLeft.x;
+          const halfOverlap = overlap / 2;
+          a.transform.position.x += halfOverlap;
+          b.transform.position.x -= halfOverlap;
+        }
+      }
+    }
   }
 
   handleCollisions({
