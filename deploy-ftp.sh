@@ -2,7 +2,7 @@
 set -euo pipefail
 
 # Config
-HOST=s119.servername.online
+HOST=sh-cp6.lax2.servername.online
 PORT=21
 LOCAL_DIR=dist/public
 REMOTE_DIR=/public_html/games/pencilplatoon

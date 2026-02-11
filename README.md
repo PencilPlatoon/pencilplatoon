@@ -33,66 +33,22 @@ npm run build
 ```
 - This will generate a `dist/` directory in the root containing all static assets.
 
-### 4. Serve the app
+### 4. Deploy to the production site
 
-You have two options:
+To build and deploy to the production site:
 
-**A. Serve as a static site (no backend required):**
-- You can use any basic HTTP server to serve the contents of `dist/public`.
-- Example with [serve](https://www.npmjs.com/package/serve):
-  ```sh
-  npx serve dist/public
-  ```
-- Example with Python:
-  ```sh
-  cd dist/public
-  python3 -m http.server
-  ```
-- The app does not require any backend or API for gameplay. All logic and assets are included in the static build.
+```
+npm run release
+```
 
-**B. Serve with the Node.js backend (for development or future API use):**
-- Build the backend and frontend:
-  ```sh
-  npm run build
-  ```
-- Start the production server:
-  ```sh
-  npm start
-  ```
-- The app will be served at [http://localhost:8888](http://localhost:8888)
+To only deploy:
 
-## Project Structure
-- `client/` - React frontend (game engine, UI, assets)
-- `server/` - Express backend (static files)
-- `shared/` - Shared types and schema
+```
+npm run deploy
+```
 
-## Mobile Controls
+Note: ~/.netrc needs the current hostname that ftp.alkaline.org resolves to, which can change occasionally. To get the current hostname:
 
-The game is fully playable on mobile devices! When playing on a mobile device, touch controls will automatically appear:
+echo | openssl s_client -connect ftp.alkaline.org:21 -starttls ftp 2>/dev/null | openssl x509 -noout -text | grep DNS:
 
-**Left Side (Movement):**
-- **Left Arrow (←)**: Move left
-- **Right Arrow (→)**: Move right  
-- **Up Arrow (↑)**: Jump
-
-**Right Side (Combat):**
-- **Shoot Button (🔫)**: Fire weapon
-- **Aim Up (↑)**: Aim upward
-- **Aim Down (↓)**: Aim downward
-
-The controls are positioned for comfortable thumb access and provide visual feedback when pressed.
-
-## Notes
-- Setup is required; all game logic runs client-side.
-- Static assets (sounds, textures, models) are served from the `public` directory.
-- The `server/` directory is only needed for development (`npm run dev`) or if you add backend features in the future.
-
-## Development Scripts
-- `npm run dev` - Start development server with hot reloading
-- `npm run build` - Build frontend and backend for production
-- `npm start` - Start production server
-- `npm run check` - TypeScript type checking
-
----
-
-Enjoy the game! 
+Then update ~/.netrc and deploy-ftp.sh to match.
