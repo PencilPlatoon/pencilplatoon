@@ -15,6 +15,8 @@ export const WEBLEY_REVOLVER: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.70 },
   capacity: 7,
   autoFiringType: 'semi-auto',
+  casingCategory: 'pistol',
+  ejectionPortRatioPosition: { x: 0.17, y: 0.68 },
 };
 
 export const RIFLE_A_MAIN_OFFENSIVE: ShootingWeaponType = {
@@ -30,7 +32,8 @@ export const RIFLE_A_MAIN_OFFENSIVE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.56 },
   capacity: 30,
   autoFiringType: 'auto',
-}
+  ejectionPortRatioPosition: { x: 0.31, y: 0.49 },
+};
 
 export const FNAF_BATTLE_RIFLE: ShootingWeaponType = {
   name: "FNAF Battle Rifle",
@@ -45,7 +48,8 @@ export const FNAF_BATTLE_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.42 },
   capacity: 20,
   autoFiringType: 'auto',
-}
+  ejectionPortRatioPosition: { x: 0.47, y: 0.46 },
+};
 
 export const AK200_ASSAULT_RIFLE: ShootingWeaponType = {
   name: "AK-200 Assault Rifle",
@@ -60,6 +64,7 @@ export const AK200_ASSAULT_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 0.99, y: 0.53 },
   capacity: 32,
   autoFiringType: 'auto',
+  ejectionPortRatioPosition: { x: 0.51, y: 0.44 },
 };
 
 export const M9_JOHNSON: ShootingWeaponType = {
@@ -75,6 +80,7 @@ export const M9_JOHNSON: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 10,
   autoFiringType: 'semi-auto',
+  ejectionPortRatioPosition: { x: 0.52, y: 0.55 },
 };
 
 export const M7_CARBINE: ShootingWeaponType = {
@@ -90,6 +96,7 @@ export const M7_CARBINE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.75 },
   capacity: 15,
   autoFiringType: 'semi-auto',
+  ejectionPortRatioPosition: { x: 0.54, y: 0.75 },
 };
 
 export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
@@ -105,6 +112,7 @@ export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 5,
   autoFiringType: 'semi-auto',
+  ejectionPortRatioPosition: { x: 0.53, y: 0.65 },
 };
 
 export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
@@ -123,6 +131,8 @@ export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
   pelletCount: 6,
   spreadAngle: 0.26,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
+  casingCategory: 'shotgun',
+  ejectionPortRatioPosition: { x: 0.76, y: 0.74 },
 };
 
 export const R_200_SHOTGUN: ShootingWeaponType = {
@@ -141,6 +151,8 @@ export const R_200_SHOTGUN: ShootingWeaponType = {
   pelletCount: 5,
   spreadAngle: 0.21,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
+  casingCategory: 'shotgun',
+  ejectionPortRatioPosition: { x: 0.69, y: 0.64 },
 };
 
 export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
@@ -159,6 +171,8 @@ export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
   pelletCount: 8,
   spreadAngle: 0.31,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
+  casingCategory: 'shotgun',
+  ejectionPortRatioPosition: { x: 0.41, y: 0.64 },
 };
 
 export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {
@@ -174,6 +188,7 @@ export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 12,
   autoFiringType: 'semi-auto',
+  ejectionPortRatioPosition: { x: 0.35, y: 0.65 },
 };
 
 export const BROWNING_MK3_MACHINE_GUN: ShootingWeaponType = {
@@ -186,9 +201,10 @@ export const BROWNING_MK3_MACHINE_GUN: ShootingWeaponType = {
   svgPath: "svg/browning-mk3.svg",
   primaryHoldRatioPosition: { x: 0.29, y: 0.30 },
   secondaryHoldRatioPosition: { x: 0.54, y: 0.44 },
-  muzzleRatioPosition: { x: 1.0, y: 0.5 },
+  muzzleRatioPosition: { x: 1.00, y: 0.50 },
   capacity: 100,
   autoFiringType: 'auto',
+  ejectionPortRatioPosition: { x: 0.75, y: 0.47 },
 };
 
 export const VP_37_SUBMACHINE_GUN: ShootingWeaponType = {
@@ -204,6 +220,7 @@ export const VP_37_SUBMACHINE_GUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.67 },
   capacity: 20,
   autoFiringType: 'auto',
+  ejectionPortRatioPosition: { x: 0.55, y: 0.54 },
 };
 
 export const MK_200_SNIPER_RIFLE: ShootingWeaponType = {
@@ -219,6 +236,7 @@ export const MK_200_SNIPER_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 0.99, y: 0.62 },
   capacity: 6,
   autoFiringType: 'semi-auto',
+  ejectionPortRatioPosition: { x: 0.44, y: 0.82 },
 };
 
 export const ALL_SHOOTING_WEAPONS: ShootingWeaponType[] = [

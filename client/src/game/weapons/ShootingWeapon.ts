@@ -1,4 +1,4 @@
-import { ShootingWeaponType, HoldableObject } from "@/game/types/interfaces";
+import { ShootingWeaponType, HoldableObject, CasingEjection } from "@/game/types/interfaces";
 import { Vector2 } from "@/game/types/Vector2";
 import { BoundingBox } from "@/game/types/BoundingBox";
 import { SVGInfo } from "@/util/SVGLoader";
@@ -7,6 +7,7 @@ import { Bullet } from "@/game/entities/Bullet";
 import { ShootingWeaponFigure } from "@/rendering/ShootingWeaponFigure";
 import { BoundingBoxFigure } from "@/rendering/BoundingBoxFigure";
 import { EntityTransform } from "@/game/types/EntityTransform";
+import { getCasingConfig } from "@/game/weapons/CasingCatalog";
 
 export class ShootingWeapon implements HoldableObject {
   type: ShootingWeaponType;
@@ -54,11 +55,10 @@ export class ShootingWeapon implements HoldableObject {
     }
   }
 
-  getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
+  getPointAlongBarrel(weaponTransform: EntityTransform, ratioPosition: Vector2): EntityTransform {
     const grip = this.type.primaryHoldRatioPosition;
-    const muzzle = this.type.muzzleRatioPosition;
-    const dx = this.boundingBox.width * (muzzle.x - grip.x);
-    const dy = this.boundingBox.height * (muzzle.y - grip.y);
+    const dx = this.boundingBox.width * (ratioPosition.x - grip.x);
+    const dy = this.boundingBox.height * (ratioPosition.y - grip.y);
     const cos = Math.cos(weaponTransform.rotation);
     const sin = Math.sin(weaponTransform.rotation);
     return new EntityTransform(
@@ -68,6 +68,46 @@ export class ShootingWeapon implements HoldableObject {
       },
       weaponTransform.rotation, weaponTransform.facing
     );
+  }
+
+  getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
+    return this.getPointAlongBarrel(weaponTransform, this.type.muzzleRatioPosition);
+  }
+
+  private static readonly EJECTION_PORT_RATIO = 0.6;
+
+  getEjectionPortTransform(weaponTransform: EntityTransform): EntityTransform {
+    return this.getPointAlongBarrel(weaponTransform, this.getEjectionPortRatioPosition());
+  }
+
+  getEjectionPortRatioPosition(): Vector2 {
+    if (this.type.ejectionPortRatioPosition) {
+      return this.type.ejectionPortRatioPosition;
+    }
+    const grip = this.type.primaryHoldRatioPosition;
+    const muzzle = this.type.muzzleRatioPosition;
+    const t = ShootingWeapon.EJECTION_PORT_RATIO;
+    return {
+      x: grip.x + (muzzle.x - grip.x) * t,
+      y: grip.y + (muzzle.y - grip.y) * t,
+    };
+  }
+
+  updateEjectionPortRatioPosition(ratioPosition: Vector2): void {
+    this.type.ejectionPortRatioPosition = ratioPosition;
+  }
+
+  getCasingEjection(weaponTransform: EntityTransform): CasingEjection | null {
+    const category = this.type.casingCategory ?? 'rifle';
+    const config = getCasingConfig(category);
+    const port = this.getEjectionPortTransform(weaponTransform);
+    const barrelAngle = weaponTransform.rotation;
+    const ejectionAngle = barrelAngle + (Math.PI / 2) * weaponTransform.facing;
+    return {
+      position: port.position,
+      direction: { x: Math.cos(ejectionAngle), y: Math.sin(ejectionAngle) },
+      config,
+    };
   }
 
   shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet[] {

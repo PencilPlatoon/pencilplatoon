@@ -2,6 +2,7 @@ import { Player } from "./entities/Player";
 import { Enemy } from "./entities/Enemy";
 import { Terrain } from "./world/Terrain";
 import { ParticleSystem } from "./systems/ParticleSystem";
+import { CasingSystem } from "./systems/CasingSystem";
 import { Camera } from "./systems/Camera";
 import { CollisionSystem } from "./systems/CollisionSystem";
 import { Bullet } from "./entities/Bullet";
@@ -36,6 +37,7 @@ export class GameWorld {
   rockets: Rocket[] = [];
   terrain: Terrain;
   particleSystem: ParticleSystem;
+  casingSystem: CasingSystem;
   camera: Camera;
   soundManager: SoundManager;
   collisionSystem: CollisionSystem;
@@ -75,6 +77,7 @@ export class GameWorld {
     this.camera = new Camera(cameraWidth, cameraHeight);
     this.terrain = new Terrain(this.currentLevelConfig.terrainColor);
     this.particleSystem = new ParticleSystem();
+    this.casingSystem = new CasingSystem();
     this.soundManager = new SoundManager();
     this.collisionSystem = new CollisionSystem();
     this.player = new Player(GameWorld.PLAYER_START_X, Terrain.WORLD_TOP);
@@ -112,6 +115,7 @@ export class GameWorld {
     this.allEnemies = [];
     this.activeEnemies.clear();
     this.particleSystem.clear();
+    this.casingSystem.clear();
 
     this.camera.reset();
 
@@ -153,8 +157,9 @@ export class GameWorld {
       enemy.update(deltaTime, playerCOG, this.terrain);
 
       if (enemy.canShoot(playerCOG)) {
-        const bullets = enemy.shoot(playerCOG);
+        const { bullets, casingEjection } = enemy.shoot(playerCOG);
         this.bullets.push(...bullets);
+        if (casingEjection) this.casingSystem.createCasing(casingEjection);
         this.soundManager.playShoot();
       }
     });
@@ -187,6 +192,7 @@ export class GameWorld {
     this.rockets = this.rockets.filter(rocket => rocket.active);
 
     this.particleSystem.update(deltaTime);
+    this.casingSystem.update(deltaTime);
 
     this.camera.followTarget(this.player.transform.position, deltaTime);
 
@@ -240,9 +246,10 @@ export class GameWorld {
     if (!triggerPressed) return;
     const newTriggerPress = !this.hasThisTriggeringShot;
     if (this.player.canShoot(newTriggerPress)) {
-      const bullets = this.player.shoot(newTriggerPress);
+      const { bullets, casingEjection } = this.player.shoot(newTriggerPress);
       if (bullets.length > 0) {
         this.bullets.push(...bullets);
+        if (casingEjection) this.casingSystem.createCasing(casingEjection);
         this.soundManager.playShoot(this.player.arsenal.heldShootingWeapon.type.soundEffect);
         this.hasThisTriggeringShot = true;
       }

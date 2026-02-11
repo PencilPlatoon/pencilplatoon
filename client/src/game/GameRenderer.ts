@@ -19,6 +19,7 @@ export const renderWorld = (
   world.bullets.forEach(bullet => bullet.render(ctx));
   world.grenades.forEach(grenade => grenade.render(ctx));
   world.rockets.forEach(rocket => rocket.render(ctx));
+  world.casingSystem.render(ctx);
   world.particleSystem.render(ctx);
 
   ctx.restore();

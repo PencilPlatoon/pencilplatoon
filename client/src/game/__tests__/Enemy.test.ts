@@ -104,7 +104,7 @@ describe("Enemy", () => {
     it("returns bullets when shooting", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
       const nearPlayer = { x: 600, y: 100 };
-      const bullets = enemy.shoot(nearPlayer);
+      const { bullets } = enemy.shoot(nearPlayer);
       expect(bullets.length).toBeGreaterThan(0);
     });
 

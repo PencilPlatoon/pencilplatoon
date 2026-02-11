@@ -1,6 +1,6 @@
 import { Vector2 } from '@/game/types/Vector2';
 
-export type ControlId = 'primary' | 'secondary' | 'weapon' | 'muzzle';
+export type ControlId = 'primary' | 'secondary' | 'weapon' | 'muzzle' | 'ejectionPort';
 
 export interface MoveableControl {
   id: ControlId;

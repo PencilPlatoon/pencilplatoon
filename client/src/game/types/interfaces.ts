@@ -79,6 +79,8 @@ export interface DamageDropoff {
   minDamageRatio: number;
 }
 
+export type CasingCategory = 'pistol' | 'rifle' | 'shotgun';
+
 export interface ShootingWeaponType extends HoldableObjectType {
   damage: number;
   fireInterval: number;
@@ -90,6 +92,8 @@ export interface ShootingWeaponType extends HoldableObjectType {
   pelletCount?: number;
   spreadAngle?: number;
   damageDropoff?: DamageDropoff;
+  casingCategory?: CasingCategory;
+  ejectionPortRatioPosition?: Vector2;
 }
 
 export interface GrenadeType extends HoldableObjectType {
@@ -118,6 +122,32 @@ export interface Particle {
   life: number;
   maxLife: number;
   size: number;
+}
+
+export interface CasingConfig {
+  width: number;
+  height: number;
+  color: string;
+  outlineColor: string;
+  ejectionSpeed: number;
+  spinRate: number;
+  life: number;
+}
+
+export interface Casing {
+  position: Vector2;
+  velocity: Vector2;
+  rotation: number;
+  rotationSpeed: number;
+  life: number;
+  maxLife: number;
+  config: CasingConfig;
+}
+
+export interface CasingEjection {
+  position: Vector2;
+  direction: Vector2;
+  config: CasingConfig;
 }
 
 export interface TerrainSegment {

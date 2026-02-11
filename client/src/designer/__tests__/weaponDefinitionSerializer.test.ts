@@ -74,4 +74,35 @@ describe("buildWeaponDefinition", () => {
     expect(result).not.toContain("rocketType:");
     expect(result).not.toContain("reloadAnimationDuration:");
   });
+
+  it("includes casingCategory when present", () => {
+    const weapon = ALL_SHOOTING_WEAPONS[0]; // Webley has casingCategory: 'pistol'
+    const result = buildWeaponDefinition(weapon);
+    expect(result).toContain("casingCategory: 'pistol'");
+  });
+
+  it("omits casingCategory when absent", () => {
+    // RIFLE_A_MAIN_OFFENSIVE (index 1) has no casingCategory
+    const weapon = ALL_SHOOTING_WEAPONS[1];
+    const result = buildWeaponDefinition(weapon);
+    expect(result).not.toContain("casingCategory:");
+  });
+
+  it("includes ejectionPortRatioPosition when present", () => {
+    const weapon = { ...ALL_SHOOTING_WEAPONS[0], ejectionPortRatioPosition: { x: 0.65, y: 0.40 } };
+    // Temporarily add to catalog for isShootingWeaponType check
+    ALL_SHOOTING_WEAPONS.push(weapon);
+    try {
+      const result = buildWeaponDefinition(weapon);
+      expect(result).toContain("ejectionPortRatioPosition: { x: 0.65, y: 0.40 }");
+    } finally {
+      ALL_SHOOTING_WEAPONS.pop();
+    }
+  });
+
+  it("omits ejectionPortRatioPosition when absent", () => {
+    const weapon = ALL_SHOOTING_WEAPONS[0];
+    const result = buildWeaponDefinition(weapon);
+    expect(result).not.toContain("ejectionPortRatioPosition:");
+  });
 });

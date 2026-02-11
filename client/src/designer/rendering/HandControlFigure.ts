@@ -20,7 +20,7 @@ export class HandControlFigure {
     
     const boxSize = HandControlFigure.BOX_SIZE;
     ctx.lineWidth = HandControlFigure.LINE_WIDTH;
-    ctx.strokeStyle = isHovered ? '#00dd00' : '#00ff00';
+    ctx.strokeStyle = isHovered ? control.hoverColor : control.color;
     ctx.strokeRect(position.x - boxSize/2, position.y - boxSize/2, boxSize, boxSize);
     
     ctx.restore();

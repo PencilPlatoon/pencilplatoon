@@ -9,6 +9,7 @@ import { MoveableControl } from '../MoveableControl';
 import { WeaponPositionControl } from '../WeaponPositionControl';
 import { SecondaryHandControl } from '../SecondaryHandControl';
 import { MuzzlePositionControl } from '../MuzzlePositionControl';
+import { EjectionPortControl } from '../EjectionPortControl';
 import { DesignerModePositions } from '../DesignerModePositions';
 
 const { FIGURE_CENTER_X, FIGURE_CENTER_Y } = DesignerModePositions;
@@ -31,7 +32,8 @@ export function useDesignerWeapon(onWeaponLoaded: () => void) {
     controlsRef.current = [
       new WeaponPositionControl(player),
       new SecondaryHandControl(player),
-      new MuzzlePositionControl(player)
+      new MuzzlePositionControl(player),
+      new EjectionPortControl(player)
     ];
 
     return () => {

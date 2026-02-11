@@ -1,4 +1,4 @@
-import { Holder, HoldableObject } from "@/game/types/interfaces";
+import { Holder, HoldableObject, CasingEjection } from "@/game/types/interfaces";
 import { Vector2 } from "@/game/types/Vector2";
 import { Bullet } from "./Bullet";
 import { Terrain } from "@/game/world/Terrain";
@@ -176,9 +176,13 @@ export class Player extends Combatant implements Holder {
     }
   }
 
-  shoot(newTriggerPress: boolean): Bullet[] {
+  shoot(newTriggerPress: boolean): { bullets: Bullet[], casingEjection: CasingEjection | null } {
     const weaponTransform = this.getWeaponAbsTransform();
-    return this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
+    const bullets = this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
+    const casingEjection = bullets.length > 0
+      ? this.arsenal.heldShootingWeapon.getCasingEjection(weaponTransform)
+      : null;
+    return { bullets, casingEjection };
   }
 
   canStartThrow(): boolean {

@@ -1,3 +1,4 @@
+import { CasingEjection } from "@/game/types/interfaces";
 import { Vector2 } from "@/game/types/Vector2";
 import { Bullet } from "./Bullet";
 import { Terrain } from "@/game/world/Terrain";
@@ -86,7 +87,7 @@ export class Enemy extends Combatant {
     return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown;
   }
 
-  shoot(playerPos: Vector2): Bullet[] {
+  shoot(playerPos: Vector2): { bullets: Bullet[], casingEjection: CasingEjection | null } {
     this.lastShotTime = this.getNow();
     // Update aim angle to aim at player
     this.aimAngle = this.computeAimAngle(playerPos);
@@ -94,7 +95,11 @@ export class Enemy extends Combatant {
     // Get updated weapon transform with new aim angle
     const updatedWeaponTransform = this.getWeaponAbsTransform();
     // Enemies always fire in auto mode (they don't have semi-auto behavior)
-    return this.weapon.shoot(updatedWeaponTransform, false);
+    const bullets = this.weapon.shoot(updatedWeaponTransform, false);
+    const casingEjection = bullets.length > 0
+      ? this.weapon.getCasingEjection(updatedWeaponTransform)
+      : null;
+    return { bullets, casingEjection };
   }
 
   getEntityLabel(): string {
