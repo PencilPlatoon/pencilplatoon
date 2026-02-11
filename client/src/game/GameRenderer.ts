@@ -65,10 +65,31 @@ const renderUI = (
     ctx.fillText(`Ammo: ${world.player.arsenal.heldShootingWeapon.getBulletsLeft()}/${world.player.arsenal.heldShootingWeapon.getCapacity()}`, 22, 100);
   }
 
+  renderFlashMessage(ctx, canvas, world);
+
   if (world.debugMode) {
     renderProgressBar(ctx, canvas, world);
     renderDebugInfo(ctx, canvas, world);
   }
+};
+
+const renderFlashMessage = (
+  ctx: CanvasRenderingContext2D,
+  canvas: HTMLCanvasElement,
+  world: GameWorld,
+): void => {
+  const progress = world.getFlashMessageProgress();
+  if (progress === null || !world.flashMessage) return;
+
+  // Fade from black to light gray, then fade out opacity
+  const gray = Math.round(progress * 200);
+  const opacity = 1 - progress;
+  ctx.save();
+  ctx.font = "bold 20px Arial";
+  ctx.textAlign = "center";
+  ctx.fillStyle = `rgba(${gray}, ${gray}, ${gray}, ${opacity})`;
+  ctx.fillText(world.flashMessage, canvas.width / 2, canvas.height / 2);
+  ctx.restore();
 };
 
 const renderProgressBar = (

@@ -51,6 +51,10 @@ export class GameWorld {
   private isChargingThrow = false;
   private throwChargeStartTime = 0;
 
+  private static readonly FLASH_MESSAGE_DURATION_MS = 1500;
+  flashMessage: string | null = null;
+  private flashMessageStartTime = 0;
+
   private readonly getNow: () => number;
   private readonly onLevelComplete: () => void;
   private readonly onGameOver: () => void;
@@ -253,6 +257,10 @@ export class GameWorld {
         this.soundManager.playShoot(this.player.arsenal.heldShootingWeapon.type.soundEffect);
         this.hasThisTriggeringShot = true;
       }
+    } else if (newTriggerPress && this.player.arsenal.heldShootingWeapon.isEmptyMagazine()) {
+      this.soundManager.playEmptyMagazine();
+      this.showFlashMessage('Reload: press "R"');
+      this.hasThisTriggeringShot = true;
     }
   }
 
@@ -302,9 +310,26 @@ export class GameWorld {
 
   reloadWeapon() {
     this.player.reload();
+    this.soundManager.playReload();
   }
 
   switchWeaponCategory() {
     this.player.switchWeaponCategory();
+  }
+
+  showFlashMessage(message: string): void {
+    this.flashMessage = message;
+    this.flashMessageStartTime = this.getNow();
+  }
+
+  /** Returns 0-1 progress through the flash message lifetime, or null if no active message */
+  getFlashMessageProgress(): number | null {
+    if (!this.flashMessage) return null;
+    const elapsed = this.getNow() - this.flashMessageStartTime;
+    if (elapsed >= GameWorld.FLASH_MESSAGE_DURATION_MS) {
+      this.flashMessage = null;
+      return null;
+    }
+    return elapsed / GameWorld.FLASH_MESSAGE_DURATION_MS;
   }
 }

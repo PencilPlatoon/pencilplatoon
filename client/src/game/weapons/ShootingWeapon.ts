@@ -55,6 +55,10 @@ export class ShootingWeapon implements HoldableObject {
     }
   }
 
+  isEmptyMagazine(): boolean {
+    return this.bulletsLeft <= 0;
+  }
+
   getPointAlongBarrel(weaponTransform: EntityTransform, ratioPosition: Vector2): EntityTransform {
     const grip = this.type.primaryHoldRatioPosition;
     const dx = this.boundingBox.width * (ratioPosition.x - grip.x);

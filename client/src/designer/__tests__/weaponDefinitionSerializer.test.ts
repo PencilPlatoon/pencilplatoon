@@ -101,8 +101,14 @@ describe("buildWeaponDefinition", () => {
   });
 
   it("omits ejectionPortRatioPosition when absent", () => {
-    const weapon = ALL_SHOOTING_WEAPONS[0];
-    const result = buildWeaponDefinition(weapon);
-    expect(result).not.toContain("ejectionPortRatioPosition:");
+    const { ejectionPortRatioPosition: _, ...weaponWithout } = ALL_SHOOTING_WEAPONS[0];
+    const weapon = weaponWithout as typeof ALL_SHOOTING_WEAPONS[0];
+    ALL_SHOOTING_WEAPONS.push(weapon);
+    try {
+      const result = buildWeaponDefinition(weapon);
+      expect(result).not.toContain("ejectionPortRatioPosition:");
+    } finally {
+      ALL_SHOOTING_WEAPONS.pop();
+    }
   });
 });

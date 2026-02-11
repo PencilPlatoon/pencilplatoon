@@ -27,6 +27,8 @@ vi.mock("@/game/systems/SoundManager", () => {
     SoundManager: class {
       playHit = vi.fn();
       playShoot = vi.fn();
+      playEmptyMagazine = vi.fn();
+      playReload = vi.fn();
     },
   };
 });
