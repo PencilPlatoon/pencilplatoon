@@ -241,14 +241,33 @@ describe("Enemy", () => {
 
     it("clamps aim angle to ±π/3", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
-      // Target directly above — extreme angle
-      const aboveTarget = { x: 501, y: 10000 };
+      // Target nearly directly above but within detection range (distance ~399)
+      const aboveTarget = { x: 501, y: 499 };
       for (let i = 0; i < 100; i++) {
         enemy.update(0.05, aboveTarget, mockTerrain);
       }
       const angle = enemy.getWeaponAbsTransform().rotation;
       expect(angle).toBeLessThanOrEqual(Math.PI / 3 + 0.01);
       expect(angle).toBeGreaterThanOrEqual(-Math.PI / 3 - 0.01);
+    });
+
+    it("aims straight forward when patrolling", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      // First aim upward at a nearby target
+      const nearTarget = { x: 600, y: 300 };
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearTarget, mockTerrain);
+      }
+      const aimedAngle = enemy.getWeaponAbsTransform().rotation;
+      expect(aimedAngle).toBeGreaterThan(0.1);
+
+      // Now move target far away so enemy patrols — aim should return to 0
+      const farTarget = { x: 5000, y: 100 };
+      for (let i = 0; i < 100; i++) {
+        enemy.update(0.05, farTarget, mockTerrain);
+      }
+      const patrolAngle = enemy.getWeaponAbsTransform().rotation;
+      expect(patrolAngle).toBeCloseTo(0, 1);
     });
   });
 
@@ -395,13 +414,12 @@ describe("Enemy", () => {
   describe("recoil and aim correction", () => {
     it("enemy gradually corrects aim instead of snapping", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
-      // Target far above to create a large aim angle difference
-      const highTarget = { x: 600, y: 500 };
+      // Target above and within detection range (distance ~224 < 400)
+      const highTarget = { x: 600, y: 300 };
       enemy.update(0.016, highTarget, mockTerrain);
       const angleAfterOneUpdate = enemy.getWeaponAbsTransform().rotation;
       // Should have moved toward target but not reached it
       expect(angleAfterOneUpdate).toBeGreaterThan(0);
-      // Compute what the instant snap would be (large angle)
       // With gradual correction at 3 rad/s and dt=0.016, max correction = 0.048
       expect(angleAfterOneUpdate).toBeLessThan(0.1);
     });

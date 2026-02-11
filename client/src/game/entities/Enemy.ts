@@ -51,8 +51,8 @@ export class Enemy extends Combatant {
 
     this.applyPhysics(deltaTime, terrain);
 
-    // Gradual aim correction toward player (replacing instant snap)
-    const targetAngle = this.computeAimAngle(playerPos);
+    const isEngaged = this.lockedIn || distanceToPlayer <= Enemy.DETECTION_RANGE;
+    const targetAngle = isEngaged ? this.computeAimAngle(playerPos) : 0;
     const diff = targetAngle - this.aimAngle;
     const maxCorrection = Enemy.AIM_CORRECTION_SPEED * deltaTime;
     if (Math.abs(diff) <= maxCorrection) {
