@@ -155,6 +155,7 @@ export class GameWorld {
       if (enemy.canShoot(playerCOG)) {
         const bullets = enemy.shoot(playerCOG);
         this.bullets.push(...bullets);
+        this.soundManager.playShoot();
       }
     });
 
@@ -242,7 +243,7 @@ export class GameWorld {
       const bullets = this.player.shoot(newTriggerPress);
       if (bullets.length > 0) {
         this.bullets.push(...bullets);
-        this.soundManager.playShoot();
+        this.soundManager.playShoot(this.player.arsenal.heldShootingWeapon.type.soundEffect);
         this.hasThisTriggeringShot = true;
       }
     }

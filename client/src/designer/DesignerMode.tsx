@@ -1,18 +1,43 @@
-import { useRef } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import { DesignerModePositions } from './index';
+import { isShootingWeaponType } from './index';
 import { Button } from '@/components/ui/button';
 import { WeaponIcon } from './WeaponIcon';
 import { WeaponDefinitionBox, WeaponDefinitionBoxRef } from './WeaponDefinitionBox';
+import { SoundSelector } from './SoundSelector';
 import { useDesignerWeapon } from './hooks/useDesignerWeapon';
 import { useControlDrag } from './hooks/useControlDrag';
 import { useDesignerCanvas } from './hooks/useDesignerCanvas';
+import { ShootingWeaponType } from '@/game/types/interfaces';
 import { X } from 'lucide-react';
 
 const { CANVAS_WIDTH, CANVAS_HEIGHT } = DesignerModePositions;
 
+function useCoverScale(containerRef: React.RefObject<HTMLDivElement | null>) {
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const observer = new ResizeObserver(([entry]) => {
+      const { width, height } = entry.contentRect;
+      setScale(Math.max(width / CANVAS_WIDTH, height / CANVAS_HEIGHT));
+    });
+
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [containerRef]);
+
+  return scale;
+}
+
 export function DesignerMode({ onExit }: { onExit: () => void }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const canvasContainerRef = useRef<HTMLDivElement>(null);
   const weaponDefinitionBoxRef = useRef<WeaponDefinitionBoxRef>(null);
+  const [assignedSound, setAssignedSound] = useState<string | null>(null);
+  const coverScale = useCoverScale(canvasContainerRef);
 
   const onWeaponLoaded = () => weaponDefinitionBoxRef.current?.updateDefinition();
   const onControlMoved = () => weaponDefinitionBoxRef.current?.updateDefinition();
@@ -26,6 +51,25 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
     playerRef,
     controlsRef,
   } = useDesignerWeapon(onWeaponLoaded);
+
+  // Sync assignedSound when weapon changes
+  useEffect(() => {
+    const weaponType = allWeapons[selectedWeaponIndex];
+    if (weaponType && isShootingWeaponType(weaponType)) {
+      setAssignedSound((weaponType as ShootingWeaponType).soundEffect ?? null);
+    } else {
+      setAssignedSound(null);
+    }
+  }, [selectedWeaponIndex, allWeapons]);
+
+  const handleAssignSound = useCallback((filename: string | null) => {
+    const weaponType = allWeapons[selectedWeaponIndex];
+    if (weaponType && isShootingWeaponType(weaponType)) {
+      (weaponType as ShootingWeaponType).soundEffect = filename ?? undefined;
+      setAssignedSound(filename);
+      weaponDefinitionBoxRef.current?.updateDefinition();
+    }
+  }, [allWeapons, selectedWeaponIndex]);
 
   const {
     hoveredControlRef,
@@ -83,8 +127,9 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
         </div>
       </div>
 
-      {/* Canvas */}
-      <div className="flex-1 flex items-center justify-center">
+      {/* Canvas + side panels */}
+      <div ref={canvasContainerRef} className="flex-1 relative min-h-0 overflow-hidden">
+        {/* Canvas covers full area, centered in viewport */}
         <canvas
           ref={canvasRef}
           width={CANVAS_WIDTH}
@@ -94,24 +139,19 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
           tabIndex={0}
-          className="border-2 border-gray-300 shadow-lg"
+          className="absolute left-1/2"
+          style={{ top: '75%', transform: `translate(-50%, -50%) scale(${coverScale})` }}
         />
-      </div>
 
-      {/* Weapon definition text box */}
-      <WeaponDefinitionBox ref={weaponDefinitionBoxRef} playerRef={playerRef} />
+        {/* Sound selector floating on top */}
+        <div className="absolute inset-y-0 left-0 z-10">
+          <SoundSelector assignedSound={assignedSound} onAssign={handleAssignSound} />
+        </div>
 
-      {/* Instructions */}
-      <div className="absolute bottom-4 left-4 text-gray-800 text-sm bg-white p-4 rounded border border-gray-300 shadow-lg max-w-md">
-        <p className="font-bold mb-2">Instructions:</p>
-        <ul className="list-disc list-inside space-y-1">
-          <li>Use Guns/Launchers to select category</li>
-          <li>Click weapons at top to switch</li>
-          <li>Drag red square (weapon position) to adjust primary hold</li>
-          <li>Drag green square (secondary hand) to adjust secondary hold</li>
-          <li>Drag blue square to adjust muzzle/aim line position</li>
-          <li>Copy weapon definition from text box (lower right)</li>
-        </ul>
+        {/* Weapon definition box floating at bottom right */}
+        <div className="absolute bottom-0 right-0 z-10">
+          <WeaponDefinitionBox ref={weaponDefinitionBoxRef} playerRef={playerRef} />
+        </div>
       </div>
     </div>
   );

@@ -26,6 +26,7 @@ function buildGunFields(type: ShootingWeaponType): string[] {
     `  capacity: ${type.capacity},`,
     `  autoFiringType: '${type.autoFiringType}',`,
   ];
+  if (type.soundEffect) fields.push(`  soundEffect: "${type.soundEffect}",`);
   if (type.pelletCount !== undefined) fields.push(`  pelletCount: ${type.pelletCount},`);
   if (type.spreadAngle !== undefined) fields.push(`  spreadAngle: ${type.spreadAngle},`);
   if (type.damageDropoff !== undefined) fields.push(`  damageDropoff: { effectiveRange: ${type.damageDropoff.effectiveRange}, minDamageRatio: ${type.damageDropoff.minDamageRatio} },`);
