@@ -333,6 +333,65 @@ describe("Enemy", () => {
     });
   });
 
+  describe("lock-in on damage", () => {
+    it("chases player beyond detection range after taking damage", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const farPlayer = { x: 1500, y: 100 }; // well beyond DETECTION_RANGE (400)
+
+      // Before damage: should patrol (not chase)
+      enemy.update(0.1, farPlayer, mockTerrain);
+      const xAfterPatrol = enemy.transform.position.x;
+
+      // Take non-lethal damage
+      enemy.takeDamage(10);
+      expect(enemy.active).toBe(true);
+
+      // After damage: should chase toward player despite distance
+      enemy.update(0.1, farPlayer, mockTerrain);
+      expect(enemy.transform.position.x).toBeGreaterThan(xAfterPatrol);
+      expect(enemy.transform.facing).toBe(1); // facing toward player
+    });
+
+    it("does not lock in when damage is lethal", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      enemy.takeDamage(Enemy.MAX_HEALTH);
+      expect(enemy.active).toBe(false);
+      // lockedIn is private, but we verify indirectly: a dead enemy won't update anyway
+    });
+
+    it("keeps chasing even after player exits detection range", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+
+      // Hit enemy to lock in
+      enemy.takeDamage(10);
+
+      // Player starts close then moves far away
+      const nearPlayer = { x: 600, y: 100 };
+      enemy.update(0.1, nearPlayer, mockTerrain);
+      const xAfterChaseNear = enemy.transform.position.x;
+
+      // Player now far beyond detection range
+      const farPlayer = { x: 2000, y: 100 };
+      enemy.update(0.1, farPlayer, mockTerrain);
+
+      // Should still chase (not patrol) — moving toward far player
+      expect(enemy.transform.position.x).toBeGreaterThan(xAfterChaseNear);
+      expect(enemy.transform.facing).toBe(1);
+    });
+
+    it("patrols when not locked in and player is beyond detection range", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const farPlayer = { x: 5000, y: 100 };
+
+      // Without damage, enemy should patrol (not chase far player)
+      enemy.update(0.1, farPlayer, mockTerrain);
+      // Patrol moves at half speed in patrol direction, not toward distant player
+      const distMoved = Math.abs(enemy.transform.position.x - 500);
+      // Patrol speed = 62.5, so in 0.1s moves ~6.25px — much less than chase speed toward far player
+      expect(distMoved).toBeLessThan(20);
+    });
+  });
+
   describe("recoil and aim correction", () => {
     it("enemy gradually corrects aim instead of snapping", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);

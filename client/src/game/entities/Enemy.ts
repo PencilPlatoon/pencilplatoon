@@ -21,6 +21,7 @@ export class Enemy extends Combatant {
   private weapon: ShootingWeapon;
   private patrolDirection = 1;
   private patrolStartX: number;
+  private lockedIn = false;
 
   private getNow: () => number;
 
@@ -42,7 +43,7 @@ export class Enemy extends Combatant {
       Math.pow(playerPos.y - this.transform.position.y, 2)
     );
 
-    if (distanceToPlayer <= Enemy.DETECTION_RANGE) {
+    if (this.lockedIn || distanceToPlayer <= Enemy.DETECTION_RANGE) {
       this.chasePlayer(playerPos, deltaTime);
     } else {
       this.patrol(deltaTime);
@@ -116,6 +117,13 @@ export class Enemy extends Combatant {
       ? this.weapon.getCasingEjection(updatedWeaponTransform)
       : null;
     return { bullets, casingEjection };
+  }
+
+  takeDamage(damage: number): void {
+    super.takeDamage(damage);
+    if (this.active) {
+      this.lockedIn = true;
+    }
   }
 
   getEntityLabel(): string {
