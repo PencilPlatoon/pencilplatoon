@@ -94,6 +94,7 @@ export interface ShootingWeaponType extends HoldableObjectType {
   damageDropoff?: DamageDropoff;
   casingCategory?: CasingCategory;
   ejectionPortRatioPosition?: Vector2;
+  recoil?: number;
 }
 
 export interface GrenadeType extends HoldableObjectType {

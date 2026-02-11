@@ -77,9 +77,12 @@ describe("Enemy", () => {
 
     it("returns true when player is in range and cooldown passed", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
-      // Player just in front
       const nearPlayer = { x: 600, y: 100 };
-      // First shot should be possible (lastShotTime = 0, now = 1000)
+      // Converge aim before checking canShoot (gradual aim correction)
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      now = 2000; // ensure cooldown passed
       expect(enemy.canShoot(nearPlayer)).toBe(true);
     });
 
@@ -94,8 +97,17 @@ describe("Enemy", () => {
     it("returns true after cooldown expires", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
       const nearPlayer = { x: 600, y: 100 };
+      // Converge aim, then shoot, then re-converge
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
       enemy.shoot(nearPlayer);
       now = 2000; // 1000ms > 800ms
+      // Re-converge aim after recoil divergence
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      now = 5000; // ensure cooldown passed after updates
       expect(enemy.canShoot(nearPlayer)).toBe(true);
     });
   });
@@ -201,12 +213,17 @@ describe("Enemy", () => {
     it("aims higher at an elevated target", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
       const levelTarget = { x: 600, y: 100 };
-      enemy.update(0.016, levelTarget, mockTerrain);
+      // Multiple updates for gradual aim correction to converge
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, levelTarget, mockTerrain);
+      }
       const levelAngle = enemy.getWeaponAbsTransform().rotation;
 
       const enemy2 = new Enemy(500, 100, "e2", getNow);
       const highTarget = { x: 600, y: 300 };
-      enemy2.update(0.016, highTarget, mockTerrain);
+      for (let i = 0; i < 50; i++) {
+        enemy2.update(0.05, highTarget, mockTerrain);
+      }
       const highAngle = enemy2.getWeaponAbsTransform().rotation;
 
       expect(highAngle).toBeGreaterThan(levelAngle);
@@ -215,7 +232,9 @@ describe("Enemy", () => {
     it("aims downward at a target below", () => {
       const enemy = new Enemy(500, 200, "e1", getNow);
       const lowTarget = { x: 600, y: 50 };
-      enemy.update(0.016, lowTarget, mockTerrain);
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, lowTarget, mockTerrain);
+      }
       const angle = enemy.getWeaponAbsTransform().rotation;
       expect(angle).toBeLessThan(0);
     });
@@ -224,7 +243,9 @@ describe("Enemy", () => {
       const enemy = new Enemy(500, 100, "e1", getNow);
       // Target directly above — extreme angle
       const aboveTarget = { x: 501, y: 10000 };
-      enemy.update(0.016, aboveTarget, mockTerrain);
+      for (let i = 0; i < 100; i++) {
+        enemy.update(0.05, aboveTarget, mockTerrain);
+      }
       const angle = enemy.getWeaponAbsTransform().rotation;
       expect(angle).toBeLessThanOrEqual(Math.PI / 3 + 0.01);
       expect(angle).toBeGreaterThanOrEqual(-Math.PI / 3 - 0.01);
@@ -309,6 +330,80 @@ describe("Enemy", () => {
       expect(params.colors.length).toBeGreaterThan(0);
       expect(params.particleCount).toBeGreaterThan(0);
       expect(params.radius).toBeGreaterThan(0);
+    });
+  });
+
+  describe("recoil and aim correction", () => {
+    it("enemy gradually corrects aim instead of snapping", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      // Target far above to create a large aim angle difference
+      const highTarget = { x: 600, y: 500 };
+      enemy.update(0.016, highTarget, mockTerrain);
+      const angleAfterOneUpdate = enemy.getWeaponAbsTransform().rotation;
+      // Should have moved toward target but not reached it
+      expect(angleAfterOneUpdate).toBeGreaterThan(0);
+      // Compute what the instant snap would be (large angle)
+      // With gradual correction at 3 rad/s and dt=0.016, max correction = 0.048
+      expect(angleAfterOneUpdate).toBeLessThan(0.1);
+    });
+
+    it("enemy cannot shoot while aim is off target", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      // Place player at same height so target angle ≈ 0
+      const nearPlayer = { x: 600, y: 100 };
+      // Manually set aim far off target
+      (enemy as any).aimAngle = 0.5; // well above accuracy threshold of 0.05
+      now = 2000; // ensure cooldown has passed
+      expect(enemy.canShoot(nearPlayer)).toBe(false);
+    });
+
+    it("enemy can shoot once aim is corrected", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const nearPlayer = { x: 600, y: 100 };
+      // Converge aim with many updates
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      now = 2000;
+      expect(enemy.canShoot(nearPlayer)).toBe(true);
+    });
+
+    it("shoot applies recoil to enemy", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const nearPlayer = { x: 600, y: 100 };
+      // Converge aim first
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      const rotBefore = enemy.getWeaponAbsTransform().rotation;
+      enemy.shoot(nearPlayer);
+      const rotAfter = enemy.getWeaponAbsTransform().rotation;
+      // Recoil kicks aim upward
+      expect(rotAfter).toBeGreaterThan(rotBefore);
+    });
+
+    it("enemy re-aims after recoil divergence", () => {
+      const enemy = new Enemy(500, 100, "e1", getNow);
+      const nearPlayer = { x: 600, y: 100 };
+      // Converge aim
+      for (let i = 0; i < 50; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      const rotBeforeShot = enemy.getWeaponAbsTransform().rotation;
+      // Shoot to apply recoil + divergence
+      enemy.shoot(nearPlayer);
+      const rotAfterShot = enemy.getWeaponAbsTransform().rotation;
+      // Recoil kicked aim away from converged position
+      expect(rotAfterShot).not.toBeCloseTo(rotBeforeShot, 2);
+      // Update many times to recover recoil and re-correct aim
+      for (let i = 0; i < 100; i++) {
+        enemy.update(0.05, nearPlayer, mockTerrain);
+      }
+      const rotAfterRecovery = enemy.getWeaponAbsTransform().rotation;
+      // Difference from pre-shot rotation should be smaller after recovery
+      const driftAfterShot = Math.abs(rotAfterShot - rotBeforeShot);
+      const driftAfterRecovery = Math.abs(rotAfterRecovery - rotBeforeShot);
+      expect(driftAfterRecovery).toBeLessThan(driftAfterShot);
     });
   });
 });

@@ -14,6 +14,8 @@ export class Enemy extends Combatant {
   private static readonly SHOOTING_RANGE = 300;
   private static readonly PATROL_RANGE = 200;
   private static readonly FIRE_INTERVAL = 800; // ms, distinct from weapon fireInterval
+  private static readonly AIM_CORRECTION_SPEED = 3; // rad/s — how fast enemy re-aims
+  private static readonly AIM_ACCURACY_THRESHOLD = 0.05; // rad — must be this accurate to fire
 
   private lastShotTime = 0;
   private weapon: ShootingWeapon;
@@ -47,7 +49,18 @@ export class Enemy extends Combatant {
     }
 
     this.applyPhysics(deltaTime, terrain);
-    this.aimAngle = this.computeAimAngle(playerPos);
+
+    // Gradual aim correction toward player (replacing instant snap)
+    const targetAngle = this.computeAimAngle(playerPos);
+    const diff = targetAngle - this.aimAngle;
+    const maxCorrection = Enemy.AIM_CORRECTION_SPEED * deltaTime;
+    if (Math.abs(diff) <= maxCorrection) {
+      this.aimAngle = targetAngle;
+    } else {
+      this.aimAngle += Math.sign(diff) * maxCorrection;
+    }
+
+    this.updateRecoilRecovery(deltaTime);
   }
 
   private chasePlayer(playerPos: Vector2, deltaTime: number) {
@@ -84,18 +97,21 @@ export class Enemy extends Combatant {
     const enemyCooldown = now - this.lastShotTime > Enemy.FIRE_INTERVAL;
     // Enemies always fire in auto mode (they don't have semi-auto behavior)
     const weaponCooldown = this.weapon.canShoot(false);
-    return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown;
+    const targetAngle = this.computeAimAngle(playerPos);
+    const aimError = Math.abs(targetAngle - this.aimAngle);
+    const isAimedAccurately = aimError < Enemy.AIM_ACCURACY_THRESHOLD;
+    return distance <= Enemy.SHOOTING_RANGE && enemyCooldown && weaponCooldown && isAimedAccurately;
   }
 
   shoot(playerPos: Vector2): { bullets: Bullet[], casingEjection: CasingEjection | null } {
     this.lastShotTime = this.getNow();
-    // Update aim angle to aim at player
-    this.aimAngle = this.computeAimAngle(playerPos);
-
-    // Get updated weapon transform with new aim angle
+    // No longer snap aim — gradual correction happens in update()
     const updatedWeaponTransform = this.getWeaponAbsTransform();
     // Enemies always fire in auto mode (they don't have semi-auto behavior)
     const bullets = this.weapon.shoot(updatedWeaponTransform, false);
+    if (bullets.length > 0) {
+      this.applyRecoil(this.weapon.type.recoil ?? 0);
+    }
     const casingEjection = bullets.length > 0
       ? this.weapon.getCasingEjection(updatedWeaponTransform)
       : null;
@@ -124,7 +140,7 @@ export class Enemy extends Combatant {
       ctx,
       transform: this.transform,
       active: this.active,
-      aimAngle: this.aimAngle,
+      aimAngle: this.getEffectiveAimAngle(),
       isWalking: this.isWalking,
       walkCycle: this.walkCycle
     });

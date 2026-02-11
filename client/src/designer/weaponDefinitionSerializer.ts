@@ -32,6 +32,7 @@ function buildGunFields(type: ShootingWeaponType): string[] {
   if (type.damageDropoff !== undefined) fields.push(`  damageDropoff: { effectiveRange: ${type.damageDropoff.effectiveRange}, minDamageRatio: ${type.damageDropoff.minDamageRatio} },`);
   if (type.casingCategory !== undefined) fields.push(`  casingCategory: '${type.casingCategory}',`);
   if (type.ejectionPortRatioPosition !== undefined) fields.push(`  ejectionPortRatioPosition: ${formatRatioPosition(type.ejectionPortRatioPosition)},`);
+  if (type.recoil !== undefined) fields.push(`  recoil: ${type.recoil},`);
   return fields;
 }
 

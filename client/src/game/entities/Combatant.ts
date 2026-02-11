@@ -11,6 +11,9 @@ import { ThrowGrenadeMovement } from "@/game/animation/ThrowGrenadeMovement";
 
 const HEALTHBAR_OFFSET_Y = 20;
 const MAX_AIM_ANGLE = Math.PI / 3;
+const RECOIL_RECOVERY_RATE = 8;
+const RECOIL_DIVERGENCE_FACTOR = 0.5;
+const RECOIL_SNAP_THRESHOLD = 0.001;
 
 export abstract class Combatant implements DamageableEntity {
   id: string;
@@ -22,6 +25,7 @@ export abstract class Combatant implements DamageableEntity {
   previousPosition: Vector2;
 
   protected aimAngle: number = 0;
+  protected recoilOffset: number = 0;
   protected walkCycle: number = 0;
   protected isWalking: boolean = false;
   protected isGrounded: boolean = false;
@@ -57,6 +61,25 @@ export abstract class Combatant implements DamageableEntity {
 
   getCenterOfGravity(): Vector2 {
     return this.bounds.getAbsoluteCenter(this.transform.position);
+  }
+
+  protected getEffectiveAimAngle(): number {
+    return this.aimAngle + this.recoilOffset;
+  }
+
+  protected updateRecoilRecovery(deltaTime: number): void {
+    if (Math.abs(this.recoilOffset) > RECOIL_SNAP_THRESHOLD) {
+      this.recoilOffset *= 1 - RECOIL_RECOVERY_RATE * deltaTime;
+    } else {
+      this.recoilOffset = 0;
+    }
+  }
+
+  protected applyRecoil(recoil: number): void {
+    if (recoil > 0) {
+      this.recoilOffset += recoil * (0.8 + Math.random() * 0.4);
+      this.aimAngle += recoil * RECOIL_DIVERGENCE_FACTOR * (Math.random() * 2 - 1);
+    }
   }
 
   private handleTerrainCollision(terrain: Terrain): void {
@@ -95,12 +118,13 @@ export abstract class Combatant implements DamageableEntity {
     const pivotX = 0;
     const pivotY = HumanFigure.ARM_Y_OFFSET + verticalOffset;
 
-    const weaponX = pivotX + Math.cos(this.aimAngle) * horizontalOffset;
-    const weaponY = pivotY + Math.sin(this.aimAngle) * horizontalOffset;
+    const effectiveAim = this.getEffectiveAimAngle();
+    const weaponX = pivotX + Math.cos(effectiveAim) * horizontalOffset;
+    const weaponY = pivotY + Math.sin(effectiveAim) * horizontalOffset;
 
     return new EntityTransform(
       { x: weaponX, y: weaponY },
-      this.aimAngle,
+      effectiveAim,
       1
     );
   }
@@ -123,7 +147,7 @@ export abstract class Combatant implements DamageableEntity {
       const backHandTransform = HumanFigure.getBackHandTransform(0);
       return this.transform.applyTransform(backHandTransform);
     }
-    const forwardHandTransform = HumanFigure.getForwardHandTransform(this.aimAngle);
+    const forwardHandTransform = HumanFigure.getForwardHandTransform(this.getEffectiveAimAngle());
     return this.transform.applyTransform(forwardHandTransform);
   }
 

@@ -498,4 +498,91 @@ describe("Player", () => {
       expect(cog.y).toBeGreaterThan(player.transform.position.y);
     });
   });
+
+  describe("recoil", () => {
+    it("shoot applies recoil offset — weapon rotation increases", () => {
+      const before = player.getWeaponAbsTransform().rotation;
+      player.shoot(true);
+      const after = player.getWeaponAbsTransform().rotation;
+      expect(after).toBeGreaterThan(before);
+    });
+
+    it("shoot does not apply recoil when magazine is empty", () => {
+      player.arsenal.heldShootingWeapon.bulletsLeft = 0;
+      const before = player.getWeaponAbsTransform().rotation;
+      player.shoot(true);
+      const after = player.getWeaponAbsTransform().rotation;
+      expect(after).toBe(before);
+    });
+
+    it("recoil kick is randomized", () => {
+      const spy = vi.spyOn(Math, 'random');
+      try {
+        spy.mockReturnValue(0); // minimum kick (0.8x)
+        const p1 = new Player(100, 200);
+        p1.shoot(true);
+        const rot1 = p1.getWeaponAbsTransform().rotation;
+
+        spy.mockReturnValue(1); // maximum kick (1.2x)
+        const p2 = new Player(100, 200);
+        p2.shoot(true);
+        const rot2 = p2.getWeaponAbsTransform().rotation;
+
+        expect(rot1).not.toBeCloseTo(rot2);
+      } finally {
+        spy.mockRestore();
+      }
+    });
+
+    it("recoil adds permanent divergence to base aim", () => {
+      const beforeRotation = player.getWeaponAbsTransform().rotation;
+      player.shoot(true);
+      // Run many updates to fully recover recoilOffset
+      for (let i = 0; i < 100; i++) {
+        player.update(0.1, noInput, mockTerrain);
+      }
+      const afterRotation = player.getWeaponAbsTransform().rotation;
+      // aimAngle itself shifted due to divergence, so rotation differs
+      expect(afterRotation).not.toBeCloseTo(beforeRotation, 4);
+    });
+
+    it("recoil offset decays over time via update", () => {
+      player.shoot(true);
+      const rotationAfterShot = player.getWeaponAbsTransform().rotation;
+      player.update(0.1, noInput, mockTerrain);
+      const rotationAfterUpdate = player.getWeaponAbsTransform().rotation;
+      // Recoil decayed, so rotation should be closer to 0
+      expect(Math.abs(rotationAfterUpdate)).toBeLessThan(Math.abs(rotationAfterShot));
+    });
+
+    it("recoil offset snaps to zero when below threshold", () => {
+      player.shoot(true);
+      // Run many updates to fully recover
+      for (let i = 0; i < 100; i++) {
+        player.update(0.1, noInput, mockTerrain);
+      }
+      // After full recovery, weapon rotation should equal the diverged aimAngle
+      // (recoilOffset should be exactly 0, not some tiny residual)
+      const rotation = player.getWeaponAbsTransform().rotation;
+      // Shoot again and recover again — the difference should only be new divergence
+      const rotBefore = rotation;
+      player.shoot(true);
+      for (let i = 0; i < 100; i++) {
+        player.update(0.1, noInput, mockTerrain);
+      }
+      // Rotation changed only due to new divergence, not accumulated offset
+      // Just verify snapping works: rotation is stable after many updates
+      const rot1 = player.getWeaponAbsTransform().rotation;
+      player.update(0.1, noInput, mockTerrain);
+      const rot2 = player.getWeaponAbsTransform().rotation;
+      expect(rot1).toBe(rot2);
+    });
+
+    it("reset clears recoil offset", () => {
+      player.shoot(true);
+      expect(player.getWeaponAbsTransform().rotation).not.toBe(0);
+      player.reset(100, 200);
+      expect(player.getWeaponAbsTransform().rotation).toBe(0);
+    });
+  });
 });

@@ -68,6 +68,7 @@ export class Player extends Combatant implements Holder {
     this.health = Player.MAX_HEALTH;
     this.active = true;
     this.aimAngle = 0;
+    this.recoilOffset = 0;
     this.throwPower = 0;
     this.completedGrenade = null;
 
@@ -120,6 +121,7 @@ export class Player extends Combatant implements Holder {
       this.aimSpeed = 0;
     }
 
+    this.updateRecoilRecovery(deltaTime);
     this.applyPhysics(deltaTime, terrain);
   }
 
@@ -179,6 +181,9 @@ export class Player extends Combatant implements Holder {
   shoot(newTriggerPress: boolean): { bullets: Bullet[], casingEjection: CasingEjection | null } {
     const weaponTransform = this.getWeaponAbsTransform();
     const bullets = this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
+    if (bullets.length > 0) {
+      this.applyRecoil(this.arsenal.heldShootingWeapon.type.recoil ?? 0);
+    }
     const casingEjection = bullets.length > 0
       ? this.arsenal.heldShootingWeapon.getCasingEjection(weaponTransform)
       : null;
@@ -338,7 +343,7 @@ export class Player extends Combatant implements Holder {
       if (this.reloadMovement.isInReloadState() && this.arsenal.reloadingRocket) {
         const rocketTransform = this.reloadMovement.getRocketTransform({
           playerTransform: this.transform,
-          aimAngle: this.aimAngle,
+          aimAngle: this.getEffectiveAimAngle(),
           launcher: this.arsenal.heldLaunchingWeapon,
           weaponAbsTransform
         });
@@ -354,7 +359,7 @@ export class Player extends Combatant implements Holder {
     this.renderBoundingBox(ctx);
     
     // Get reload back arm angle if reloading
-    const reloadBackArmAngle = this.reloadMovement.getBackArmAngle(this.aimAngle);
+    const reloadBackArmAngle = this.reloadMovement.getBackArmAngle(this.getEffectiveAimAngle());
     const isThrowingOrReloading = this.throwMovement.isInThrowState() || reloadBackArmAngle !== null;
     
     // Calculate hand positions based on weapon dual-hold system
@@ -377,7 +382,7 @@ export class Player extends Combatant implements Holder {
       ctx,
       transform: this.transform,
       active: this.active,
-      aimAngle: this.aimAngle,
+      aimAngle: this.getEffectiveAimAngle(),
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
       throwingAnimation: this.throwMovement.getThrowCycle(),

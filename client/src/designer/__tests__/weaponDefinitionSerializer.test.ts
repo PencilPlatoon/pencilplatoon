@@ -111,4 +111,27 @@ describe("buildWeaponDefinition", () => {
       ALL_SHOOTING_WEAPONS.pop();
     }
   });
+
+  it("includes recoil when present", () => {
+    const weapon = { ...ALL_SHOOTING_WEAPONS[0], recoil: 0.05 };
+    ALL_SHOOTING_WEAPONS.push(weapon);
+    try {
+      const result = buildWeaponDefinition(weapon);
+      expect(result).toContain("recoil: 0.05");
+    } finally {
+      ALL_SHOOTING_WEAPONS.pop();
+    }
+  });
+
+  it("omits recoil when absent", () => {
+    const { recoil: _, ...weaponWithout } = ALL_SHOOTING_WEAPONS[0];
+    const weapon = weaponWithout as typeof ALL_SHOOTING_WEAPONS[0];
+    ALL_SHOOTING_WEAPONS.push(weapon);
+    try {
+      const result = buildWeaponDefinition(weapon);
+      expect(result).not.toContain("recoil:");
+    } finally {
+      ALL_SHOOTING_WEAPONS.pop();
+    }
+  });
 });

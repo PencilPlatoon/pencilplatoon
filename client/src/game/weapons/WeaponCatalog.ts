@@ -17,6 +17,7 @@ export const WEBLEY_REVOLVER: ShootingWeaponType = {
   autoFiringType: 'semi-auto',
   casingCategory: 'pistol',
   ejectionPortRatioPosition: { x: 0.17, y: 0.68 },
+  recoil: 0.06,
 };
 
 export const RIFLE_A_MAIN_OFFENSIVE: ShootingWeaponType = {
@@ -33,6 +34,7 @@ export const RIFLE_A_MAIN_OFFENSIVE: ShootingWeaponType = {
   capacity: 30,
   autoFiringType: 'auto',
   ejectionPortRatioPosition: { x: 0.31, y: 0.49 },
+  recoil: 0.03,
 };
 
 export const FNAF_BATTLE_RIFLE: ShootingWeaponType = {
@@ -49,6 +51,7 @@ export const FNAF_BATTLE_RIFLE: ShootingWeaponType = {
   capacity: 20,
   autoFiringType: 'auto',
   ejectionPortRatioPosition: { x: 0.47, y: 0.46 },
+  recoil: 0.025,
 };
 
 export const AK200_ASSAULT_RIFLE: ShootingWeaponType = {
@@ -65,6 +68,7 @@ export const AK200_ASSAULT_RIFLE: ShootingWeaponType = {
   capacity: 32,
   autoFiringType: 'auto',
   ejectionPortRatioPosition: { x: 0.51, y: 0.44 },
+  recoil: 0.035,
 };
 
 export const M9_JOHNSON: ShootingWeaponType = {
@@ -81,6 +85,7 @@ export const M9_JOHNSON: ShootingWeaponType = {
   capacity: 10,
   autoFiringType: 'semi-auto',
   ejectionPortRatioPosition: { x: 0.52, y: 0.55 },
+  recoil: 0.05,
 };
 
 export const M7_CARBINE: ShootingWeaponType = {
@@ -97,6 +102,7 @@ export const M7_CARBINE: ShootingWeaponType = {
   capacity: 15,
   autoFiringType: 'semi-auto',
   ejectionPortRatioPosition: { x: 0.54, y: 0.75 },
+  recoil: 0.04,
 };
 
 export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
@@ -113,6 +119,7 @@ export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
   capacity: 5,
   autoFiringType: 'semi-auto',
   ejectionPortRatioPosition: { x: 0.53, y: 0.65 },
+  recoil: 0.08,
 };
 
 export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
@@ -133,6 +140,7 @@ export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
   casingCategory: 'shotgun',
   ejectionPortRatioPosition: { x: 0.76, y: 0.74 },
+  recoil: 0.16,
 };
 
 export const R_200_SHOTGUN: ShootingWeaponType = {
@@ -153,6 +161,7 @@ export const R_200_SHOTGUN: ShootingWeaponType = {
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
   casingCategory: 'shotgun',
   ejectionPortRatioPosition: { x: 0.69, y: 0.64 },
+  recoil: 0.12,
 };
 
 export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
@@ -173,6 +182,7 @@ export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
   casingCategory: 'shotgun',
   ejectionPortRatioPosition: { x: 0.41, y: 0.64 },
+  recoil: 0.20,
 };
 
 export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {
@@ -189,6 +199,7 @@ export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {
   capacity: 12,
   autoFiringType: 'semi-auto',
   ejectionPortRatioPosition: { x: 0.35, y: 0.65 },
+  recoil: 0.30,
 };
 
 export const BROWNING_MK3_MACHINE_GUN: ShootingWeaponType = {
@@ -205,6 +216,7 @@ export const BROWNING_MK3_MACHINE_GUN: ShootingWeaponType = {
   capacity: 100,
   autoFiringType: 'auto',
   ejectionPortRatioPosition: { x: 0.75, y: 0.47 },
+  recoil: 0.02,
 };
 
 export const VP_37_SUBMACHINE_GUN: ShootingWeaponType = {
@@ -221,6 +233,7 @@ export const VP_37_SUBMACHINE_GUN: ShootingWeaponType = {
   capacity: 20,
   autoFiringType: 'auto',
   ejectionPortRatioPosition: { x: 0.55, y: 0.54 },
+  recoil: 0.02,
 };
 
 export const MK_200_SNIPER_RIFLE: ShootingWeaponType = {
@@ -237,6 +250,7 @@ export const MK_200_SNIPER_RIFLE: ShootingWeaponType = {
   capacity: 6,
   autoFiringType: 'semi-auto',
   ejectionPortRatioPosition: { x: 0.44, y: 0.82 },
+  recoil: 0.14,
 };
 
 export const ALL_SHOOTING_WEAPONS: ShootingWeaponType[] = [
