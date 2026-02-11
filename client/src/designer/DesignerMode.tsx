@@ -109,6 +109,7 @@ export function DesignerMode({ onExit }: { onExit: () => void }) {
           <li>Click weapons at top to switch</li>
           <li>Drag red square (weapon position) to adjust primary hold</li>
           <li>Drag green square (secondary hand) to adjust secondary hold</li>
+          <li>Drag blue square to adjust muzzle/aim line position</li>
           <li>Copy weapon definition from text box (lower right)</li>
         </ul>
       </div>

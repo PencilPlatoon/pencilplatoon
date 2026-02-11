@@ -65,6 +65,13 @@ export interface HoldableObjectType extends SVGObjectType {
    * null = secondary hand does not hold weapon (e.g., pistols)
    */
   secondaryHoldRatioPosition: Vector2 | null;
+  /**
+   * Muzzle/barrel opening position as fraction of weapon dimensions (0-1).
+   * x: 0 = base of weapon, 1 = tip of weapon
+   * y: 0.5 = center of weapon
+   * Used as the origin for aim lines and bullet/rocket spawning.
+   */
+  muzzleRatioPosition: Vector2;
 }
 
 export interface DamageDropoff {
@@ -126,4 +133,5 @@ export interface HoldableObject {
   render(ctx: CanvasRenderingContext2D, transform: EntityTransform): void;
   updatePrimaryHoldRatioPosition(ratioPosition: Vector2): void;
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void;
+  updateMuzzleRatioPosition(ratioPosition: Vector2): void;
 }

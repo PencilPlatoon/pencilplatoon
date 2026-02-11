@@ -55,9 +55,19 @@ export class ShootingWeapon implements HoldableObject {
   }
 
   getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
-    const endX = weaponTransform.position.x + Math.cos(weaponTransform.rotation) * this.type.size * weaponTransform.facing;
-    const endY = weaponTransform.position.y + Math.sin(weaponTransform.rotation) * this.type.size;
-    return new EntityTransform({ x: endX, y: endY }, weaponTransform.rotation, weaponTransform.facing);
+    const grip = this.type.primaryHoldRatioPosition;
+    const muzzle = this.type.muzzleRatioPosition;
+    const dx = this.boundingBox.width * (muzzle.x - grip.x);
+    const dy = this.boundingBox.height * (muzzle.y - grip.y);
+    const cos = Math.cos(weaponTransform.rotation);
+    const sin = Math.sin(weaponTransform.rotation);
+    return new EntityTransform(
+      {
+        x: weaponTransform.position.x + (cos * dx - sin * dy) * weaponTransform.facing,
+        y: weaponTransform.position.y + (sin * dx + cos * dy)
+      },
+      weaponTransform.rotation, weaponTransform.facing
+    );
   }
 
   shoot(transform: EntityTransform, newTriggerPress: boolean): Bullet[] {
@@ -143,5 +153,9 @@ export class ShootingWeapon implements HoldableObject {
 
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
     this.type.secondaryHoldRatioPosition = ratioPosition;
+  }
+
+  updateMuzzleRatioPosition(ratioPosition: Vector2): void {
+    this.type.muzzleRatioPosition = ratioPosition;
   }
 }

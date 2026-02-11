@@ -177,7 +177,7 @@ export class Player extends Combatant implements Holder {
   }
 
   shoot(newTriggerPress: boolean): Bullet[] {
-    const weaponTransform = this.getPrimaryHandAbsTransform();
+    const weaponTransform = this.getWeaponAbsTransform();
     return this.arsenal.heldShootingWeapon.shoot(weaponTransform, newTriggerPress);
   }
 
@@ -236,7 +236,7 @@ export class Player extends Combatant implements Holder {
       return null;
     }
     
-    const weaponTransform = this.getPrimaryHandAbsTransform();
+    const weaponTransform = this.getWeaponAbsTransform();
     const rocket = launcher.launch(weaponTransform);
     if (rocket) {
       this.arsenal.rocketCount--;

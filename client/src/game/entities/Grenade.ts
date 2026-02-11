@@ -158,4 +158,8 @@ export class Grenade extends ExplosiveProjectile implements HoldableObject {
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
     this.type.secondaryHoldRatioPosition = ratioPosition;
   }
+
+  updateMuzzleRatioPosition(ratioPosition: Vector2): void {
+    this.type.muzzleRatioPosition = ratioPosition;
+  }
 }

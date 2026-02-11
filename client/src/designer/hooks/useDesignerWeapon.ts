@@ -8,6 +8,7 @@ import { HumanFigure } from '@/rendering/HumanFigure';
 import { MoveableControl } from '../MoveableControl';
 import { WeaponPositionControl } from '../WeaponPositionControl';
 import { SecondaryHandControl } from '../SecondaryHandControl';
+import { MuzzlePositionControl } from '../MuzzlePositionControl';
 import { DesignerModePositions } from '../DesignerModePositions';
 
 const { FIGURE_CENTER_X, FIGURE_CENTER_Y } = DesignerModePositions;
@@ -29,7 +30,8 @@ export function useDesignerWeapon(onWeaponLoaded: () => void) {
 
     controlsRef.current = [
       new WeaponPositionControl(player),
-      new SecondaryHandControl(player)
+      new SecondaryHandControl(player),
+      new MuzzlePositionControl(player)
     ];
 
     return () => {

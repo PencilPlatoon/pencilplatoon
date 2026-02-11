@@ -94,16 +94,18 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
   }
 
   getMuzzleTransform(weaponTransform: EntityTransform): EntityTransform {
-    // Distance from reference point to right edge of weapon
-    const distanceToRightEdge = (1 - this.bounds.refRatioPosition.x) * this.bounds.width;
-    
-    const endX = weaponTransform.position.x + Math.cos(weaponTransform.rotation) * distanceToRightEdge * weaponTransform.facing;
-    const endY = weaponTransform.position.y + Math.sin(weaponTransform.rotation) * distanceToRightEdge;
-    
+    const grip = this.type.primaryHoldRatioPosition;
+    const muzzle = this.type.muzzleRatioPosition;
+    const dx = this.bounds.width * (muzzle.x - grip.x);
+    const dy = this.bounds.height * (muzzle.y - grip.y);
+    const cos = Math.cos(weaponTransform.rotation);
+    const sin = Math.sin(weaponTransform.rotation);
     return new EntityTransform(
-      { x: endX, y: endY },
-      weaponTransform.rotation,
-      weaponTransform.facing
+      {
+        x: weaponTransform.position.x + (cos * dx - sin * dy) * weaponTransform.facing,
+        y: weaponTransform.position.y + (sin * dx + cos * dy)
+      },
+      weaponTransform.rotation, weaponTransform.facing
     );
   }
 
@@ -147,6 +149,10 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
 
   updateSecondaryHoldRatioPosition(ratioPosition: Vector2): void {
     this.type.secondaryHoldRatioPosition = ratioPosition;
+  }
+
+  updateMuzzleRatioPosition(ratioPosition: Vector2): void {
+    this.type.muzzleRatioPosition = ratioPosition;
   }
 }
 

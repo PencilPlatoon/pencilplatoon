@@ -11,41 +11,44 @@ export function formatRatioPosition(pos: Vector2 | null): string {
   return `{ x: ${pos.x.toFixed(2)}, y: ${pos.y.toFixed(2)} }`;
 }
 
-function buildSharedFields(type: HoldableObjectType): string {
-  return [
+function buildGunFields(type: ShootingWeaponType): string[] {
+  const fields = [
     `  name: "${type.name}",`,
-    `  size: ${type.size},`,
-    `  svgPath: "${type.svgPath}",`,
-    `  primaryHoldRatioPosition: ${formatRatioPosition(type.primaryHoldRatioPosition)},`,
-    `  secondaryHoldRatioPosition: ${formatRatioPosition(type.secondaryHoldRatioPosition)},`,
-  ].join('\n');
-}
-
-function buildGunFields(type: ShootingWeaponType): string {
-  return [
     `  damage: ${type.damage},`,
     `  fireInterval: ${type.fireInterval},`,
     `  bulletSpeed: ${type.bulletSpeed},`,
     `  bulletSize: ${type.bulletSize},`,
+    `  size: ${type.size},`,
+    `  svgPath: "${type.svgPath}",`,
+    `  primaryHoldRatioPosition: ${formatRatioPosition(type.primaryHoldRatioPosition)},`,
+    `  secondaryHoldRatioPosition: ${formatRatioPosition(type.secondaryHoldRatioPosition)},`,
+    `  muzzleRatioPosition: ${formatRatioPosition(type.muzzleRatioPosition)},`,
     `  capacity: ${type.capacity},`,
     `  autoFiringType: '${type.autoFiringType}',`,
-  ].join('\n');
+  ];
+  if (type.pelletCount !== undefined) fields.push(`  pelletCount: ${type.pelletCount},`);
+  if (type.spreadAngle !== undefined) fields.push(`  spreadAngle: ${type.spreadAngle},`);
+  if (type.damageDropoff !== undefined) fields.push(`  damageDropoff: { effectiveRange: ${type.damageDropoff.effectiveRange}, minDamageRatio: ${type.damageDropoff.minDamageRatio} },`);
+  return fields;
 }
 
-function buildLauncherFields(type: LauncherType): string {
+function buildLauncherFields(type: LauncherType): string[] {
   return [
+    `  name: "${type.name}",`,
     `  rocketType: "${type.rocketType}",`,
     `  capacity: ${type.capacity},`,
     `  reloadAnimationDuration: ${type.reloadAnimationDuration},`,
-  ].join('\n');
+    `  size: ${type.size},`,
+    `  svgPath: "${type.svgPath}",`,
+    `  primaryHoldRatioPosition: ${formatRatioPosition(type.primaryHoldRatioPosition)},`,
+    `  secondaryHoldRatioPosition: ${formatRatioPosition(type.secondaryHoldRatioPosition)},`,
+    `  muzzleRatioPosition: ${formatRatioPosition(type.muzzleRatioPosition)},`,
+  ];
 }
 
 export function buildWeaponDefinition(type: HoldableObjectType): string {
-  const shared = buildSharedFields(type);
-
-  if (isShootingWeaponType(type)) {
-    return `{\n${buildGunFields(type)}\n${shared}\n}`;
-  }
-
-  return `{\n${buildLauncherFields(type as LauncherType)}\n${shared}\n}`;
+  const fields = isShootingWeaponType(type)
+    ? buildGunFields(type)
+    : buildLauncherFields(type as LauncherType);
+  return `{\n${fields.join('\n')}\n}`;
 }
