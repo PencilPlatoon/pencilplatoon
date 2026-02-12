@@ -385,6 +385,7 @@ export class Player extends Combatant implements Holder {
       aimAngle: this.getEffectiveAimAngle(),
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
+      color: 'purple',
       throwingAnimation: this.throwMovement.getThrowCycle(),
       reloadBackArmAngle,
       forwardHandPosition,

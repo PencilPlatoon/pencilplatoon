@@ -26,7 +26,7 @@ export const WeaponDefinitionBox = forwardRef<
   }, []);
 
   return (
-    <div className="absolute bottom-4 right-4 w-[28.75rem] h-64 bg-white border border-gray-300 rounded p-4 shadow-lg">
+    <div className="absolute bottom-4 right-4 w-[28.75rem] h-96 bg-white/75 border border-gray-300 rounded p-4 shadow-lg">
       <textarea
         value={definition}
         readOnly

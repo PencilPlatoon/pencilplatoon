@@ -248,6 +248,7 @@ export class HumanFigure {
     aimAngle,
     isWalking,
     walkCycle,
+    color = 'black',
     throwingAnimation = 0,
     reloadBackArmAngle = null,
     forwardHandPosition = null,
@@ -259,6 +260,7 @@ export class HumanFigure {
     aimAngle: number;
     isWalking: boolean;
     walkCycle: number;
+    color?: string;
     throwingAnimation?: number;
     reloadBackArmAngle?: number | null;
     forwardHandPosition?: Vector2 | null;
@@ -268,7 +270,8 @@ export class HumanFigure {
     const position = transform.position;
     ctx.save();
     ctx.lineWidth = 2;
-    
+    ctx.strokeStyle = color;
+
     // Debug mode: draw in dark pink
     if (window.__DEBUG_MODE__) {
       ctx.strokeStyle = '#c2185b';

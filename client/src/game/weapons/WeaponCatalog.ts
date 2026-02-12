@@ -15,6 +15,7 @@ export const WEBLEY_REVOLVER: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.70 },
   capacity: 7,
   autoFiringType: 'semi-auto',
+  soundEffect: "s-w-642-firing-the-gun.mp3",
   casingCategory: 'pistol',
   ejectionPortRatioPosition: { x: 0.17, y: 0.68 },
   recoil: 0.06,
@@ -50,6 +51,7 @@ export const FNAF_BATTLE_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.42 },
   capacity: 20,
   autoFiringType: 'auto',
+  soundEffect: "sks-carbine-firing-a-shot.mp3",
   ejectionPortRatioPosition: { x: 0.47, y: 0.46 },
   recoil: 0.025,
 };
@@ -84,6 +86,7 @@ export const M9_JOHNSON: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 10,
   autoFiringType: 'semi-auto',
+  soundEffect: "ruger-10-22-firing-the-gun-and-hitting-something.mp3",
   ejectionPortRatioPosition: { x: 0.52, y: 0.55 },
   recoil: 0.05,
 };
@@ -101,6 +104,7 @@ export const M7_CARBINE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.75 },
   capacity: 15,
   autoFiringType: 'semi-auto',
+  soundEffect: "winchester-model-1894-firing-the-gun.mp3",
   ejectionPortRatioPosition: { x: 0.54, y: 0.75 },
   recoil: 0.04,
 };
@@ -118,6 +122,7 @@ export const HARMANN_AND_WOLFFS_BOLT_ACTION_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 5,
   autoFiringType: 'semi-auto',
+  soundEffect: "type-99-rifle-firing-a-shot.mp3",
   ejectionPortRatioPosition: { x: 0.53, y: 0.65 },
   recoil: 0.08,
 };
@@ -135,6 +140,7 @@ export const M270_BREACHER_SHOTGUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.74 },
   capacity: 8,
   autoFiringType: 'semi-auto',
+  soundEffect: "charles-daly-601-firing-a-shot.mp3",
   pelletCount: 6,
   spreadAngle: 0.26,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
@@ -156,6 +162,7 @@ export const R_200_SHOTGUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.70 },
   capacity: 15,
   autoFiringType: 'semi-auto',
+  soundEffect: "charles-daly-601-firing-a-shot.mp3",
   pelletCount: 5,
   spreadAngle: 0.21,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
@@ -177,6 +184,7 @@ export const MR_27_DRUMBEAT_SHOTGUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 0.98, y: 0.69 },
   capacity: 30,
   autoFiringType: 'semi-auto',
+  soundEffect: "charles-daly-601-firing-a-shot.mp3",
   pelletCount: 8,
   spreadAngle: 0.31,
   damageDropoff: { effectiveRange: 200, minDamageRatio: 0.1 },
@@ -198,6 +206,7 @@ export const PTS_27_ANTITANK_GUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.44 },
   capacity: 12,
   autoFiringType: 'semi-auto',
+  soundEffect: "savage-model-10-family-representative-firing-a-shot-with-echo.mp3",
   ejectionPortRatioPosition: { x: 0.35, y: 0.65 },
   recoil: 0.30,
 };
@@ -232,6 +241,7 @@ export const VP_37_SUBMACHINE_GUN: ShootingWeaponType = {
   muzzleRatioPosition: { x: 1.00, y: 0.67 },
   capacity: 20,
   autoFiringType: 'auto',
+  soundEffect: "ak-47-type-ii-firing-a-six-shot-burst.mp3",
   ejectionPortRatioPosition: { x: 0.55, y: 0.54 },
   recoil: 0.02,
 };
@@ -249,6 +259,7 @@ export const MK_200_SNIPER_RIFLE: ShootingWeaponType = {
   muzzleRatioPosition: { x: 0.99, y: 0.62 },
   capacity: 6,
   autoFiringType: 'semi-auto',
+  soundEffect: "mosin-nagant-91-30-sniper-firing-the-gun.mp3",
   ejectionPortRatioPosition: { x: 0.44, y: 0.82 },
   recoil: 0.14,
 };
