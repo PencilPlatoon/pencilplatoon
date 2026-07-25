@@ -6,7 +6,7 @@ import { DesignerMode } from "@/designer/DesignerMode";
 import { GameEngine } from "@/game/GameEngine";
 import { useGameStore } from "@/stores/useGameStore";
 import { useAudio } from "@/stores/useAudio";
-import { useIsMobile } from "@/hooks/useIsMobile";
+import { useHasTouch } from "@/hooks/useHasTouch";
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -16,11 +16,12 @@ export default function Game() {
   const [isDesignerMode, setIsDesignerMode] = useState(false);
   const { phase, start, end, debugMode, restart, seed } = useGameStore();
   const { backgroundMusic, isMusicMuted } = useAudio();
-  const isMobile = useIsMobile();
+  const hasTouch = useHasTouch();
 
   useEffect(() => {
     if (canvasRef.current && !gameEngineRef.current) {
       gameEngineRef.current = new GameEngine(canvasRef.current);
+      gameEngineRef.current.setOnPauseChange(setIsPaused);
       setIsGameInitialized(true);
     }
   }, []);
@@ -83,10 +84,8 @@ export default function Game() {
   };
 
   const handlePause = () => {
-    if (gameEngineRef.current) {
-      gameEngineRef.current.togglePause();
-      setIsPaused(gameEngineRef.current.getPaused());
-    }
+    // setOnPauseChange keeps isPaused in sync, so no manual setState here.
+    gameEngineRef.current?.togglePause();
   };
 
   const handleEnterDesigner = () => {
@@ -110,15 +109,17 @@ export default function Game() {
         onRestartLevel={handleRestartLevel}
         onRestartGame={handleRestartGame}
         onNextLevel={handleNextLevel}
-        onSwitchWeapon={handleSwitchWeapon}
-        onReload={handleReload}
         onPause={handlePause}
         onEnterDesigner={handleEnterDesigner}
         isPaused={isPaused}
         isInitialized={isGameInitialized}
       />
-      {isMobile && phase === "playing" && (
-        <MobileControls onInput={handleMobileInput} />
+      {hasTouch && phase === "playing" && (
+        <MobileControls
+          onInput={handleMobileInput}
+          onSwitchWeapon={handleSwitchWeapon}
+          onReload={handleReload}
+        />
       )}
     </div>
   );

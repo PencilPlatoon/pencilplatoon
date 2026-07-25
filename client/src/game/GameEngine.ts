@@ -19,6 +19,7 @@ export class GameEngine {
   private keys: Set<string> = new Set();
   private mobileInput: PlayerInput = { ...EMPTY_INPUT };
   private paused = false;
+  private onPauseChange?: (paused: boolean) => void;
 
   constructor(canvas: HTMLCanvasElement) {
     console.log("GameEngine constructor");
@@ -84,13 +85,18 @@ export class GameEngine {
     this.gameWorld.debugMode = enabled;
   }
 
+  /** Notified whenever pause toggles, so the UI stays in sync with any source. */
+  setOnPauseChange(callback: (paused: boolean) => void) {
+    this.onPauseChange = callback;
+  }
+
   togglePause() {
     this.paused = !this.paused;
-    console.log("Game paused:", this.paused);
     if (!this.paused && this.isRunning) {
       this.lastTime = performance.now();
       this.gameLoop(this.lastTime);
     }
+    this.onPauseChange?.(this.paused);
   }
 
   getPaused(): boolean {

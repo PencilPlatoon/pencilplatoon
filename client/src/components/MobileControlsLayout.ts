@@ -41,6 +41,8 @@ export interface TouchButton {
   radius: number;
   /** Touchable size — slightly larger, so near-misses still register. */
   hitRadius: number;
+  /** Fires once on press (weapon-swap, reload) rather than while held. */
+  momentary: boolean;
 }
 
 /** Button sizes are tuned for this viewport dimension and scale from there. */
@@ -54,6 +56,12 @@ const MOVE_RADIUS = 34;
 const JUMP_RADIUS = 30;
 const SHOOT_RADIUS = 40;
 const AIM_RADIUS = 26;
+// Weapon-swap / reload are secondary, so they're drawn smaller than the
+// primary movement and fire controls.
+const SECONDARY_RADIUS = 24;
+
+/** Secondary actions that fire once per tap instead of reporting a held state. */
+export const MOMENTARY_ACTIONS: ReadonlySet<string> = new Set(['weapon', 'reload']);
 
 const clamp = (value: number, min: number, max: number): number =>
   Math.min(max, Math.max(min, value));
@@ -74,11 +82,14 @@ export const createTouchButtons = (width: number, height: number): TouchButton[]
   const jump = JUMP_RADIUS * scale;
   const shoot = SHOOT_RADIUS * scale;
   const aim = AIM_RADIUS * scale;
+  const secondary = SECONDARY_RADIUS * scale;
 
   const bottom = height - margin;
   const moveRowY = bottom - move;
   const leftX = margin + move;
   const rightX = leftX + move * 2 + gap;
+  const jumpCx = (leftX + rightX) / 2;
+  const jumpCy = moveRowY - move - gap - jump;
 
   // Shoot sits in the corner with the aim pair beside it, keeping the cluster
   // short enough to stay clear of the HUD buttons on landscape phones.
@@ -96,15 +107,36 @@ export const createTouchButtons = (width: number, height: number): TouchButton[]
     cx: number,
     cy: number,
     radius: number
-  ): TouchButton => ({ action, glyph, cx, cy, radius, hitRadius: radius + slop });
+  ): TouchButton => ({
+    action,
+    glyph,
+    cx,
+    cy,
+    radius,
+    hitRadius: radius + slop,
+    momentary: MOMENTARY_ACTIONS.has(action),
+  });
+
+  // Weapon-swap and reload flank the primary clusters. Portrait phones have
+  // vertical room, so stack them above each thumb column; landscape phones have
+  // horizontal room, so spread them inboard along the bottom row.
+  const landscape = width > height;
+  const weapon = landscape
+    ? button('weapon', 'weaponSwap', rightX + move + gap + secondary, bottom - secondary, secondary)
+    : button('weapon', 'weaponSwap', jumpCx, jumpCy - jump - gap - secondary, secondary);
+  const reload = landscape
+    ? button('reload', 'reload', aimX - aim - gap - secondary, bottom - secondary, secondary)
+    : button('reload', 'reload', aimX, aimUpY - aim - gap - secondary, secondary);
 
   return [
     button('left', 'arrowLeft', leftX, moveRowY, move),
     button('right', 'arrowRight', rightX, moveRowY, move),
-    button('jump', 'jump', (leftX + rightX) / 2, moveRowY - move - gap - jump, jump),
+    button('jump', 'jump', jumpCx, jumpCy, jump),
     button('aimUp', 'chevronUp', aimX, aimUpY, aim),
     button('shoot', 'crosshair', shootX, shootCy, shoot),
     button('aimDown', 'chevronDown', aimX, aimDownY, aim),
+    weapon,
+    reload,
   ];
 };
 

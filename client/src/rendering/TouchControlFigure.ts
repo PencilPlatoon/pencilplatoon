@@ -4,7 +4,9 @@ export type TouchGlyph =
   | "jump"
   | "crosshair"
   | "chevronUp"
-  | "chevronDown";
+  | "chevronDown"
+  | "weaponSwap"
+  | "reload";
 
 /**
  * Draws a single on-screen touch control as a pencil-style disc: a translucent
@@ -94,7 +96,72 @@ export class TouchControlFigure {
         return this.drawChevron(ctx, cx, cy, size, false);
       case "crosshair":
         return this.drawCrosshair(ctx, cx, cy, size);
+      case "weaponSwap":
+        return this.drawWeaponSwap(ctx, cx, cy, size);
+      case "reload":
+        return this.drawReload(ctx, cx, cy, size);
     }
+  }
+
+  /** Two opposing horizontal arrows — a swap/exchange glyph. */
+  private static drawWeaponSwap(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number
+  ) {
+    const halfW = size * 0.8;
+    const yOff = size * 0.4;
+    const head = size * 0.32;
+
+    // Top arrow pointing right.
+    ctx.beginPath();
+    ctx.moveTo(cx - halfW, cy - yOff);
+    ctx.lineTo(cx + halfW, cy - yOff);
+    ctx.moveTo(cx + halfW - head, cy - yOff - head);
+    ctx.lineTo(cx + halfW, cy - yOff);
+    ctx.lineTo(cx + halfW - head, cy - yOff + head);
+    ctx.stroke();
+
+    // Bottom arrow pointing left.
+    ctx.beginPath();
+    ctx.moveTo(cx + halfW, cy + yOff);
+    ctx.lineTo(cx - halfW, cy + yOff);
+    ctx.moveTo(cx - halfW + head, cy + yOff - head);
+    ctx.lineTo(cx - halfW, cy + yOff);
+    ctx.lineTo(cx - halfW + head, cy + yOff + head);
+    ctx.stroke();
+  }
+
+  /** Circular arrow — a reload/refresh glyph. */
+  private static drawReload(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    cy: number,
+    size: number
+  ) {
+    const radius = size * 0.62;
+    const openGap = 1.0; // radians left open for the arrowhead
+    const start = -Math.PI / 2 + openGap / 2;
+    const end = start + (Math.PI * 2 - openGap);
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, start, end);
+    ctx.stroke();
+
+    // Arrowhead at the arc's end, barbs trailing back along the tangent.
+    const tipX = cx + radius * Math.cos(end);
+    const tipY = cy + radius * Math.sin(end);
+    const tangent = Math.atan2(Math.cos(end), -Math.sin(end));
+    const head = size * 0.42;
+    const spread = 0.6;
+
+    ctx.beginPath();
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX + head * Math.cos(tangent + Math.PI - spread), tipY + head * Math.sin(tangent + Math.PI - spread));
+    ctx.moveTo(tipX, tipY);
+    ctx.lineTo(tipX + head * Math.cos(tangent + Math.PI + spread), tipY + head * Math.sin(tangent + Math.PI + spread));
+    ctx.stroke();
   }
 
   /** Arrow pointing along +x, rotated into place. */

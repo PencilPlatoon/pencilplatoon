@@ -13,12 +13,13 @@ import AssetGrid from "./AssetGrid";
  * viewport (short windows, small phones) and stays centered when it fits.
  * `contentClassName` adjusts the inner wrapper, e.g. to clear a fixed button.
  */
-function OverlayScreen({ children, contentClassName = "" }: {
+function OverlayScreen({ children, className = "", contentClassName = "" }: {
   children: React.ReactNode;
+  className?: string;
   contentClassName?: string;
 }) {
   return (
-    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-white bg-opacity-90">
+    <div className={`absolute inset-0 overflow-y-auto overscroll-contain bg-white bg-opacity-90 ${className}`}>
       <div className={`min-h-full flex flex-col items-center justify-center gap-4 p-4 ${contentClassName}`}>
         {children}
       </div>
@@ -49,35 +50,19 @@ function ToggleCheckbox({ id, checked, onCheckedChange, label }: {
   );
 }
 
-function ToggleIconCheckbox({ id, checked, onCheckedChange, icon }: {
-  id: string;
-  checked: boolean;
-  onCheckedChange: () => void;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div className="flex items-center justify-center">
-      <Checkbox id={id} checked={checked} onCheckedChange={onCheckedChange} />
-      <label htmlFor={id} className="ml-2 text-lg select-none cursor-pointer">{icon}</label>
-    </div>
-  );
-}
-
 interface GameUIProps {
   phase: GamePhase;
   onStart: () => void;
   onRestartLevel: () => void;
   onRestartGame: () => void;
   onNextLevel: () => void;
-  onSwitchWeapon?: () => void;
-  onReload?: () => void;
   onPause?: () => void;
   onEnterDesigner?: () => void;
   isPaused?: boolean;
   isInitialized: boolean;
 }
 
-export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onSwitchWeapon, onReload, onPause, onEnterDesigner, isPaused, isInitialized }: GameUIProps) {
+export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, onNextLevel, onPause, onEnterDesigner, isPaused, isInitialized }: GameUIProps) {
   const { isSoundMuted, isMusicMuted, toggleSoundMute, toggleMusicMute } = useAudio();
   const debugMode = useGameStore((state) => state.debugMode);
   const toggleDebugMode = useGameStore((state) => state.toggleDebugMode);
@@ -237,42 +222,40 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
 
   // Playing phase - show minimal UI
   return (
-    <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
-      <div className="text-xs text-gray-500 bg-white bg-opacity-80 px-2 py-1 rounded">
-        Seed: {seed}
+    <>
+      <div className="absolute top-4 right-4 z-20 flex flex-col gap-2 items-end">
+        <div className="text-xs text-gray-500 bg-white bg-opacity-80 px-2 py-1 rounded">
+          Seed: {seed}
+        </div>
+        {onPause && (
+          <Button
+            onClick={onPause}
+            variant="outline"
+            size="sm"
+            className="text-lg px-2 py-1 leading-none"
+            title="Menu (pause & settings)"
+            aria-label="Menu"
+          >
+            ⚙️
+          </Button>
+        )}
       </div>
-      <ToggleIconCheckbox id="music-toggle-icon" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} icon="🎵" />
-      <ToggleIconCheckbox id="sound-toggle-icon" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} icon={isSoundMuted ? "🔇" : "🔊"} />
-      {onPause && (
-        <Button 
-          onClick={onPause} 
-          variant="outline" 
-          size="sm"
-          className="text-xs px-2 py-1"
-        >
-          {isPaused ? "▶️ Resume" : "⏸️ Pause"}
-        </Button>
+
+      {isPaused && onPause && (
+        <OverlayScreen className="z-30">
+          <div className="text-lg font-medium text-gray-700">Game paused</div>
+          <MenuCard>
+            <h2 className="text-xl font-bold mb-4 text-black">Settings</h2>
+            <div className="flex flex-col items-start mx-auto mb-4" style={{ width: 'fit-content' }}>
+              <ToggleCheckbox id="pause-sound-toggle" checked={!isSoundMuted} onCheckedChange={toggleSoundMute} label="Sound Effects" />
+              <ToggleCheckbox id="pause-music-toggle" checked={!isMusicMuted} onCheckedChange={toggleMusicMute} label="Music" />
+            </div>
+            <Button onClick={onPause} variant="default" className="w-full border border-primary">
+              Save & Resume
+            </Button>
+          </MenuCard>
+        </OverlayScreen>
       )}
-      {onSwitchWeapon && (
-        <Button 
-          onClick={onSwitchWeapon} 
-          variant="outline" 
-          size="sm"
-          className="text-xs px-2 py-1"
-        >
-          🔄 Weapon
-        </Button>
-      )}
-      {onReload && (
-        <Button 
-          onClick={onReload} 
-          variant="outline" 
-          size="sm"
-          className="text-xs px-2 py-1"
-        >
-          🔄 Reload
-        </Button>
-      )}
-    </div>
+    </>
   );
 }

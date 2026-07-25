@@ -13,6 +13,8 @@ export { ACTION_TO_INPUT_KEY } from './MobileControlsLayout';
 
 interface MobileControlsProps {
   onInput: (input: MobileInput) => void;
+  onSwitchWeapon?: () => void;
+  onReload?: () => void;
 }
 
 interface ViewportSize {
@@ -20,7 +22,7 @@ interface ViewportSize {
   height: number;
 }
 
-export default function MobileControls({ onInput }: MobileControlsProps) {
+export default function MobileControls({ onInput, onSwitchWeapon, onReload }: MobileControlsProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [size, setSize] = useState<ViewportSize>({ width: 0, height: 0 });
   const [heldActions, setHeldActions] = useState<ReadonlySet<string>>(new Set());
@@ -33,8 +35,12 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
   // Refs keep the touch listeners stable while still seeing current values.
   const buttonsRef = useRef<TouchButton[]>(buttons);
   const onInputRef = useRef(onInput);
+  const onSwitchWeaponRef = useRef(onSwitchWeapon);
+  const onReloadRef = useRef(onReload);
   buttonsRef.current = buttons;
   onInputRef.current = onInput;
+  onSwitchWeaponRef.current = onSwitchWeapon;
+  onReloadRef.current = onReload;
 
   // Match the canvas bitmap to its on-screen size so nothing is stretched.
   useEffect(() => {
@@ -77,12 +83,20 @@ export default function MobileControls({ onInput }: MobileControlsProps) {
       );
     };
 
+    const fireMomentary = (action: string) => {
+      if (action === 'weapon') onSwitchWeaponRef.current?.();
+      else if (action === 'reload') onReloadRef.current?.();
+    };
+
     const press = (e: TouchEvent) => {
       let handled = false;
       for (const touch of Array.from(e.changedTouches)) {
         const button = buttonUnder(touch);
         if (button) {
           touchedActions.set(touch.identifier, button.action);
+          // Weapon-swap and reload act on the press itself, not while held,
+          // so a resting finger triggers them exactly once.
+          if (button.momentary) fireMomentary(button.action);
           handled = true;
         }
       }

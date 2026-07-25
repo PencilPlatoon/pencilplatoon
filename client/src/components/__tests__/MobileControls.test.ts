@@ -10,7 +10,10 @@ import {
   inputFromHeldActions,
 } from "@/components/MobileControlsLayout";
 
+/** Held actions that map to a continuous MobileInput field. */
 const ALL_TOUCH_ACTIONS = ["left", "right", "jump", "shoot", "aimUp", "aimDown"];
+/** Every disc the layout produces, including the momentary weapon/reload taps. */
+const ALL_ACTIONS = [...ALL_TOUCH_ACTIONS, "weapon", "reload"];
 
 /** Portrait phone, short landscape phone, small window, tablet. */
 const VIEWPORTS = [
@@ -53,7 +56,14 @@ describe("ACTION_TO_INPUT_KEY", () => {
 describe("createTouchButtons", () => {
   it("creates one button per action", () => {
     const buttons = createTouchButtons(390, 760);
-    expect(buttons.map((b) => b.action).sort()).toEqual([...ALL_TOUCH_ACTIONS].sort());
+    expect(buttons.map((b) => b.action).sort()).toEqual([...ALL_ACTIONS].sort());
+  });
+
+  it("marks only weapon-swap and reload as momentary", () => {
+    for (const button of createTouchButtons(390, 760)) {
+      const expected = button.action === "weapon" || button.action === "reload";
+      expect(button.momentary, button.action).toBe(expected);
+    }
   });
 
   it.each(VIEWPORTS)("keeps every button fully on screen at $width x $height", (viewport) => {
@@ -110,6 +120,44 @@ describe("createTouchButtons", () => {
     expect(aimUp.cy).toBeLessThan(aimDown.cy);
     expect(aimUp.cx).toBeCloseTo(aimDown.cx);
     expect(aimUp.cx).toBeLessThan(shoot.cx);
+  });
+
+  it("stacks weapon above jump and reload above the aim column in portrait", () => {
+    const buttons = createTouchButtons(390, 760);
+    const weapon = byAction(buttons, "weapon");
+    const reload = byAction(buttons, "reload");
+    const jump = byAction(buttons, "jump");
+    const aimUp = byAction(buttons, "aimUp");
+
+    // Fully above, in the same column as the control they sit over.
+    expect(weapon.cy + weapon.radius).toBeLessThan(jump.cy - jump.radius);
+    expect(weapon.cx).toBeCloseTo(jump.cx);
+    expect(reload.cy + reload.radius).toBeLessThan(aimUp.cy - aimUp.radius);
+    expect(reload.cx).toBeCloseTo(aimUp.cx);
+  });
+
+  it("spreads weapon and reload inboard along the bottom row in landscape", () => {
+    const buttons = createTouchButtons(667, 375);
+    const weapon = byAction(buttons, "weapon");
+    const reload = byAction(buttons, "reload");
+    const right = byAction(buttons, "right");
+    const aimUp = byAction(buttons, "aimUp");
+
+    // Weapon inboard of the movement cluster, reload inboard of the aim cluster.
+    expect(weapon.cx).toBeGreaterThan(right.cx);
+    expect(reload.cx).toBeLessThan(aimUp.cx);
+    // Sharing the bottom row rather than stacking upward.
+    expect(weapon.cy).toBeCloseTo(reload.cy);
+    expect(weapon.cy).toBeGreaterThan(375 / 2);
+    expect(weapon.cx).toBeLessThan(reload.cx);
+  });
+
+  it("makes the secondary discs smaller than the primary controls", () => {
+    const buttons = createTouchButtons(390, 760);
+    const weapon = byAction(buttons, "weapon");
+    for (const action of ALL_TOUCH_ACTIONS) {
+      expect(weapon.radius).toBeLessThan(byAction(buttons, action).radius);
+    }
   });
 
   it.each(VIEWPORTS)(
@@ -199,10 +247,15 @@ describe("inputFromHeldActions", () => {
     expect(inputFromHeldActions(new Set(["nonsense"]))).toEqual(EMPTY_INPUT);
   });
 
-  it("covers every action the layout produces", () => {
+  it("ignores momentary actions, which fire on tap instead of reporting held state", () => {
+    expect(inputFromHeldActions(new Set(["weapon", "reload"]))).toEqual(EMPTY_INPUT);
+  });
+
+  it("maps every held action to input and every momentary action to none", () => {
     for (const button of createTouchButtons(390, 760)) {
       const input = inputFromHeldActions(new Set([button.action]));
-      expect(Object.values(input).some(Boolean), `${button.action} produced no input`).toBe(true);
+      const producesInput = Object.values(input).some(Boolean);
+      expect(producesInput, button.action).toBe(!button.momentary);
     }
   });
 });
