@@ -34,6 +34,28 @@ export const calculateDisplaySize = (
   };
 };
 
+/**
+ * Shrinks a display size so it fits inside the given bounds, preserving aspect
+ * ratio. Sizes that already fit are returned unchanged (never scaled up).
+ */
+export const scaleToFit = (
+  size: DisplaySize,
+  maxWidth: number,
+  maxHeight: number
+): DisplaySize => {
+  const { displayWidth, displayHeight } = size;
+  if (displayWidth <= 0 || displayHeight <= 0) {
+    return { displayWidth, displayHeight };
+  }
+
+  const scale = Math.min(1, maxWidth / displayWidth, maxHeight / displayHeight);
+
+  return {
+    displayWidth: displayWidth * scale,
+    displayHeight: displayHeight * scale
+  };
+};
+
 export const loadSVGAndCreateBounds = async (
   obj: SVGObjectType,
   defaultHeight: number,

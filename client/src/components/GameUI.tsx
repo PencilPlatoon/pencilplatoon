@@ -8,6 +8,33 @@ import { useGameStore } from "@/stores/useGameStore";
 import { useAssetLoader } from "@/hooks/useAssetLoader";
 import AssetGrid from "./AssetGrid";
 
+/**
+ * Full-screen menu backdrop. Scrolls when its content is taller than the
+ * viewport (short windows, small phones) and stays centered when it fits.
+ * `contentClassName` adjusts the inner wrapper, e.g. to clear a fixed button.
+ */
+function OverlayScreen({ children, contentClassName = "" }: {
+  children: React.ReactNode;
+  contentClassName?: string;
+}) {
+  return (
+    <div className="absolute inset-0 overflow-y-auto overscroll-contain bg-white bg-opacity-90">
+      <div className={`min-h-full flex flex-col items-center justify-center gap-4 p-4 ${contentClassName}`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Menu panel that shrinks to fit narrow viewports instead of being clipped. */
+function MenuCard({ children }: { children: React.ReactNode }) {
+  return (
+    <Card className="w-full max-w-sm">
+      <CardContent className="p-6 text-center">{children}</CardContent>
+    </Card>
+  );
+}
+
 function ToggleCheckbox({ id, checked, onCheckedChange, label }: {
   id: string;
   checked: boolean;
@@ -69,78 +96,75 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
 
   if (!isInitialized) {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <div className="text-lg font-bold mb-2">Loading...</div>
-            <div className="text-sm text-gray-600 mb-4">Initializing game engine</div>
-          </CardContent>
-        </Card>
-      </div>
+      <OverlayScreen>
+        <MenuCard>
+          <div className="text-lg font-bold mb-2">Loading...</div>
+          <div className="text-sm text-gray-600 mb-4">Initializing game engine</div>
+        </MenuCard>
+      </OverlayScreen>
     );
   }
 
   if (phase === "ready") {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-        <div className="flex flex-col items-center">
-          <Card className="w-96">
-            <CardContent className="p-6 text-center">
-              <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
-              <div className="text-sm text-gray-600 mb-6">
-                <p>Use WASD or Arrow Keys to move</p>
-                <p>Space to jump</p>
-                <p>J to shoot, I/K to aim up/down</p>
-                <p>C to switch weapon, R to reload</p>
-              </div>
-              <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
-                Start Game
-              </Button>
-              {CheckboxGroup}
-              
-              {/* Seed Input Section */}
-              <div className="mb-4 text-left">
-                <label htmlFor="seed-input" className="block text-sm font-medium text-gray-700 mb-2">
-                  Random Seed
-                </label>
-                <div className="flex gap-2">
-                  <Input
-                    id="seed-input"
-                    type="number"
-                    value={seed}
-                    onChange={(e) => {
-                      const value = parseInt(e.target.value);
-                      if (!isNaN(value)) {
-                        setSeed(value);
-                      }
-                    }}
-                    className="flex-1"
-                    placeholder="Enter seed number"
-                  />
-                  <Button
-                    onClick={generateRandomSeed}
-                    variant="outline"
-                    size="sm"
-                    className="px-3"
-                    title="Generate new random seed"
-                  >
-                    🎲
-                  </Button>
-                </div>
-                <p className="text-xs text-gray-500 mt-1">
-                  Same seed = same level layout every time
-                </p>
-              </div>
+      <>
+        {/* Extra bottom room so the fixed Designer Mode button never covers the lineup */}
+        <OverlayScreen contentClassName="pb-16">
+          <MenuCard>
+            <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
+            <div className="text-sm text-gray-600 mb-6">
+              <p>Use WASD or Arrow Keys to move</p>
+              <p>Space to jump</p>
+              <p>J to shoot, I/K to aim up/down</p>
+              <p>C to switch weapon, R to reload</p>
+            </div>
+            <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
+              Start Game
+            </Button>
+            {CheckboxGroup}
 
-              <div className="mt-8 text-xs text-gray-500">
-                <div>Developed by Garrett Jones</div>
-                <div className="mt-1">Artwork by Juancho Jones</div>
+            {/* Seed Input Section */}
+            <div className="mb-4 text-left">
+              <label htmlFor="seed-input" className="block text-sm font-medium text-gray-700 mb-2">
+                Random Seed
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  id="seed-input"
+                  type="number"
+                  value={seed}
+                  onChange={(e) => {
+                    const value = parseInt(e.target.value);
+                    if (!isNaN(value)) {
+                      setSeed(value);
+                    }
+                  }}
+                  className="flex-1"
+                  placeholder="Enter seed number"
+                />
+                <Button
+                  onClick={generateRandomSeed}
+                  variant="outline"
+                  size="sm"
+                  className="px-3"
+                  title="Generate new random seed"
+                >
+                  🎲
+                </Button>
               </div>
-            </CardContent>
-          </Card>
+              <p className="text-xs text-gray-500 mt-1">
+                Same seed = same level layout every time
+              </p>
+            </div>
+
+            <div className="mt-8 text-xs text-gray-500">
+              <div>Developed by Garrett Jones</div>
+              <div className="mt-1">Artwork by Juancho Jones</div>
+            </div>
+          </MenuCard>
           <AssetGrid assets={loadedAssets} isLoading={isLoading} />
-        </div>
-        
+        </OverlayScreen>
+
         {/* Designer Mode Button */}
         {onEnterDesigner && (
           <Button
@@ -152,66 +176,62 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
             🎨 Designer Mode
           </Button>
         )}
-      </div>
+      </>
     );
   }
 
   if (phase === "levelComplete") {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-4 text-black">Level Complete!</h2>
-            <div className="text-sm text-gray-600 mb-6">
-              <p>Well done! You reached the end of the level.</p>
-              <p>Ready for the next challenge?</p>
-            </div>
-            <div className="text-xs text-gray-500 mb-4">
-              Seed: {seed}
-            </div>
-            <Button onClick={onNextLevel} variant="default" className="w-full mb-4 border border-primary">
-              Next Level
-            </Button>
-            <Button 
-              onClick={onRestartLevel} 
-              variant="outline" 
-              className="w-full mb-4"
-            >
-              Replay Level
-            </Button>
-            <Button 
-              onClick={onRestartGame} 
-              variant="outline" 
-              className="w-full mb-4"
-            >
-              Restart Game From Beginning
-            </Button>
-            {CheckboxGroup}
-          </CardContent>
-        </Card>
-      </div>
+      <OverlayScreen>
+        <MenuCard>
+          <h2 className="text-xl font-bold mb-4 text-black">Level Complete!</h2>
+          <div className="text-sm text-gray-600 mb-6">
+            <p>Well done! You reached the end of the level.</p>
+            <p>Ready for the next challenge?</p>
+          </div>
+          <div className="text-xs text-gray-500 mb-4">
+            Seed: {seed}
+          </div>
+          <Button onClick={onNextLevel} variant="default" className="w-full mb-4 border border-primary">
+            Next Level
+          </Button>
+          <Button
+            onClick={onRestartLevel}
+            variant="outline"
+            className="w-full mb-4"
+          >
+            Replay Level
+          </Button>
+          <Button
+            onClick={onRestartGame}
+            variant="outline"
+            className="w-full mb-4"
+          >
+            Restart Game From Beginning
+          </Button>
+          {CheckboxGroup}
+        </MenuCard>
+      </OverlayScreen>
     );
   }
 
   if (phase === "ended") {
     return (
-      <div className="absolute inset-0 flex items-center justify-center bg-white bg-opacity-90">
-        <Card className="w-96">
-          <CardContent className="p-6 text-center">
-            <h2 className="text-xl font-bold mb-4 text-black">Game Over</h2>
-            <div className="text-xs text-gray-500 mb-4">
-              Seed: {seed}
-            </div>
-            <Button onClick={onRestartLevel} variant="default" className="w-full mb-4 border border-primary">
-              Replay Level
-            </Button>
-            <Button onClick={onRestartGame} variant="outline" className="w-full mb-4">
-              Restart Game From Beginning
-            </Button>
-            {CheckboxGroup}
-          </CardContent>
-        </Card>
-      </div>
+      <OverlayScreen>
+        <MenuCard>
+          <h2 className="text-xl font-bold mb-4 text-black">Game Over</h2>
+          <div className="text-xs text-gray-500 mb-4">
+            Seed: {seed}
+          </div>
+          <Button onClick={onRestartLevel} variant="default" className="w-full mb-4 border border-primary">
+            Replay Level
+          </Button>
+          <Button onClick={onRestartGame} variant="outline" className="w-full mb-4">
+            Restart Game From Beginning
+          </Button>
+          {CheckboxGroup}
+        </MenuCard>
+      </OverlayScreen>
     );
   }
 

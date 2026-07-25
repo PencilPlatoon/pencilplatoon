@@ -15,7 +15,7 @@ function App() {
   }, [setBackgroundMusic]);
 
   return (
-    <div className="w-full h-screen bg-white overflow-hidden">
+    <div className="w-full h-full bg-white overflow-hidden">
       <Game />
     </div>
   );

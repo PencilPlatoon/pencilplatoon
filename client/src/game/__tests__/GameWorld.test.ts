@@ -411,6 +411,91 @@ describe("GameWorld", () => {
     });
   });
 
+  describe("updateWeaponInput", () => {
+    /** Press, release, press — the shape of a tap on the mobile fire button. */
+    const tap = (world: GameWorld) => {
+      world.updateWeaponInput(true);
+      world.updateWeaponInput(false);
+    };
+
+    it("fires again on a second trigger press", () => {
+      vi.useFakeTimers();
+      try {
+        const world = createWorld();
+        initWorld(world);
+
+        tap(world);
+        expect(world.bullets.length).toBe(1);
+
+        vi.advanceTimersByTime(400);
+        tap(world);
+        expect(world.bullets.length).toBe(2);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("keeps firing across many taps", () => {
+      vi.useFakeTimers();
+      try {
+        const world = createWorld();
+        initWorld(world);
+
+        for (let i = 0; i < 5; i++) {
+          tap(world);
+          vi.advanceTimersByTime(400);
+        }
+        expect(world.bullets.length).toBe(5);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does not re-fire a semi-automatic weapon while the trigger is held", () => {
+      vi.useFakeTimers();
+      try {
+        const world = createWorld();
+        initWorld(world);
+
+        world.updateWeaponInput(true);
+        expect(world.bullets.length).toBe(1);
+
+        vi.advanceTimersByTime(400);
+        world.updateWeaponInput(true);
+        expect(world.bullets.length).toBe(1);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+
+    it("does nothing when the trigger is never pressed", () => {
+      const world = createWorld();
+      initWorld(world);
+      world.updateWeaponInput(false);
+      expect(world.bullets.length).toBe(0);
+    });
+
+    it("keeps firing an automatic weapon while the trigger is held", () => {
+      vi.useFakeTimers();
+      try {
+        const world = createWorld();
+        initWorld(world);
+        world.switchWeapon(); // Webley (semi-auto) → Rifle a main offensive (auto)
+        expect(world.player.arsenal.heldShootingWeapon.type.autoFiringType).toBe("auto");
+
+        // One unbroken hold: the trigger never goes false, as when a finger
+        // rests on the mobile fire button.
+        for (let i = 0; i < 4; i++) {
+          world.updateWeaponInput(true);
+          vi.advanceTimersByTime(300);
+        }
+        expect(world.bullets.length).toBe(4);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
   describe("switchWeapon / reloadWeapon / switchWeaponCategory", () => {
     it("delegates switchWeapon to player", () => {
       const world = createWorld();

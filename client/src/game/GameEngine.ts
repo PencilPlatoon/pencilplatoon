@@ -127,13 +127,11 @@ export class GameEngine {
       }
     });
 
+    // Releasing the trigger re-arms it in GameWorld's per-frame input handling,
+    // so no key needs special-casing here.
     window.addEventListener("keyup", (e) => {
       e.stopPropagation();
       this.keys.delete(e.code);
-
-      if (e.code === "KeyJ") {
-        this.gameWorld.clearTriggerState();
-      }
     });
   }
 

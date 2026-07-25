@@ -1,4 +1,8 @@
-import { LoadedAsset } from '@/util/SVGAssetLoader';
+import { LoadedAsset, scaleToFit } from '@/util/SVGAssetLoader';
+
+const MAX_THUMBNAIL_WIDTH = 64;
+const MAX_THUMBNAIL_HEIGHT = 48;
+const FADE_IN_STAGGER_SECONDS = 0.03;
 
 interface AssetGridProps {
   assets: LoadedAsset[];
@@ -11,33 +15,28 @@ export default function AssetGrid({ assets, isLoading }: AssetGridProps) {
   }
 
   return (
-    <div className="w-96 mx-auto mt-4">
-      <div className="flex flex-wrap gap-2 justify-center">
-        {assets.map((asset) => {
-          return (
-            <div
-              key={asset.weapon.name}
-              className="opacity-0 animate-fade-in"
-              style={{
-                animationDelay: `${Math.random() * 0.5}s`,
-                animationFillMode: 'forwards'
-              }}
-            >
-              <img
-                src={asset.svgInfo.image.src}
-                alt={asset.weapon.name}
-                className="object-contain"
-                style={{
-                  width: `${asset.displayWidth}px`,
-                  height: `${asset.displayHeight}px`,
-                  maxWidth: '64px', // Cap maximum size
-                  maxHeight: '48px'
-                }}
-              />
-            </div>
-          );
-        })}
-      </div>
+    <div className="w-full max-w-sm flex flex-wrap gap-2 justify-center">
+      {assets.map((asset, index) => {
+        const { displayWidth, displayHeight } = scaleToFit(
+          asset,
+          MAX_THUMBNAIL_WIDTH,
+          MAX_THUMBNAIL_HEIGHT
+        );
+        return (
+          <img
+            key={asset.weapon.name}
+            src={asset.svgInfo.image.src}
+            alt={asset.weapon.name}
+            className="object-contain opacity-0 animate-fade-in"
+            style={{
+              width: `${displayWidth}px`,
+              height: `${displayHeight}px`,
+              animationDelay: `${index * FADE_IN_STAGGER_SECONDS}s`,
+              animationFillMode: 'forwards'
+            }}
+          />
+        );
+      })}
     </div>
   );
 }

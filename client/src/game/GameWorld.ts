@@ -233,18 +233,30 @@ export class GameWorld {
 
   private updatePlayer(deltaTime: number, input: PlayerInput) {
     this.player.update(deltaTime, input, this.terrain);
-
-    const category = this.player.getSelectedWeaponCategory();
-    if (category === "gun") {
-      this.updateGunInput(input.triggerPressed);
-    } else if (category === "grenade") {
-      this.updateGrenadeInput(input.triggerPressed);
-    } else {
-      this.updateLauncherInput(input.triggerPressed);
-    }
+    this.updateWeaponInput(input.triggerPressed);
 
     if (this.player.health <= 0) {
       this.onGameOver();
+    }
+  }
+
+  /**
+   * Routes the trigger to the held weapon category. Releasing the trigger
+   * re-arms it for the next shot no matter what released it — key up, lifted
+   * finger, or lost focus — so this stays true for every input source.
+   */
+  updateWeaponInput(triggerPressed: boolean) {
+    if (!triggerPressed) {
+      this.clearTriggerState();
+    }
+
+    const category = this.player.getSelectedWeaponCategory();
+    if (category === "gun") {
+      this.updateGunInput(triggerPressed);
+    } else if (category === "grenade") {
+      this.updateGrenadeInput(triggerPressed);
+    } else {
+      this.updateLauncherInput(triggerPressed);
     }
   }
 
