@@ -1,4 +1,5 @@
 import type { Config } from "tailwindcss";
+import plugin from "tailwindcss/plugin";
 
 export default {
   darkMode: ["class"],
@@ -86,5 +87,19 @@ export default {
       },
     },
   },
-  plugins: [require("tailwindcss-animate"), require("@tailwindcss/typography")],
+  plugins: [
+    require("tailwindcss-animate"),
+    require("@tailwindcss/typography"),
+    plugin(({ addVariant }) => {
+      // Landscape and too short for the vertical menu stack to fit without
+      // scrolling — used to lay the start screen out side by side instead.
+      addVariant(
+        "landscape-compact",
+        "@media (orientation: landscape) and (max-height: 700px)"
+      );
+      // Primary pointer is a finger (no keyboard) — same signal that gates the
+      // on-screen touch controls.
+      addVariant("touch", "@media (pointer: coarse)");
+    }),
+  ],
 } satisfies Config;

@@ -31,7 +31,7 @@ function OverlayScreen({ children, className = "", contentClassName = "" }: {
 function MenuCard({ children }: { children: React.ReactNode }) {
   return (
     <Card className="w-full max-w-sm">
-      <CardContent className="p-6 text-center">{children}</CardContent>
+      <CardContent className="p-6 landscape-compact:p-3 text-center">{children}</CardContent>
     </Card>
   );
 }
@@ -93,23 +93,28 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
   if (phase === "ready") {
     return (
       <>
-        {/* Extra bottom room so the fixed Designer Mode button never covers the lineup */}
-        <OverlayScreen contentClassName="pb-16">
+        {/* Extra bottom room so the fixed Designer Mode button never covers the lineup. */}
+        <OverlayScreen contentClassName="pb-16 landscape-compact:py-2">
+          {/* In short landscape windows the card and lineup sit side by side instead of
+              stacking, so the wide-but-short space isn't wasted. */}
+          <div className="w-full flex flex-col items-center gap-4 landscape-compact:flex-row landscape-compact:justify-center landscape-compact:gap-8">
           <MenuCard>
-            <h1 className="text-2xl font-bold mb-4 text-black">Pencil Platoon</h1>
-            <div className="text-sm text-gray-600 mb-6">
+            <h1 className="text-2xl font-bold mb-4 landscape-compact:mb-1 text-black">Pencil Platoon</h1>
+            {/* Keyboard hints are meaningless without a keyboard, so hide them on
+                touch devices (which use the on-screen controls instead). */}
+            <div className="text-sm text-gray-600 mb-6 touch:hidden">
               <p>Use WASD or Arrow Keys to move</p>
               <p>Space to jump</p>
               <p>J to shoot, I/K to aim up/down</p>
               <p>C to switch weapon, R to reload</p>
             </div>
-            <Button onClick={onStart} variant="default" className="w-full mb-4 border border-primary">
+            <Button onClick={onStart} variant="default" className="w-full mb-4 landscape-compact:mb-2 border border-primary">
               Start Game
             </Button>
             {CheckboxGroup}
 
             {/* Seed Input Section */}
-            <div className="mb-4 text-left">
+            <div className="mb-4 landscape-compact:mb-2 text-left">
               <label htmlFor="seed-input" className="block text-sm font-medium text-gray-700 mb-2">
                 Random Seed
               </label>
@@ -142,12 +147,13 @@ export default function GameUI({ phase, onStart, onRestartLevel, onRestartGame, 
               </p>
             </div>
 
-            <div className="mt-8 text-xs text-gray-500">
+            <div className="mt-8 landscape-compact:mt-2 text-xs text-gray-500">
               <div>Developed by Garrett Jones</div>
               <div className="mt-1">Artwork by Juancho Jones</div>
             </div>
           </MenuCard>
           <AssetGrid assets={loadedAssets} isLoading={isLoading} />
+          </div>
         </OverlayScreen>
 
         {/* Designer Mode Button */}
