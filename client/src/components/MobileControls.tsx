@@ -11,6 +11,11 @@ import {
 export type { MobileInput } from './MobileControlsLayout';
 export { ACTION_TO_INPUT_KEY } from './MobileControlsLayout';
 
+// A golden-ratio (low-discrepancy) step gives each successive button a wobble
+// seed far from its neighbours', so adjacent buttons never look alike — unlike a
+// plain PRNG, whose consecutive draws can happen to land close together.
+const WOBBLE_SEQUENCE_STEP = 0.618033988749895;
+
 interface MobileControlsProps {
   onInput: (input: MobileInput) => void;
   onSwitchWeapon?: () => void;
@@ -153,7 +158,9 @@ export default function MobileControls({ onInput, onSwitchWeapon, onReload }: Mo
     ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
     ctx.clearRect(0, 0, size.width, size.height);
 
-    buttons.forEach((button) =>
+    // One deterministic sequence, walked in button order, gives every button a
+    // different-but-stable wobble (rather than each reseeding from itself).
+    buttons.forEach((button, index) =>
       TouchControlFigure.render({
         ctx,
         cx: button.cx,
@@ -161,6 +168,7 @@ export default function MobileControls({ onInput, onSwitchWeapon, onReload }: Mo
         radius: button.radius,
         glyph: button.glyph,
         isActive: heldActions.has(button.action),
+        seed: ((index + 1) * WOBBLE_SEQUENCE_STEP) % 1,
       })
     );
   }, [buttons, heldActions, size]);
