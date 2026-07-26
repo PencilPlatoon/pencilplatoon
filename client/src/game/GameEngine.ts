@@ -141,8 +141,26 @@ export class GameEngine {
     });
   }
 
+  /**
+   * Keeps the camera's viewport matched to the canvas, which GameCanvas resizes
+   * to the window. Without this the camera keeps the previous orientation's
+   * dimensions after a rotation, leaving the world mis-positioned (e.g. floating
+   * with a gap below the ground). Snaps immediately so a resize takes effect the
+   * same frame, even while paused.
+   */
+  private syncCameraToCanvas() {
+    const camera = this.gameWorld.camera;
+    if (camera.width === this.canvas.width && camera.height === this.canvas.height) {
+      return;
+    }
+    camera.updateSize(this.canvas.width, this.canvas.height);
+    camera.followTarget(this.gameWorld.player.transform.position, 0);
+  }
+
   private gameLoop(currentTime: number) {
     if (!this.isRunning) return;
+
+    this.syncCameraToCanvas();
 
     if (!this.paused) {
       const deltaTime = (currentTime - this.lastTime) / 1000;

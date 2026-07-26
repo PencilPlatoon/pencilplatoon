@@ -94,8 +94,12 @@ export class Camera {
   }
 
   updateSize(width: number, height: number) {
+    if (width === this.width && height === this.height) return;
     this.width = width;
     this.height = height;
+    // The viewport changed (e.g. an orientation flip), so snap to the correct
+    // position for the new size on the next follow instead of drifting there.
+    this.isInitialized = false;
   }
 
   toScreenY(worldY: number): number {

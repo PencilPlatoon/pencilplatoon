@@ -7,6 +7,7 @@ import { GameEngine } from "@/game/GameEngine";
 import { useGameStore } from "@/stores/useGameStore";
 import { useAudio } from "@/stores/useAudio";
 import { useHasTouch } from "@/hooks/useHasTouch";
+import { enterFullscreenIfSupported } from "@/util/fullscreen";
 
 export default function Game() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -45,6 +46,10 @@ export default function Game() {
 
   const executeGameAction = (action: (engine: GameEngine) => void) => {
     if (!gameEngineRef.current) return;
+    // These run from a button tap (a user gesture), so it's a valid moment to
+    // go fullscreen and reclaim the address bar. Touch only — desktop players
+    // shouldn't be yanked into fullscreen on Start.
+    if (hasTouch) enterFullscreenIfSupported();
     action(gameEngineRef.current);
     setIsPaused(false);
     start();
