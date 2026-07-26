@@ -94,10 +94,12 @@ export const createTouchButtons = (width: number, height: number): TouchButton[]
   // Shoot sits in the corner with the aim pair beside it, keeping the cluster
   // short enough to stay clear of the HUD buttons on landscape phones.
   const shootX = width - margin - shoot;
-  const shootCy = bottom - shoot;
   const aimX = shootX - shoot - gap - aim;
   const aimDownY = bottom - aim;
   const aimUpY = aimDownY - aim * 2 - gap;
+  // Fire is vertically centered on the aim pair — its midline matches the point
+  // halfway between the up and down buttons — rather than bottom-aligned.
+  const shootCy = (aimUpY + aimDownY) / 2;
 
   // Half the gap each, so neighbouring hit targets meet without overlapping.
   const slop = gap / 2;
@@ -117,16 +119,17 @@ export const createTouchButtons = (width: number, height: number): TouchButton[]
     momentary: MOMENTARY_ACTIONS.has(action),
   });
 
-  // Weapon-swap and reload flank the primary clusters. Portrait phones have
-  // vertical room, so stack them above each thumb column; landscape phones have
-  // horizontal room, so spread them inboard along the bottom row.
+  // Weapon-swap and reload are weapon-management actions grouped with the aim/
+  // fire controls on the right, laid out as a horizontal pair (weapon then
+  // reload). Portrait sits the pair above the aim column; landscape places it
+  // inboard along the bottom row, to the left of the aim column.
   const landscape = width > height;
-  const weapon = landscape
-    ? button('weapon', 'weaponSwap', rightX + move + gap + secondary, bottom - secondary, secondary)
-    : button('weapon', 'weaponSwap', jumpCx, jumpCy - jump - gap - secondary, secondary);
-  const reload = landscape
-    ? button('reload', 'reload', aimX - aim - gap - secondary, bottom - secondary, secondary)
-    : button('reload', 'reload', aimX, aimUpY - aim - gap - secondary, secondary);
+  const pairHalfWidth = secondary + gap / 2;
+  const secondaryRowCy = landscape ? bottom - secondary : aimUpY - aim - gap - secondary;
+  const reloadCx = landscape ? aimX - aim - gap - secondary : aimX + pairHalfWidth;
+  const weaponCx = landscape ? reloadCx - secondary - gap - secondary : aimX - pairHalfWidth;
+  const weapon = button('weapon', 'weaponSwap', weaponCx, secondaryRowCy, secondary);
+  const reload = button('reload', 'reload', reloadCx, secondaryRowCy, secondary);
 
   return [
     button('left', 'arrowLeft', leftX, moveRowY, move),

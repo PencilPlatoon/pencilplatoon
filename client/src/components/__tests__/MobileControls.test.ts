@@ -122,34 +122,45 @@ describe("createTouchButtons", () => {
     expect(aimUp.cx).toBeLessThan(shoot.cx);
   });
 
-  it("stacks weapon above jump and reload above the aim column in portrait", () => {
+  it("places weapon and reload as a horizontal pair above the aim column in portrait", () => {
     const buttons = createTouchButtons(390, 760);
     const weapon = byAction(buttons, "weapon");
     const reload = byAction(buttons, "reload");
-    const jump = byAction(buttons, "jump");
     const aimUp = byAction(buttons, "aimUp");
 
-    // Fully above, in the same column as the control they sit over.
-    expect(weapon.cy + weapon.radius).toBeLessThan(jump.cy - jump.radius);
-    expect(weapon.cx).toBeCloseTo(jump.cx);
+    // Side by side on the same row, weapon left of reload, on the right half.
+    expect(weapon.cy).toBeCloseTo(reload.cy);
+    expect(weapon.cx).toBeLessThan(reload.cx);
+    expect(weapon.cx).toBeGreaterThan(390 / 2);
+    // Centered over the aim column, sitting fully above it.
+    expect((weapon.cx + reload.cx) / 2).toBeCloseTo(aimUp.cx);
     expect(reload.cy + reload.radius).toBeLessThan(aimUp.cy - aimUp.radius);
-    expect(reload.cx).toBeCloseTo(aimUp.cx);
   });
 
-  it("spreads weapon and reload inboard along the bottom row in landscape", () => {
+  it.each(VIEWPORTS)("vertically centers the fire button on the aim pair at $width x $height", (viewport) => {
+    const buttons = createTouchButtons(viewport.width, viewport.height);
+    const shoot = byAction(buttons, "shoot");
+    const aimUp = byAction(buttons, "aimUp");
+    const aimDown = byAction(buttons, "aimDown");
+
+    expect(shoot.cy).toBeCloseTo((aimUp.cy + aimDown.cy) / 2);
+  });
+
+  it("groups weapon and reload with the right-side controls in landscape", () => {
     const buttons = createTouchButtons(667, 375);
     const weapon = byAction(buttons, "weapon");
     const reload = byAction(buttons, "reload");
     const right = byAction(buttons, "right");
     const aimUp = byAction(buttons, "aimUp");
 
-    // Weapon inboard of the movement cluster, reload inboard of the aim cluster.
+    // On the right, inboard of the aim column, and clear of the movement cluster.
+    expect(weapon.cx).toBeGreaterThan(667 / 2);
     expect(weapon.cx).toBeGreaterThan(right.cx);
+    expect(weapon.cx).toBeLessThan(reload.cx);
     expect(reload.cx).toBeLessThan(aimUp.cx);
     // Sharing the bottom row rather than stacking upward.
     expect(weapon.cy).toBeCloseTo(reload.cy);
     expect(weapon.cy).toBeGreaterThan(375 / 2);
-    expect(weapon.cx).toBeLessThan(reload.cx);
   });
 
   it("makes the secondary discs smaller than the primary controls", () => {
