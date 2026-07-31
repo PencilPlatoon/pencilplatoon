@@ -248,7 +248,8 @@ export class HumanFigure {
     walkCycle,
     color = 'black',
     forwardHandPosition = null,
-    backHandPosition = null
+    backHandPosition = null,
+    crouchOffset = 0
   }: {
     ctx: CanvasRenderingContext2D;
     transform: EntityTransform;
@@ -259,9 +260,17 @@ export class HumanFigure {
     color?: string;
     forwardHandPosition?: Vector2 | null;
     backHandPosition?: Vector2 | null;
+    /**
+     * How far (px) to lower the upper body while the feet stay planted. The torso,
+     * head and shoulders drop by this amount and the legs fold to a squat. Hand
+     * positions are given in the un-lowered frame, so the arms bend to reach them.
+     */
+    crouchOffset?: number;
   }) {
     if (!active) return;
     const position = transform.position;
+    // Torso, head and arms slide down by the crouch; the feet stay on the ground.
+    const torsoY = position.y - crouchOffset;
     ctx.save();
     ctx.lineWidth = 2;
     ctx.strokeStyle = color;
@@ -273,23 +282,23 @@ export class HumanFigure {
     // Head
     ctx.beginPath();
     ctx.arc(position.x,
-        toCanvasY(position.y + HumanFigure.HEAD_CENTER_OFFSET_Y),
+        toCanvasY(torsoY + HumanFigure.HEAD_CENTER_OFFSET_Y),
          HumanFigure.HEAD_RADIUS, 0, Math.PI * 2);
     ctx.stroke();
     // Body
     ctx.beginPath();
-    ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.BODY_BOTTOM_OFFSET));
-    ctx.lineTo(position.x, toCanvasY(position.y + HumanFigure.BODY_TOP_OFFSET_Y));
+    ctx.moveTo(position.x, toCanvasY(torsoY + HumanFigure.BODY_BOTTOM_OFFSET));
+    ctx.lineTo(position.x, toCanvasY(torsoY + HumanFigure.BODY_TOP_OFFSET_Y));
     ctx.stroke();
     // Neck
     ctx.beginPath();
-    ctx.moveTo(position.x, toCanvasY(position.y + HumanFigure.NECK_BOTTOM_OFFSET_Y));
-    ctx.lineTo(position.x, toCanvasY(position.y + HumanFigure.NECK_TOP_OFFSET_Y));
+    ctx.moveTo(position.x, toCanvasY(torsoY + HumanFigure.NECK_BOTTOM_OFFSET_Y));
+    ctx.lineTo(position.x, toCanvasY(torsoY + HumanFigure.NECK_TOP_OFFSET_Y));
     ctx.stroke();
     // Arms with elbows
     const shoulder = {
       x: position.x,
-      y: position.y + HumanFigure.ARM_Y_OFFSET
+      y: torsoY + HumanFigure.ARM_Y_OFFSET
     };
     
     // Calculate back hand position
@@ -343,8 +352,8 @@ export class HumanFigure {
     );
 
     // Animated legs
-    HumanFigure.renderLegs(ctx, position, isWalking, walkCycle, transform.facing);
-    
+    HumanFigure.renderLegs(ctx, position, isWalking, walkCycle, transform.facing, crouchOffset);
+
     ctx.restore();
   }
 
@@ -387,26 +396,62 @@ export class HumanFigure {
   }
 
   private static renderLegs(
-    ctx: CanvasRenderingContext2D, 
-    position: Vector2, 
-    isWalking: boolean, 
+    ctx: CanvasRenderingContext2D,
+    position: Vector2,
+    isWalking: boolean,
     walkCycle: number,
     facing: number,
+    crouchOffset: number = 0,
   ) {
-    if (isWalking) {
+    if (crouchOffset > 0) {
+      // Crouch: hips drop, feet stay planted, knees bend forward into a squat.
+      HumanFigure.renderCrouchLeg(ctx, position, -HumanFigure.LEG_WIDTH, crouchOffset, facing);
+      HumanFigure.renderCrouchLeg(ctx, position, HumanFigure.LEG_WIDTH, crouchOffset, facing);
+    } else if (isWalking) {
       // Animated walking legs
       const leftLegPhase = walkCycle;
       const rightLegPhase = (walkCycle + Math.PI) % (2 * Math.PI);
-      
+
       // Left leg
       HumanFigure.renderAnimatedLeg(ctx, position, -HumanFigure.LEG_WIDTH, leftLegPhase, facing);
-      // Right leg  
+      // Right leg
       HumanFigure.renderAnimatedLeg(ctx, position, HumanFigure.LEG_WIDTH, rightLegPhase, facing);
     } else {
       // Static standing legs
       HumanFigure.renderStaticLeg(ctx, position, -HumanFigure.LEG_WIDTH);
       HumanFigure.renderStaticLeg(ctx, position, HumanFigure.LEG_WIDTH);
     }
+  }
+
+  /** A squatting leg: hip lowered by the crouch, foot planted, knee bent via IK. */
+  private static renderCrouchLeg(
+    ctx: CanvasRenderingContext2D,
+    position: Vector2,
+    legOffsetX: number,
+    crouchOffset: number,
+    facing: number
+  ) {
+    const hip = {
+      x: position.x,
+      y: position.y + HumanFigure.LEG_TOP_OFFSET_Y - crouchOffset
+    };
+    const foot = {
+      x: position.x + legOffsetX,
+      y: position.y + HumanFigure.LEG_BOTTOM_OFFSET_Y
+    };
+    const knee = HumanFigure.calculateTwoBarJointPosition({
+      startPos: hip,
+      endPos: foot,
+      length1: HumanFigure.UPPER_LEG_LENGTH,
+      length2: HumanFigure.LOWER_LEG_LENGTH,
+      bendMultiplier: facing // Knees bend forward in facing direction
+    });
+
+    ctx.beginPath();
+    ctx.moveTo(hip.x, toCanvasY(hip.y));
+    ctx.lineTo(knee.x, toCanvasY(knee.y));
+    ctx.lineTo(foot.x, toCanvasY(foot.y));
+    ctx.stroke();
   }
 
   private static renderAnimatedLeg(

@@ -11,6 +11,7 @@ import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
 import { ShootingWeaponType } from "@/game/types/interfaces";
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { ReloadLauncherMovement } from "@/game/animation/ReloadLauncherMovement";
+import { WeaponSwapMovement, WeaponSwapMode } from "@/game/animation/WeaponSwapMovement";
 import { PlayerInput } from "@/game/InputResolver";
 import { ALL_LAUNCHERS, ALL_GRENADES } from "@/game/weapons/WeaponCatalog";
 import { Combatant } from "./Combatant";
@@ -36,6 +37,12 @@ export class Player extends Combatant implements Holder {
   private completedGrenade: Grenade | null = null; // Grenade that was just completed and needs to be added to game world
 
   private reloadMovement: ReloadLauncherMovement;
+  private weaponSwapMovement: WeaponSwapMovement;
+  // The gun being stowed during a swap; shown until the animation reaches the exchange.
+  private swapOutgoingWeapon: ShootingWeapon | null = null;
+  // Where a picked-up gun was lying on the ground, so the pickup can lift it from
+  // that exact spot and orientation rather than snapping it into the hand.
+  private swapPickupGroundTransform: EntityTransform | null = null;
 
   get maxHealth(): number { return Player.MAX_HEALTH; }
 
@@ -49,6 +56,7 @@ export class Player extends Combatant implements Holder {
 
     this.arsenal = new Arsenal();
     this.reloadMovement = new ReloadLauncherMovement();
+    this.weaponSwapMovement = new WeaponSwapMovement();
 
     this.reset(x, y);
   }
@@ -76,6 +84,9 @@ export class Player extends Combatant implements Holder {
 
     this.arsenal.reset();
     this.reloadMovement.reset();
+    this.weaponSwapMovement.reset();
+    this.swapOutgoingWeapon = null;
+    this.swapPickupGroundTransform = null;
     this.throwMovement.reset();
     
     this.arsenal.heldLaunchingWeapon.holder = this;
@@ -88,6 +99,13 @@ export class Player extends Combatant implements Holder {
         this.releaseThrow();
       }
       this.throwMovement.stopThrow();
+    }
+
+    // End the weapon swap once its animation has fully played out
+    if (this.weaponSwapMovement.isInProgress() && this.weaponSwapMovement.isComplete()) {
+      this.weaponSwapMovement.stop();
+      this.swapOutgoingWeapon = null;
+      this.swapPickupGroundTransform = null;
     }
 
     // Update reload cycle for launcher
@@ -133,7 +151,10 @@ export class Player extends Combatant implements Holder {
 
   switchWeaponInCategory(): void {
     if (this.selectedWeaponCategory === 'gun') {
+      if (this.arsenal.ownedShootingWeapons.length <= 1) return;
+      const outgoing = this.arsenal.heldShootingWeapon;
       this.arsenal.switchToNextWeapon();
+      this.startWeaponSwap('change', outgoing);
     } else if (this.selectedWeaponCategory === 'grenade') {
       this.arsenal.switchToNextGrenade();
     } else {
@@ -148,10 +169,27 @@ export class Player extends Combatant implements Holder {
     return this.arsenal.ownsShootingWeapon(weaponType);
   }
 
-  /** Add a gun picked up off the ground to the inventory and switch to the gun category to use it. */
-  pickUpWeapon(weapon: ShootingWeapon): void {
+  /**
+   * Add a gun picked up off the ground to the inventory and switch to the gun
+   * category. `groundTransform` is where the gun was lying, so the pickup animation
+   * can lift it from that spot and rotate it into the aim rather than snapping.
+   */
+  pickUpWeapon(weapon: ShootingWeapon, groundTransform?: EntityTransform): void {
+    const outgoing = this.arsenal.heldShootingWeapon;
     this.arsenal.addShootingWeapon(weapon);
     this.selectedWeaponCategory = 'gun';
+    this.startWeaponSwap('pickup', outgoing, groundTransform ? groundTransform.clone() : null);
+  }
+
+  /** Begin the crouch/behind-the-back animation for stowing `outgoing` and drawing the new gun. */
+  private startWeaponSwap(
+    mode: WeaponSwapMode,
+    outgoing: ShootingWeapon,
+    groundTransform: EntityTransform | null = null
+  ): void {
+    this.swapOutgoingWeapon = outgoing;
+    this.swapPickupGroundTransform = groundTransform;
+    this.weaponSwapMovement.start(mode);
   }
 
   switchWeaponCategory(): void {
@@ -318,7 +356,11 @@ export class Player extends Combatant implements Holder {
     
     
     if (this.selectedWeaponCategory === 'gun') {
-      this.arsenal.heldShootingWeapon.render(ctx, weaponAbsTransform, true);
+      if (this.weaponSwapMovement.isInProgress()) {
+        this.renderSwappingGun(ctx);
+      } else {
+        this.arsenal.heldShootingWeapon.render(ctx, weaponAbsTransform, true);
+      }
     } else if (this.selectedWeaponCategory === 'grenade') {
       // Render the held grenade in the back hand (throwing is back-to-front)
       this.arsenal.heldGrenade.transform = this.getPrimaryHandAbsTransform();
@@ -367,19 +409,28 @@ export class Player extends Combatant implements Holder {
     }
     this.renderBoundingBox(ctx);
     
-    // The back arm follows a launcher reload when one is in progress (and no throw
-    // is overriding it); otherwise both hands come from the dual-hold system (which
-    // itself follows the grenade swing during a throw).
-    const reloadBackHand = this.reloadMovement.getBackHandRel(this.getEffectiveAimAngle());
+    // During a weapon swap both hands carry the gun through the swing and the body
+    // may crouch; otherwise the back arm follows a launcher reload when one is in
+    // progress (and no throw is overriding it), else both hands come from the
+    // dual-hold system (which itself follows the grenade swing during a throw).
     let forwardHandPosition: Vector2 | null = null;
     let backHandPosition: Vector2 | null = null;
+    let crouchOffset = 0;
 
-    if (this.throwMovement.isInThrowState() || reloadBackHand === null) {
-      const handPositions = this.calculateHandPositions(weaponRelTransform);
-      forwardHandPosition = handPositions.forwardHandPosition;
-      backHandPosition = handPositions.backHandPosition;
+    if (this.weaponSwapMovement.isInProgress()) {
+      const swapHand = this.weaponSwapMovement.getActiveHandRel(this.getEffectiveAimAngle());
+      forwardHandPosition = swapHand;
+      backHandPosition = swapHand;
+      crouchOffset = this.weaponSwapMovement.getCrouchOffset();
     } else {
-      backHandPosition = reloadBackHand;
+      const reloadBackHand = this.reloadMovement.getBackHandRel(this.getEffectiveAimAngle());
+      if (this.throwMovement.isInThrowState() || reloadBackHand === null) {
+        const handPositions = this.calculateHandPositions(weaponRelTransform);
+        forwardHandPosition = handPositions.forwardHandPosition;
+        backHandPosition = handPositions.backHandPosition;
+      } else {
+        backHandPosition = reloadBackHand;
+      }
     }
 
     // Update logged weapon after calculation
@@ -396,8 +447,39 @@ export class Player extends Combatant implements Holder {
       walkCycle: this.walkCycle,
       color: 'purple',
       forwardHandPosition,
-      backHandPosition
+      backHandPosition,
+      crouchOffset
     });
+  }
+
+  /**
+   * Render the gun(s) mid-swap. The outgoing gun follows the hand as it is stowed.
+   * The incoming gun, when picked up off the ground, is lifted from where it lay and
+   * rotated into the aim; otherwise (a weapon change) it simply follows the hand out.
+   */
+  private renderSwappingGun(ctx: CanvasRenderingContext2D): void {
+    const swap = this.weaponSwapMovement;
+    const aim = this.getEffectiveAimAngle();
+    const incomingGun = this.arsenal.heldShootingWeapon;
+    const role = swap.getHandRole();
+
+    if (role === "outgoing") {
+      this.renderGunAt(ctx, this.swapOutgoingWeapon ?? incomingGun, swap.getHandWeaponRelTransform(aim));
+    }
+
+    const groundAbs = this.swapPickupGroundTransform
+      ? swap.getIncomingGroundTransform(this.transform, this.swapPickupGroundTransform, aim)
+      : null;
+    if (groundAbs) {
+      incomingGun.render(ctx, groundAbs, false);
+    } else if (role === "incoming") {
+      this.renderGunAt(ctx, incomingGun, swap.getHandWeaponRelTransform(aim));
+    }
+  }
+
+  /** Render a gun at a player-relative pose, if one is given. */
+  private renderGunAt(ctx: CanvasRenderingContext2D, gun: ShootingWeapon, relTransform: EntityTransform | null): void {
+    if (relTransform) gun.render(ctx, this.transform.applyTransform(relTransform), false);
   }
 }
 

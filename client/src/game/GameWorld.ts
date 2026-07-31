@@ -244,7 +244,7 @@ export class GameWorld {
       const canPickUp = dropped.isWithinPickupRange(playerCenter)
         && !this.player.ownsWeapon(dropped.weapon.type);
       if (canPickUp) {
-        this.player.pickUpWeapon(dropped.weapon);
+        this.player.pickUpWeapon(dropped.weapon, dropped.transform);
         this.soundManager.playReload();
         this.showFlashMessage(`Picked up ${dropped.weapon.type.name}`);
         return false;
