@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { ReloadLauncherMovement } from "@/game/animation/ReloadLauncherMovement";
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { BoundingBox } from "@/game/types/BoundingBox";
+import { HumanFigure } from "@/rendering/HumanFigure";
 
 describe("ReloadLauncherMovement", () => {
   let now: number;
@@ -236,6 +237,23 @@ describe("ReloadLauncherMovement", () => {
       // In phase 5, rocket should be at muzzle position
       // muzzle = weaponAbsTransform.x + 25 = 145
       expect(result!.position.x).toBeCloseTo(145);
+    });
+  });
+
+  describe("getBackHandRel", () => {
+    it("returns null when not reloading", () => {
+      expect(movement.getBackHandRel(0)).toBeNull();
+    });
+
+    it("matches the back-hand transform for the reload arm angle", () => {
+      movement.startReload(DURATION);
+      now = 1100; // phase 1
+      const aim = 0.3;
+      const angle = movement.getBackArmAngle(aim)!;
+      const expected = HumanFigure.getBackHandTransform(angle).position;
+      const rel = movement.getBackHandRel(aim)!;
+      expect(rel.x).toBeCloseTo(expected.x);
+      expect(rel.y).toBeCloseTo(expected.y);
     });
   });
 });

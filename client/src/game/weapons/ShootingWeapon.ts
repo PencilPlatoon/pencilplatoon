@@ -1,5 +1,5 @@
 import { ShootingWeaponType, HoldableObject, CasingEjection } from "@/game/types/interfaces";
-import { Vector2 } from "@/game/types/Vector2";
+import { Vector2, Vector2Utils } from "@/game/types/Vector2";
 import { BoundingBox } from "@/game/types/BoundingBox";
 import { SVGInfo } from "@/util/SVGLoader";
 import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
@@ -109,7 +109,7 @@ export class ShootingWeapon implements HoldableObject {
     const ejectionAngle = barrelAngle + (Math.PI / 2) * weaponTransform.facing;
     return {
       position: port.position,
-      direction: { x: Math.cos(ejectionAngle), y: Math.sin(ejectionAngle) },
+      direction: Vector2Utils.fromAngle(ejectionAngle),
       config,
     };
   }
@@ -140,7 +140,7 @@ export class ShootingWeapon implements HoldableObject {
     const damagePerPellet = isPellet ? this.type.damage / pelletCount : this.type.damage;
 
     if (!isPellet) {
-      const direction = { x: Math.cos(baseAngle), y: Math.sin(baseAngle) };
+      const direction = Vector2Utils.fromAngle(baseAngle);
       return [new Bullet(
         muzzle.position.x, muzzle.position.y,
         direction, this.type.bulletSpeed, damagePerPellet, this.type.bulletSize
@@ -151,7 +151,7 @@ export class ShootingWeapon implements HoldableObject {
     for (let i = 0; i < pelletCount; i++) {
       const offset = spreadAngle * ((i / (pelletCount - 1)) - 0.5);
       const angle = baseAngle + offset;
-      const direction = { x: Math.cos(angle), y: Math.sin(angle) };
+      const direction = Vector2Utils.fromAngle(angle);
       bullets.push(new Bullet(
         muzzle.position.x, muzzle.position.y,
         direction, this.type.bulletSpeed, damagePerPellet, this.type.bulletSize,

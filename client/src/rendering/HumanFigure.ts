@@ -247,7 +247,6 @@ export class HumanFigure {
     isWalking,
     walkCycle,
     color = 'black',
-    reloadBackArmAngle = null,
     forwardHandPosition = null,
     backHandPosition = null
   }: {
@@ -258,7 +257,6 @@ export class HumanFigure {
     isWalking: boolean;
     walkCycle: number;
     color?: string;
-    reloadBackArmAngle?: number | null;
     forwardHandPosition?: Vector2 | null;
     backHandPosition?: Vector2 | null;
   }) {
@@ -300,14 +298,9 @@ export class HumanFigure {
     let backArmElbowBackward = false;
     
     if (backHandPosition) {
-      // Use provided hand position (from weapon dual-hold system)
+      // Use provided hand position (from the throw swing, reload animation, or weapon hold)
       const absoluteBackHand = transform.applyTransform(new EntityTransform(backHandPosition, 0, 1));
       backHandPos = absoluteBackHand.position;
-    } else if (reloadBackArmAngle !== null) {
-      // During reloading, use the reload animation angle
-      const backHandTransform = HumanFigure.getBackHandTransform(reloadBackArmAngle);
-      const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
-      backHandPos = absoluteBackHandTransform.position;
     } else {
       // Resting position: down and back at 2:1 ratio
       const backHandTransform = HumanFigure.getBackHandRestingTransform();

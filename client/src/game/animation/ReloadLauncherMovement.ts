@@ -1,4 +1,5 @@
 import { EntityTransform } from "@/game/types/EntityTransform";
+import { Vector2 } from "@/game/types/Vector2";
 import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
 import { HumanFigure } from "@/rendering/HumanFigure";
 import { TimedAnimation } from "./TimedAnimation";
@@ -90,6 +91,12 @@ export class ReloadLauncherMovement extends TimedAnimation {
       default:
         return null;
     }
+  }
+
+  /** Back-hand position (player-relative) posing the reload arm, or null when not reloading. */
+  getBackHandRel(aimAngle: number): Vector2 | null {
+    const backArmAngle = this.getBackArmAngle(aimAngle);
+    return backArmAngle === null ? null : HumanFigure.getBackHandTransform(backArmAngle).position;
   }
 
   getRocketTransform({

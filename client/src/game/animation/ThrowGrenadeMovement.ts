@@ -1,5 +1,5 @@
 import { EntityTransform } from "@/game/types/EntityTransform";
-import { Vector2 } from "@/game/types/Vector2";
+import { Vector2, Vector2Utils } from "@/game/types/Vector2";
 import { HumanFigure } from "@/rendering/HumanFigure";
 import { TimedAnimation } from "./TimedAnimation";
 
@@ -73,10 +73,7 @@ export class ThrowGrenadeMovement extends TimedAnimation {
 
   /** Launch velocity in world space (facing applied) — the flight's initial velocity. */
   getLaunchVelocity(facing: number): Vector2 {
-    return {
-      x: Math.cos(this.launchAim) * facing * this.launchSpeed,
-      y: Math.sin(this.launchAim) * this.launchSpeed
-    };
+    return Vector2Utils.fromAngle(this.launchAim, this.launchSpeed, facing);
   }
 
   /** Where the grenade leaves the hand — high, with the swing tangent along the aim. */

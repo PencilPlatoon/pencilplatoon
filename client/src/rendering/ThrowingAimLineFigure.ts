@@ -1,6 +1,6 @@
 import { toCanvasY } from "@/game/world/Terrain";
 import { EntityTransform } from "@/game/types/EntityTransform";
-import { Vector2 } from "@/game/types/Vector2";
+import { Vector2Utils } from "@/game/types/Vector2";
 import { Physics } from "@/game/systems/Physics";
 
 export class ThrowingAimLineFigure {
@@ -20,10 +20,7 @@ export class ThrowingAimLineFigure {
   }) {
     const position = transform.position;
     
-    const throwVelocity: Vector2 = {
-      x: Math.cos(transform.rotation) * transform.facing * velocity,
-      y: Math.sin(transform.rotation) * velocity
-    };
+    const throwVelocity = Vector2Utils.fromAngle(transform.rotation, velocity, transform.facing);
 
     const color = mode === "Max" ? "red" : "black";
 

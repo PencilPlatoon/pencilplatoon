@@ -45,4 +45,17 @@ export namespace Vector2Utils {
       y: v.x * sin + v.y * cos
     };
   }
+
+  /**
+   * Vector of the given magnitude pointing at `angle` (CCW from +x). `facing`
+   * (±1) mirrors the x component for left/right-facing entities, so world +x
+   * follows the aim direction. Used for velocities, launch directions, and
+   * aim-line offsets.
+   */
+  export function fromAngle(angle: number, magnitude = 1, facing = 1): Vector2 {
+    return {
+      x: Math.cos(angle) * facing * magnitude,
+      y: Math.sin(angle) * magnitude
+    };
+  }
 }

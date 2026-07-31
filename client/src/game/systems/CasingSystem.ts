@@ -1,5 +1,6 @@
 import { Casing, CasingEjection } from "@/game/types/interfaces";
 import { CasingFigure } from "@/rendering/CasingFigure";
+import { Vector2Utils } from "@/game/types/Vector2";
 
 const MAX_CASINGS = 100;
 const GRAVITY = -200;
@@ -21,10 +22,7 @@ export class CasingSystem {
 
     const casing: Casing = {
       position: { x: position.x, y: position.y },
-      velocity: {
-        x: Math.cos(baseAngle) * speed,
-        y: Math.sin(baseAngle) * speed,
-      },
+      velocity: Vector2Utils.fromAngle(baseAngle, speed),
       rotation: 0,
       rotationSpeed: config.spinRate * (Math.random() > 0.5 ? 1 : -1),
       life: config.life * lifeVariance,

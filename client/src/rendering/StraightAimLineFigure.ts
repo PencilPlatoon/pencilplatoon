@@ -1,5 +1,6 @@
 import { toCanvasY } from "@/game/world/Terrain";
 import { EntityTransform } from "@/game/types/EntityTransform";
+import { Vector2Utils } from "@/game/types/Vector2";
 
 export class StraightAimLineFigure {
   static render({
@@ -12,8 +13,9 @@ export class StraightAimLineFigure {
     length: number;
   }) {
     const position = transform.position;
-    const aimEndX = position.x + Math.cos(transform.rotation) * length * transform.facing;
-    const aimEndY = position.y + Math.sin(transform.rotation) * length;
+    const aimOffset = Vector2Utils.fromAngle(transform.rotation, length, transform.facing);
+    const aimEndX = position.x + aimOffset.x;
+    const aimEndY = position.y + aimOffset.y;
 
     ctx.save();
     ctx.strokeStyle = "red";

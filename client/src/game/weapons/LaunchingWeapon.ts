@@ -1,5 +1,5 @@
 import { LauncherType, RocketType, GameObject, Holder, HoldableObject } from "@/game/types/interfaces";
-import { Vector2 } from "@/game/types/Vector2";
+import { Vector2, Vector2Utils } from "@/game/types/Vector2";
 import { BoundingBox } from "@/game/types/BoundingBox";
 import { SVGInfo } from "@/util/SVGLoader";
 import { loadSVGAndCreateBounds } from "@/util/SVGAssetLoader";
@@ -69,14 +69,12 @@ export class LaunchingWeapon implements GameObject, Holder, HoldableObject {
     if (!this.heldRocket) return null;
 
     const rocketTransform = this.getMuzzleTransform(transform);
-    const direction = { x: Math.cos(rocketTransform.rotation) * rocketTransform.facing, y: Math.sin(rocketTransform.rotation) };
-    
+
     // Prepare rocket for launch (launcher's transform should already be set by caller)
-    const velocity = {
-      x: direction.x * this.rocketType.speed,
-      y: direction.y * this.rocketType.speed
-    };
-    
+    const velocity = Vector2Utils.fromAngle(
+      rocketTransform.rotation, this.rocketType.speed, rocketTransform.facing
+    );
+
     this.heldRocket.prepareForLaunch(rocketTransform.position.x, rocketTransform.position.y, velocity, this);
     
     const launchedRocket = this.heldRocket;

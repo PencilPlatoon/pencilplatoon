@@ -113,4 +113,25 @@ describe("Vector2Utils", () => {
       expect(result.y).toBeCloseTo(4);
     });
   });
+
+  describe("fromAngle", () => {
+    it("defaults to a unit vector along +x at angle 0", () => {
+      const result = Vector2Utils.fromAngle(0);
+      expect(result.x).toBeCloseTo(1);
+      expect(result.y).toBeCloseTo(0);
+    });
+
+    it("scales by magnitude", () => {
+      const result = Vector2Utils.fromAngle(Math.PI / 2, 5);
+      expect(result.x).toBeCloseTo(0);
+      expect(result.y).toBeCloseTo(5);
+    });
+
+    it("mirrors only the x component when facing left", () => {
+      const result = Vector2Utils.fromAngle(Math.PI / 4, 10, -1);
+      const expected = (10 * Math.SQRT2) / 2;
+      expect(result.x).toBeCloseTo(-expected);
+      expect(result.y).toBeCloseTo(expected);
+    });
+  });
 });

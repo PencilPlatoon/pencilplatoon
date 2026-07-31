@@ -1,6 +1,7 @@
 import { Particle, ExplosionParameters } from "@/game/types/interfaces";
 import { ParticleFigure } from "@/rendering/ParticleFigure";
 import { EntityTransform } from "@/game/types/EntityTransform";
+import { Vector2Utils } from "@/game/types/Vector2";
 
 export class ParticleSystem {
   private particles: Particle[] = [];
@@ -18,10 +19,7 @@ export class ParticleSystem {
       const particle: Particle = {
         id: `particle_${Date.now()}_${i}`,
         transform: new EntityTransform({ x: position.x, y: position.y }),
-        velocity: {
-          x: Math.cos(angle) * speed,
-          y: Math.sin(angle) * speed
-        },
+        velocity: Vector2Utils.fromAngle(angle, speed),
         color: colors[Math.floor(Math.random() * colors.length)],
         life,
         maxLife: life,

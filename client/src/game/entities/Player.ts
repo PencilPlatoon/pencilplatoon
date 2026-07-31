@@ -354,19 +354,19 @@ export class Player extends Combatant implements Holder {
     }
     this.renderBoundingBox(ctx);
     
-    // Get reload back arm angle if reloading
-    const reloadBackArmAngle = this.reloadMovement.getBackArmAngle(this.getEffectiveAimAngle());
-
-    // Hand positions come from the dual-hold system (which follows the grenade swing
-    // during a throw). Skip only during a launcher reload, where the reload animation
-    // drives the back arm instead.
+    // The back arm follows a launcher reload when one is in progress (and no throw
+    // is overriding it); otherwise both hands come from the dual-hold system (which
+    // itself follows the grenade swing during a throw).
+    const reloadBackHand = this.reloadMovement.getBackHandRel(this.getEffectiveAimAngle());
     let forwardHandPosition: Vector2 | null = null;
     let backHandPosition: Vector2 | null = null;
 
-    if (this.throwMovement.isInThrowState() || reloadBackArmAngle === null) {
+    if (this.throwMovement.isInThrowState() || reloadBackHand === null) {
       const handPositions = this.calculateHandPositions(weaponRelTransform);
       forwardHandPosition = handPositions.forwardHandPosition;
       backHandPosition = handPositions.backHandPosition;
+    } else {
+      backHandPosition = reloadBackHand;
     }
 
     // Update logged weapon after calculation
@@ -382,7 +382,6 @@ export class Player extends Combatant implements Holder {
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
       color: 'purple',
-      reloadBackArmAngle,
       forwardHandPosition,
       backHandPosition
     });
