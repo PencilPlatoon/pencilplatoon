@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Player, getThrowMultiplier } from "@/game/entities/Player";
 import { Terrain } from "@/game/world/Terrain";
 import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
+import { HumanFigure } from "@/rendering/HumanFigure";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -255,6 +256,84 @@ describe("Player", () => {
         gunTransform.position.x !== grenadeTransform.position.x ||
         gunTransform.position.y !== grenadeTransform.position.y;
       expect(positionsDiffer).toBe(true);
+    });
+  });
+
+  describe("grenade back-hand hold", () => {
+    // Throwing is back-to-front, so a held grenade lives in the back hand (not
+    // the front hand where guns are held). This is what the render code uses to
+    // position the grenade object, so it must match the back-hand transform.
+    it("holds the grenade in the back hand when at rest", () => {
+      player.switchWeaponCategory(); // gun → grenade
+
+      const held = player.getPrimaryHandAbsTransform();
+      const expected = player.transform.applyTransform(
+        HumanFigure.getBackHandTransform(0)
+      );
+      expect(held.position.x).toBeCloseTo(expected.position.x);
+      expect(held.position.y).toBeCloseTo(expected.position.y);
+    });
+
+    it("holds a gun in the front hand, not the back hand", () => {
+      const held = player.getPrimaryHandAbsTransform(); // gun by default
+      const backHand = player.transform.applyTransform(
+        HumanFigure.getBackHandTransform(0)
+      );
+      const differs =
+        held.position.x !== backHand.position.x ||
+        held.position.y !== backHand.position.y;
+      expect(differs).toBe(true);
+    });
+
+    it("the grenade follows the throwing arm during a throw", () => {
+      vi.useFakeTimers();
+      try {
+        // Construct under fake timers so the throw animation's clock is faked.
+        const p = new Player(100, 200);
+        p.switchWeaponCategory(); // gun → grenade
+        const resting = p.getPrimaryHandAbsTransform();
+
+        p.setThrowPower(1.0);
+        p.startThrow();
+        vi.advanceTimersByTime(150); // partway through the ~300ms throw
+
+        const throwing = p.getPrimaryHandAbsTransform();
+        const moved =
+          throwing.position.x !== resting.position.x ||
+          throwing.position.y !== resting.position.y;
+        expect(moved).toBe(true);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("calculateHandPositions", () => {
+    // The drawn arm must match where the held object sits: grenade → back arm
+    // reaches for it and the front arm is free; gun → front arm holds it.
+    const handPositions = (p: Player) =>
+      (p as unknown as {
+        calculateHandPositions: (t: unknown) => {
+          forwardHandPosition: { x: number; y: number } | null;
+          backHandPosition: { x: number; y: number } | null;
+        };
+      }).calculateHandPositions(p.getWeaponRelTransform());
+
+    it("puts a grenade in the back hand and frees the front hand", () => {
+      player.switchWeaponCategory(); // gun → grenade
+
+      const { forwardHandPosition, backHandPosition } = handPositions(player);
+      expect(forwardHandPosition).toBeNull();
+      expect(backHandPosition).not.toBeNull();
+
+      const expected = HumanFigure.getBackHandTransform(0).position;
+      expect(backHandPosition!.x).toBeCloseTo(expected.x);
+      expect(backHandPosition!.y).toBeCloseTo(expected.y);
+    });
+
+    it("puts a gun in the front hand", () => {
+      const { forwardHandPosition } = handPositions(player); // gun by default
+      expect(forwardHandPosition).not.toBeNull();
     });
   });
 

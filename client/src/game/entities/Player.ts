@@ -312,8 +312,8 @@ export class Player extends Combatant implements Holder {
     } else if (this.selectedWeaponCategory === 'grenade') {
       const releaseAbsTransform = this.getThrowingReleaseAbsTransform();
       
-      // Render the held grenade
-      this.arsenal.heldGrenade.transform = weaponAbsTransform;
+      // Render the held grenade in the back hand (throwing is back-to-front)
+      this.arsenal.heldGrenade.transform = this.getPrimaryHandAbsTransform();
       this.arsenal.heldGrenade.render(ctx);
       
       ThrowingAimLineFigure.render({

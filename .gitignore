@@ -7,3 +7,4 @@ client/public/.DS_Store
 ai/
 .cursor
 coverage/
+.venv/

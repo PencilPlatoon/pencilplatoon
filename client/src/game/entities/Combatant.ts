@@ -158,6 +158,15 @@ export abstract class Combatant implements DamageableEntity {
   }
 
   protected calculateHandPositions(weaponRelTransform: EntityTransform): { forwardHandPosition: Vector2 | null; backHandPosition: Vector2 | null } {
+    // Grenades are held in the back hand, ready to throw back-to-front. The front
+    // arm is left free (falls back to its default aim pose).
+    if (this.isHoldingGrenade()) {
+      return {
+        forwardHandPosition: null,
+        backHandPosition: HumanFigure.getBackHandTransform(0).position
+      };
+    }
+
     const holdableObject = this.getHeldObject();
     const primaryHandRelative = HumanFigure.getHandPositionForWeapon(
       weaponRelTransform,
