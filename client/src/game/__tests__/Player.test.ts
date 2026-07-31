@@ -2,6 +2,8 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { Player, getThrowMultiplier } from "@/game/entities/Player";
 import { Terrain } from "@/game/world/Terrain";
 import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
 import { HumanFigure } from "@/rendering/HumanFigure";
 import { ThrowGrenadeMovement } from "@/game/animation/ThrowGrenadeMovement";
 import { EntityTransform } from "@/game/types/EntityTransform";
@@ -120,9 +122,15 @@ describe("Player", () => {
 
   describe("switchWeaponInCategory", () => {
     it("switches gun within category", () => {
-      const originalWeapon = player.arsenal.heldShootingWeapon;
+      const webley = player.arsenal.heldShootingWeapon;
+      player.arsenal.addShootingWeapon(new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE));
+      const rifle = player.arsenal.heldShootingWeapon;
+      expect(rifle).not.toBe(webley);
+
       player.switchWeaponInCategory();
-      expect(player.arsenal.heldShootingWeapon).not.toBe(originalWeapon);
+      expect(player.arsenal.heldShootingWeapon).toBe(webley);
+      player.switchWeaponInCategory();
+      expect(player.arsenal.heldShootingWeapon).toBe(rifle);
     });
 
     it("switches grenade within category", () => {

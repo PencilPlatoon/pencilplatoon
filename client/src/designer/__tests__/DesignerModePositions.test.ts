@@ -1,6 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
 import { DesignerModePositions } from "../DesignerModePositions";
 import { Player } from "@/game/entities/Player";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { Vector2 } from "@/game/types/Vector2";
 import { Terrain } from "@/game/world/Terrain";
@@ -166,8 +168,8 @@ describe("getPrimaryHandAbsPosition / getSecondaryHandAbsPosition", () => {
 
   it("returns position for secondary hand when weapon has secondary hold", () => {
     const player = new Player(FIGURE_CENTER_X, FIGURE_CENTER_Y + 25);
-    // Switch to a weapon with secondary hold (index 1 = Rifle a main offensive)
-    player.arsenal.switchToNextWeapon();
+    // Equip a weapon with a secondary hold (Rifle a main offensive)
+    player.arsenal.addShootingWeapon(new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE));
     const result = DesignerModePositions.getSecondaryHandAbsPosition(player);
     expect(result).not.toBeNull();
     expect(result!.x).toBeDefined();

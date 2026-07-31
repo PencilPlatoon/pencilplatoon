@@ -2,6 +2,8 @@ import { describe, it, expect, vi } from "vitest";
 import { SecondaryHandControl } from "../SecondaryHandControl";
 import { Player } from "@/game/entities/Player";
 import { DesignerModePositions } from "../DesignerModePositions";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -41,8 +43,8 @@ describe("SecondaryHandControl", () => {
 
   it("getAbsPosition returns position when weapon has secondary hold", () => {
     const { control, player } = createControl();
-    // Switch to weapon with secondary hold
-    player.arsenal.switchToNextWeapon();
+    // Equip a weapon with a secondary hold
+    player.arsenal.addShootingWeapon(new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE));
     const pos = control.getAbsPosition();
     expect(pos).not.toBeNull();
     expect(typeof pos!.x).toBe("number");
@@ -51,8 +53,8 @@ describe("SecondaryHandControl", () => {
 
   it("updateAbsPosition changes the secondary hold ratio", () => {
     const { control, player } = createControl();
-    // Switch to weapon with secondary hold
-    player.arsenal.switchToNextWeapon();
+    // Equip a weapon with a secondary hold
+    player.arsenal.addShootingWeapon(new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE));
     const originalHold = { ...player.getHeldObject().type.secondaryHoldRatioPosition! };
 
     const newPos = { x: FIGURE_CENTER_X + 10, y: FIGURE_CENTER_Y + 30 };

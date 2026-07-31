@@ -2,13 +2,15 @@ import { ShootingWeapon } from "./ShootingWeapon";
 import { LaunchingWeapon } from "./LaunchingWeapon";
 import { Grenade } from "@/game/entities/Grenade";
 import { Rocket } from "@/game/entities/Rocket";
-import { Holder } from "@/game/types/interfaces";
-import { ALL_SHOOTING_WEAPONS, ALL_LAUNCHERS, ALL_GRENADES } from "./WeaponCatalog";
+import { Holder, ShootingWeaponType } from "@/game/types/interfaces";
+import { WEBLEY_REVOLVER, ALL_LAUNCHERS, ALL_GRENADES } from "./WeaponCatalog";
 
 export const cycleIndex = (current: number, length: number): number =>
   (current + 1) % length;
 
 export class Arsenal {
+  /** Guns the player has collected; the player starts with only the Webley. */
+  ownedShootingWeapons: ShootingWeapon[];
   heldShootingWeapon: ShootingWeapon;
   heldLaunchingWeapon: LaunchingWeapon;
   heldGrenade: Grenade;
@@ -29,6 +31,7 @@ export class Arsenal {
     this.currentWeaponIndex = 0;
     this.currentLauncherIndex = 0;
     this.currentGrenadeIndex = 0;
+    this.ownedShootingWeapons = [];
     this.heldShootingWeapon = null!;
     this.heldLaunchingWeapon = null!;
     this.heldGrenade = null!;
@@ -36,8 +39,20 @@ export class Arsenal {
   }
 
   switchToNextWeapon(): void {
-    this.currentWeaponIndex = cycleIndex(this.currentWeaponIndex, ALL_SHOOTING_WEAPONS.length);
-    this.heldShootingWeapon = new ShootingWeapon(ALL_SHOOTING_WEAPONS[this.currentWeaponIndex]);
+    this.currentWeaponIndex = cycleIndex(this.currentWeaponIndex, this.ownedShootingWeapons.length);
+    this.heldShootingWeapon = this.ownedShootingWeapons[this.currentWeaponIndex];
+  }
+
+  /** Whether a gun of this type is already in the player's inventory. */
+  ownsShootingWeapon(type: ShootingWeaponType): boolean {
+    return this.ownedShootingWeapons.some(weapon => weapon.type === type);
+  }
+
+  /** Add a newly acquired gun to the inventory and switch to it, keeping its remaining ammo. */
+  addShootingWeapon(weapon: ShootingWeapon): void {
+    this.ownedShootingWeapons.push(weapon);
+    this.currentWeaponIndex = this.ownedShootingWeapons.length - 1;
+    this.heldShootingWeapon = weapon;
   }
 
   switchToNextLauncher(): void {
@@ -61,7 +76,8 @@ export class Arsenal {
     this.currentWeaponIndex = 0;
     this.currentLauncherIndex = 0;
     this.currentGrenadeIndex = 0;
-    this.heldShootingWeapon = new ShootingWeapon(ALL_SHOOTING_WEAPONS[0]);
+    this.ownedShootingWeapons = [new ShootingWeapon(WEBLEY_REVOLVER)];
+    this.heldShootingWeapon = this.ownedShootingWeapons[0];
     this.heldLaunchingWeapon = new LaunchingWeapon(ALL_LAUNCHERS[0]);
     this.heldGrenade = new Grenade(0, 0, { x: 0, y: 0 }, ALL_GRENADES[0]);
   }

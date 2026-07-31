@@ -14,6 +14,7 @@ export const renderWorld = (
   ctx.translate(-world.camera.bottomLeftWorldX, world.camera.toScreenY(-world.camera.bottomLeftWorldY));
 
   world.terrain.render(ctx);
+  world.droppedWeapons.forEach(weapon => weapon.render(ctx));
   world.player.render(ctx);
   world.enemies.forEach(enemy => enemy.render(ctx));
   world.bullets.forEach(bullet => bullet.render(ctx));

@@ -5,6 +5,8 @@ import { Terrain } from "@/game/world/Terrain";
 import { LEVEL_ORDER } from "@/game/world/LevelConfig";
 import { Player } from "@/game/entities/Player";
 import { Bullet } from "@/game/entities/Bullet";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -480,7 +482,8 @@ describe("GameWorld", () => {
       try {
         const world = createWorld();
         initWorld(world);
-        world.switchWeapon(); // Webley (semi-auto) → Rifle a main offensive (auto)
+        // Give the player an automatic weapon (as if picked up off the ground).
+        world.player.arsenal.addShootingWeapon(new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE));
         expect(world.player.arsenal.heldShootingWeapon.type.autoFiringType).toBe("auto");
 
         // One unbroken hold: the trigger never goes false, as when a finger

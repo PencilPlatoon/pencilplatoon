@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { cycleIndex, Arsenal } from "@/game/weapons/Arsenal";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
 import { Rocket } from "@/game/entities/Rocket";
 import { BoundingBox } from "@/game/types/BoundingBox";
 import { EntityTransform } from "@/game/types/EntityTransform";
@@ -55,24 +56,43 @@ describe("Arsenal", () => {
   });
 
   describe("switchToNextWeapon", () => {
-    it("cycles the weapon index", () => {
-      const initialIndex = arsenal.currentWeaponIndex;
-      arsenal.switchToNextWeapon();
-      const expectedIndex = (initialIndex + 1) % ALL_SHOOTING_WEAPONS.length;
-      expect(arsenal.currentWeaponIndex).toBe(expectedIndex);
-    });
-
-    it("creates a new ShootingWeapon instance", () => {
+    it("stays on the only owned weapon when the player has just one", () => {
       const originalWeapon = arsenal.heldShootingWeapon;
       arsenal.switchToNextWeapon();
-      expect(arsenal.heldShootingWeapon).not.toBe(originalWeapon);
+      expect(arsenal.currentWeaponIndex).toBe(0);
+      expect(arsenal.heldShootingWeapon).toBe(originalWeapon);
     });
 
-    it("wraps around to index 0", () => {
-      for (let i = 0; i < ALL_SHOOTING_WEAPONS.length; i++) {
-        arsenal.switchToNextWeapon();
-      }
+    it("cycles through owned weapons", () => {
+      const webley = arsenal.heldShootingWeapon;
+      const picked = new ShootingWeapon(ALL_SHOOTING_WEAPONS[1]);
+      arsenal.addShootingWeapon(picked);
+      expect(arsenal.heldShootingWeapon).toBe(picked);
+
+      arsenal.switchToNextWeapon();
       expect(arsenal.currentWeaponIndex).toBe(0);
+      expect(arsenal.heldShootingWeapon).toBe(webley);
+
+      arsenal.switchToNextWeapon();
+      expect(arsenal.currentWeaponIndex).toBe(1);
+      expect(arsenal.heldShootingWeapon).toBe(picked);
+    });
+  });
+
+  describe("addShootingWeapon / ownsShootingWeapon", () => {
+    it("starts owning only the Webley", () => {
+      expect(arsenal.ownedShootingWeapons).toHaveLength(1);
+      expect(arsenal.ownsShootingWeapon(ALL_SHOOTING_WEAPONS[0])).toBe(true);
+      expect(arsenal.ownsShootingWeapon(ALL_SHOOTING_WEAPONS[1])).toBe(false);
+    });
+
+    it("adds and equips a newly acquired gun", () => {
+      const picked = new ShootingWeapon(ALL_SHOOTING_WEAPONS[2]);
+      arsenal.addShootingWeapon(picked);
+      expect(arsenal.ownedShootingWeapons).toHaveLength(2);
+      expect(arsenal.ownsShootingWeapon(ALL_SHOOTING_WEAPONS[2])).toBe(true);
+      expect(arsenal.heldShootingWeapon).toBe(picked);
+      expect(arsenal.currentWeaponIndex).toBe(1);
     });
   });
 

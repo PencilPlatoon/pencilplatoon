@@ -7,6 +7,8 @@ import { ThrowingAimLineFigure } from "@/rendering/ThrowingAimLineFigure";
 import { Grenade } from "./Grenade";
 import { Rocket } from "./Rocket";
 import { Arsenal } from "@/game/weapons/Arsenal";
+import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { ShootingWeaponType } from "@/game/types/interfaces";
 import { EntityTransform } from "@/game/types/EntityTransform";
 import { ReloadLauncherMovement } from "@/game/animation/ReloadLauncherMovement";
 import { PlayerInput } from "@/game/InputResolver";
@@ -139,6 +141,17 @@ export class Player extends Combatant implements Holder {
       this.arsenal.switchToNextLauncher();
       this.arsenal.heldLaunchingWeapon.holder = this;
     }
+  }
+
+  /** Whether the player already owns a gun of this type (so it isn't picked up again). */
+  ownsWeapon(weaponType: ShootingWeaponType): boolean {
+    return this.arsenal.ownsShootingWeapon(weaponType);
+  }
+
+  /** Add a gun picked up off the ground to the inventory and switch to the gun category to use it. */
+  pickUpWeapon(weapon: ShootingWeapon): void {
+    this.arsenal.addShootingWeapon(weapon);
+    this.selectedWeaponCategory = 'gun';
   }
 
   switchWeaponCategory(): void {

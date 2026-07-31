@@ -8,9 +8,11 @@ import { CollisionSystem } from "./systems/CollisionSystem";
 import { Bullet } from "./entities/Bullet";
 import { Grenade } from "./entities/Grenade";
 import { Rocket } from "./entities/Rocket";
+import { DroppedWeapon } from "./entities/DroppedWeapon";
 import { SoundManager } from "./systems/SoundManager";
 import { LEVEL_DEFINITIONS, LEVEL_ORDER, LevelConfig } from "./world/LevelConfig";
-import { setGlobalSeed, seededRandom } from "@/util/random";
+import { setGlobalSeed, seededRandom, seededRandomChoice } from "@/util/random";
+import { ALL_SHOOTING_WEAPONS } from "./weapons/WeaponCatalog";
 import { PlayerInput } from "./InputResolver";
 
 export const calculateThrowPower = (chargeTime: number, maxChargeTimeMs: number): number =>
@@ -35,6 +37,7 @@ export class GameWorld {
   bullets: Bullet[] = [];
   grenades: Grenade[] = [];
   rockets: Rocket[] = [];
+  droppedWeapons: DroppedWeapon[] = [];
   terrain: Terrain;
   particleSystem: ParticleSystem;
   casingSystem: CasingSystem;
@@ -115,6 +118,7 @@ export class GameWorld {
     this.bullets = [];
     this.grenades = [];
     this.rockets = [];
+    this.droppedWeapons = [];
     this.enemies = [];
     this.allEnemies = [];
     this.activeEnemies.clear();
@@ -144,7 +148,8 @@ export class GameWorld {
           x = this.player.transform.position.x + 100;
         }
         const y = this.terrain.getHeightAt(x) + 1;
-        const enemy = new Enemy(x, y, `enemy_gen${this.levelStartCounter}_sc${screen}_num${i}`);
+        const weaponType = seededRandomChoice(ALL_SHOOTING_WEAPONS);
+        const enemy = new Enemy(x, y, `enemy_gen${this.levelStartCounter}_sc${screen}_num${i}`, Date.now, weaponType);
         this.allEnemies.push(enemy);
         console.log(`[spawnEnemies] Spawned enemy id=${enemy.id} at x=${x}, y=${y}`);
       }
@@ -202,20 +207,58 @@ export class GameWorld {
 
     this.camera.followTarget(this.player.transform.position, deltaTime);
 
+    this.dropWeaponsFromDeadEnemies();
     this.enemies = this.enemies.filter(enemy => enemy.health > 0);
+    this.updateDroppedWeapons(deltaTime);
 
     this.checkLevelCompletion();
   }
 
+  /** Range from the camera within which entities are live: enemies activate, dropped guns persist. */
+  private static readonly ACTIVATION_RANGE = GameWorld.SCREEN_WIDTH * 2;
+
+  /** Whether a world x-position is close enough to the camera to stay active. */
+  private isNearCamera(worldX: number): boolean {
+    return Math.abs(worldX - this.camera.bottomLeftWorldX) <= GameWorld.ACTIVATION_RANGE;
+  }
+
+  /** Dying enemies leave their gun on the ground for the player to grab. */
+  private dropWeaponsFromDeadEnemies() {
+    for (const enemy of this.enemies) {
+      if (enemy.health <= 0) {
+        this.droppedWeapons.push(enemy.dropWeapon());
+      }
+    }
+  }
+
+  /** Settle dropped guns onto the terrain, discard far-off ones, and pick up any within reach. */
+  private updateDroppedWeapons(deltaTime: number) {
+    const playerCenter = this.player.getCenterOfGravity();
+    this.droppedWeapons = this.droppedWeapons.filter(dropped => {
+      // Discard guns that have scrolled well off-screen so they don't pile up
+      // and cost update/render time for the rest of the level.
+      if (!this.isNearCamera(dropped.transform.position.x)) {
+        return false;
+      }
+      dropped.update(deltaTime, this.terrain);
+      const canPickUp = dropped.isWithinPickupRange(playerCenter)
+        && !this.player.ownsWeapon(dropped.weapon.type);
+      if (canPickUp) {
+        this.player.pickUpWeapon(dropped.weapon);
+        this.soundManager.playReload();
+        this.showFlashMessage(`Picked up ${dropped.weapon.type.name}`);
+        return false;
+      }
+      return true;
+    });
+  }
+
   activateNearbyEnemies() {
-    const screenWidth = GameWorld.SCREEN_WIDTH;
-    const cameraX = this.camera.bottomLeftWorldX;
     this.allEnemies.forEach(enemy => {
-      const distanceFromCamera = Math.abs(enemy.transform.position.x - cameraX);
-      if (distanceFromCamera <= screenWidth * 2 && !this.activeEnemies.has(enemy.id)) {
+      if (this.isNearCamera(enemy.transform.position.x) && !this.activeEnemies.has(enemy.id)) {
         this.activeEnemies.add(enemy.id);
         this.enemies.push(enemy);
-        console.log(`[activateNearbyEnemies] Activated enemy id=${enemy.id} at x=${enemy.transform.position.x}, distanceFromCamera=${distanceFromCamera}`);
+        console.log(`[activateNearbyEnemies] Activated enemy id=${enemy.id} at x=${enemy.transform.position.x}`);
       }
     });
   }

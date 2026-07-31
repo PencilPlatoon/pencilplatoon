@@ -4,8 +4,10 @@ import { Bullet } from "./Bullet";
 import { Terrain } from "@/game/world/Terrain";
 import { HumanFigure } from "@/rendering/HumanFigure";
 import { ShootingWeapon } from "@/game/weapons/ShootingWeapon";
+import { ShootingWeaponType } from "@/game/types/interfaces";
 import { RIFLE_A_MAIN_OFFENSIVE } from "@/game/weapons/WeaponCatalog";
 import { Combatant } from "./Combatant";
+import { DroppedWeapon } from "./DroppedWeapon";
 
 export class Enemy extends Combatant {
   public static readonly MAX_HEALTH = 75;
@@ -29,12 +31,18 @@ export class Enemy extends Combatant {
 
   getHeldObject() { return this.weapon; }
 
-  constructor(x: number, y: number, id: string, getNow: () => number = Date.now) {
+  constructor(
+    x: number,
+    y: number,
+    id: string,
+    getNow: () => number = Date.now,
+    weaponType: ShootingWeaponType = RIFLE_A_MAIN_OFFENSIVE,
+  ) {
     super(id, x, y, Enemy.MAX_HEALTH);
     this.getNow = getNow;
     this.patrolStartX = x;
 
-    this.weapon = new ShootingWeapon(RIFLE_A_MAIN_OFFENSIVE, this.getNow);
+    this.weapon = new ShootingWeapon(weaponType, this.getNow);
   }
 
   update(deltaTime: number, playerPos: Vector2, terrain: Terrain) {
@@ -96,8 +104,9 @@ export class Enemy extends Combatant {
     const distance = Math.sqrt(dx * dx + dy * dy);
     const now = this.getNow();
     const enemyCooldown = now - this.lastShotTime > Enemy.FIRE_INTERVAL;
-    // Enemies always fire in auto mode (they don't have semi-auto behavior)
-    const weaponCooldown = this.weapon.canShoot(false);
+    // Each shot counts as a fresh trigger pull so semi-auto guns fire too; the
+    // enemy's own FIRE_INTERVAL governs cadence.
+    const weaponCooldown = this.weapon.canShoot(true);
     const targetAngle = this.computeAimAngle(playerPos);
     const aimError = Math.abs(targetAngle - this.aimAngle);
     const isAimedAccurately = aimError < Enemy.AIM_ACCURACY_THRESHOLD;
@@ -108,8 +117,8 @@ export class Enemy extends Combatant {
     this.lastShotTime = this.getNow();
     // No longer snap aim — gradual correction happens in update()
     const updatedWeaponTransform = this.getWeaponAbsTransform();
-    // Enemies always fire in auto mode (they don't have semi-auto behavior)
-    const bullets = this.weapon.shoot(updatedWeaponTransform, false);
+    // Fresh trigger pull each shot so semi-auto guns fire (see canShoot).
+    const bullets = this.weapon.shoot(updatedWeaponTransform, true);
     if (bullets.length > 0) {
       this.applyRecoil(this.weapon.type.recoil ?? 0);
     }
@@ -128,6 +137,11 @@ export class Enemy extends Combatant {
 
   getEntityLabel(): string {
     return 'Enemy';
+  }
+
+  /** Relinquish the held gun as a world object when this enemy dies. */
+  dropWeapon(): DroppedWeapon {
+    return DroppedWeapon.fromDeath(this.weapon, this.getWeaponAbsTransform());
   }
 
   getBulletExplosionParameters() {
