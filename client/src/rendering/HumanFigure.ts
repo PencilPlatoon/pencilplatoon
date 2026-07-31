@@ -22,6 +22,8 @@ export class HumanFigure {
   static readonly ARM_LENGTH = 24; // Total arm length (for hand position calculations)
   static readonly ARM_X_OFFSET = 0; // Arm base is at center of figure
   static readonly ARM_Y_OFFSET = HumanFigure.BODY_TOP_OFFSET_Y;
+  // Hand reach: 85% of max arm length keeps a visible elbow bend (not fully extended).
+  static readonly HAND_REACH = HumanFigure.ARM_LENGTH * 0.85;
   
   // Weapon offsets for single-handed weapons (pistols, etc.)
   static readonly WEAPON_HORIZONTAL_OFFSET_SINGLE_HANDED = 16; // Weapons positioned 12px forward from center
@@ -75,14 +77,16 @@ export class HumanFigure {
    *   Negative (e.g. -π/6) → aiming downward (sin < 0, -Y in world coords)
    * @returns EntityTransform with hand position and the same angle
    */
+  /** Hand position at arm's reach for an arm pointing at the given angle (CCW from +x). */
+  static handAtAngle(angle: number): Vector2 {
+    return {
+      x: HumanFigure.ARM_X_OFFSET + Math.cos(angle) * HumanFigure.HAND_REACH,
+      y: HumanFigure.ARM_Y_OFFSET + Math.sin(angle) * HumanFigure.HAND_REACH
+    };
+  }
+
   static getForwardHandTransform(aimAngle: number): EntityTransform {
-    // Calculate the hand position by extending the arm at the aim angle
-    // Use 85% of max reach to ensure visible elbow bend (not fully extended)
-    const reachDistance = HumanFigure.ARM_LENGTH * 0.85;
-    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(aimAngle) * reachDistance;
-    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(aimAngle) * reachDistance;
-    
-    return new EntityTransform({ x: handX, y: handY }, aimAngle, 1);
+    return new EntityTransform(HumanFigure.handAtAngle(aimAngle), aimAngle, 1);
   }
 
   /**
@@ -107,15 +111,9 @@ export class HumanFigure {
    * @returns EntityTransform with hand position and angle (π - aimAngle)
    */
   static getBackHandTransform(aimAngle: number): EntityTransform {
-    // Calculate the hand position by extending the arm at the mirrored angle
-    // Back hand is on the opposite side of the body
-    // Use 85% of max reach to ensure visible elbow bend (not fully extended)
+    // Back hand is on the opposite side of the body: mirror the angle around π.
     const actualAngle = Math.PI - aimAngle;
-    const reachDistance = HumanFigure.ARM_LENGTH * 0.85;
-    const handX = HumanFigure.ARM_X_OFFSET + Math.cos(actualAngle) * reachDistance;
-    const handY = HumanFigure.ARM_Y_OFFSET + Math.sin(actualAngle) * reachDistance;
-    
-    return new EntityTransform({ x: handX, y: handY }, actualAngle, 1);
+    return new EntityTransform(HumanFigure.handAtAngle(actualAngle), actualAngle, 1);
   }
 
   /**
@@ -249,7 +247,6 @@ export class HumanFigure {
     isWalking,
     walkCycle,
     color = 'black',
-    throwingAnimation = 0,
     reloadBackArmAngle = null,
     forwardHandPosition = null,
     backHandPosition = null
@@ -261,7 +258,6 @@ export class HumanFigure {
     isWalking: boolean;
     walkCycle: number;
     color?: string;
-    throwingAnimation?: number;
     reloadBackArmAngle?: number | null;
     forwardHandPosition?: Vector2 | null;
     backHandPosition?: Vector2 | null;
@@ -310,13 +306,6 @@ export class HumanFigure {
     } else if (reloadBackArmAngle !== null) {
       // During reloading, use the reload animation angle
       const backHandTransform = HumanFigure.getBackHandTransform(reloadBackArmAngle);
-      const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
-      backHandPos = absoluteBackHandTransform.position;
-    } else if (throwingAnimation > 0) {
-      // During throwing, the back arm swings up and forward
-      const throwProgress = 1 - throwingAnimation;
-      const throwAngle = Math.PI * 0.3 * throwProgress;
-      const backHandTransform = HumanFigure.getBackHandTransform(throwAngle);
       const absoluteBackHandTransform = transform.applyTransform(backHandTransform);
       backHandPos = absoluteBackHandTransform.position;
     } else {

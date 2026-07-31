@@ -3,6 +3,8 @@ import { Player, getThrowMultiplier } from "@/game/entities/Player";
 import { Terrain } from "@/game/world/Terrain";
 import { LaunchingWeapon } from "@/game/weapons/LaunchingWeapon";
 import { HumanFigure } from "@/rendering/HumanFigure";
+import { ThrowGrenadeMovement } from "@/game/animation/ThrowGrenadeMovement";
+import { EntityTransform } from "@/game/types/EntityTransform";
 
 vi.mock("@/util/SVGAssetLoader", () => ({
   loadSVGAndCreateBounds: vi.fn(() =>
@@ -260,28 +262,27 @@ describe("Player", () => {
   });
 
   describe("grenade back-hand hold", () => {
-    // Throwing is back-to-front, so a held grenade lives in the back hand (not
-    // the front hand where guns are held). This is what the render code uses to
-    // position the grenade object, so it must match the back-hand transform.
-    it("holds the grenade in the back hand when at rest", () => {
+    // A held grenade lives in the back (throwing) hand, cocked at the overhand
+    // wind-up start. This is what the render code uses to position the grenade.
+    it("holds the grenade at the cocked wind-up pose when at rest", () => {
       player.switchWeaponCategory(); // gun → grenade
 
       const held = player.getPrimaryHandAbsTransform();
       const expected = player.transform.applyTransform(
-        HumanFigure.getBackHandTransform(0)
+        new EntityTransform(ThrowGrenadeMovement.holdRel(0), 0, 1)
       );
       expect(held.position.x).toBeCloseTo(expected.position.x);
       expect(held.position.y).toBeCloseTo(expected.position.y);
     });
 
-    it("holds a gun in the front hand, not the back hand", () => {
+    it("holds a gun in the front hand, not the grenade hold", () => {
       const held = player.getPrimaryHandAbsTransform(); // gun by default
-      const backHand = player.transform.applyTransform(
-        HumanFigure.getBackHandTransform(0)
+      const grenadeHold = player.transform.applyTransform(
+        new EntityTransform(ThrowGrenadeMovement.holdRel(0), 0, 1)
       );
       const differs =
-        held.position.x !== backHand.position.x ||
-        held.position.y !== backHand.position.y;
+        held.position.x !== grenadeHold.position.x ||
+        held.position.y !== grenadeHold.position.y;
       expect(differs).toBe(true);
     });
 
@@ -309,8 +310,9 @@ describe("Player", () => {
   });
 
   describe("calculateHandPositions", () => {
-    // The drawn arm must match where the held object sits: grenade → back arm
-    // reaches for it and the front arm is free; gun → front arm holds it.
+    // The drawn arm must match where the held object sits: grenade → back (throwing)
+    // arm holds it at the cocked pose while the front arm stays fixed; gun → front
+    // arm holds it.
     const handPositions = (p: Player) =>
       (p as unknown as {
         calculateHandPositions: (t: unknown) => {
@@ -319,16 +321,37 @@ describe("Player", () => {
         };
       }).calculateHandPositions(p.getWeaponRelTransform());
 
-    it("puts a grenade in the back hand and frees the front hand", () => {
+    it("puts a grenade in the back hand with a fixed front-arm pose", () => {
       player.switchWeaponCategory(); // gun → grenade
 
       const { forwardHandPosition, backHandPosition } = handPositions(player);
-      expect(forwardHandPosition).toBeNull();
-      expect(backHandPosition).not.toBeNull();
 
-      const expected = HumanFigure.getBackHandTransform(0).position;
-      expect(backHandPosition!.x).toBeCloseTo(expected.x);
-      expect(backHandPosition!.y).toBeCloseTo(expected.y);
+      // Back arm holds the grenade at the cocked wind-up pose.
+      const expectedBack = ThrowGrenadeMovement.holdRel(0);
+      expect(backHandPosition!.x).toBeCloseTo(expectedBack.x);
+      expect(backHandPosition!.y).toBeCloseTo(expectedBack.y);
+
+      // Front arm is fixed (does not track the aim).
+      const expectedFront = HumanFigure.getForwardHandTransform(0).position;
+      expect(forwardHandPosition!.x).toBeCloseTo(expectedFront.x);
+      expect(forwardHandPosition!.y).toBeCloseTo(expectedFront.y);
+    });
+
+    it("keeps the front arm fixed as the grenade aim changes", () => {
+      player.switchWeaponCategory(); // gun → grenade
+      const flat = handPositions(player).forwardHandPosition;
+
+      for (let i = 0; i < 10; i++) {
+        player.update(0.1, { ...noInput, aimUp: true }, mockTerrain);
+      }
+      const aimedUp = handPositions(player);
+
+      // Front arm unchanged, back arm (grenade) moved with the aim.
+      expect(aimedUp.forwardHandPosition!.x).toBeCloseTo(flat!.x);
+      expect(aimedUp.forwardHandPosition!.y).toBeCloseTo(flat!.y);
+      const backMoved =
+        Math.abs(aimedUp.backHandPosition!.y - ThrowGrenadeMovement.holdRel(0).y) > 1e-6;
+      expect(backMoved).toBe(true);
     });
 
     it("puts a gun in the front hand", () => {

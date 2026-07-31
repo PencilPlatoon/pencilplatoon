@@ -204,24 +204,21 @@ export class Player extends Combatant implements Holder {
 
   startThrow(): void {
     if (this.arsenal.grenadeCount <= 0) return;
-    
+
     this.arsenal.grenadeCount--;
-    // Start throwing animation (throwPower is already set by GameEngine)
-    this.throwMovement.startThrow();
+    // Freeze the launch parameters (throwPower is already set by GameEngine) so the
+    // coil and the flight share one parabola.
+    const launchSpeed = Player.MAX_THROW_VELOCITY * this.getThrowMultiplier();
+    this.throwMovement.startThrow(this.aimAngle, launchSpeed);
   }
 
   private releaseThrow(): void {
     if (this.throwPower <= 0) return;
 
-    const multiplier = this.getThrowMultiplier();
-    const velocity = Player.MAX_THROW_VELOCITY * multiplier;
-    const releaseTransform = this.getThrowingReleaseAbsTransform();
-
-    const throwAngle = this.aimAngle;
-    const throwVelocity = {
-      x: Math.cos(throwAngle) * this.transform.facing * velocity,
-      y: Math.sin(throwAngle) * velocity
-    };
+    // Hand off to the flight using the frozen launch parameters, so the grenade
+    // continues from the release point along the same velocity it had there.
+    const releaseTransform = this.getThrowingReleaseAbsTransform(this.throwMovement.getLaunchAim());
+    const throwVelocity = this.throwMovement.getLaunchVelocity(this.transform.facing);
 
     this.throwPower = 0;
 
@@ -310,19 +307,18 @@ export class Player extends Combatant implements Holder {
     if (this.selectedWeaponCategory === 'gun') {
       this.arsenal.heldShootingWeapon.render(ctx, weaponAbsTransform, true);
     } else if (this.selectedWeaponCategory === 'grenade') {
-      const releaseAbsTransform = this.getThrowingReleaseAbsTransform();
-      
       // Render the held grenade in the back hand (throwing is back-to-front)
       this.arsenal.heldGrenade.transform = this.getPrimaryHandAbsTransform();
       this.arsenal.heldGrenade.render(ctx);
-      
+
+      const releaseAbsTransform = this.getThrowingReleaseAbsTransform(this.aimAngle);
       ThrowingAimLineFigure.render({
         ctx,
         transform: releaseAbsTransform,
         velocity: Player.MAX_THROW_VELOCITY * 1.0,
         mode: "Max"
       });
-      
+
       // Show current charging line if actively charging
       if (this.throwPower > 0) {
         ThrowingAimLineFigure.render({
@@ -360,24 +356,24 @@ export class Player extends Combatant implements Holder {
     
     // Get reload back arm angle if reloading
     const reloadBackArmAngle = this.reloadMovement.getBackArmAngle(this.getEffectiveAimAngle());
-    const isThrowingOrReloading = this.throwMovement.isInThrowState() || reloadBackArmAngle !== null;
-    
-    // Calculate hand positions based on weapon dual-hold system
-    // Skip during animations (throwing/reloading) - let animations control hand positions
+
+    // Hand positions come from the dual-hold system (which follows the grenade swing
+    // during a throw). Skip only during a launcher reload, where the reload animation
+    // drives the back arm instead.
     let forwardHandPosition: Vector2 | null = null;
     let backHandPosition: Vector2 | null = null;
-    
-    if (!isThrowingOrReloading) {
+
+    if (this.throwMovement.isInThrowState() || reloadBackArmAngle === null) {
       const handPositions = this.calculateHandPositions(weaponRelTransform);
       forwardHandPosition = handPositions.forwardHandPosition;
       backHandPosition = handPositions.backHandPosition;
     }
-    
+
     // Update logged weapon after calculation
     if (shouldLogWeapon) {
       this.lastLoggedWeapon = currentWeapon.type.name;
     }
-    
+
     HumanFigure.render({
       ctx,
       transform: this.transform,
@@ -386,7 +382,6 @@ export class Player extends Combatant implements Holder {
       isWalking: this.isWalking,
       walkCycle: this.walkCycle,
       color: 'purple',
-      throwingAnimation: this.throwMovement.getThrowCycle(),
       reloadBackArmAngle,
       forwardHandPosition,
       backHandPosition

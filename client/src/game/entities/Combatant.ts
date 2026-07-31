@@ -140,30 +140,34 @@ export abstract class Combatant implements DamageableEntity {
 
   getPrimaryHandAbsTransform(): EntityTransform {
     if (this.isHoldingGrenade()) {
-      if (this.throwMovement.isInThrowState()) {
-        const grenadeRelTransform = this.throwMovement.getGrenadeRelTransform(this.aimAngle);
-        return this.transform.applyTransform(grenadeRelTransform);
-      }
-      const backHandTransform = HumanFigure.getBackHandTransform(0);
-      return this.transform.applyTransform(backHandTransform);
+      const grenadeRel = this.throwMovement.isInThrowState()
+        ? this.throwMovement.getGrenadeRelTransform()
+        : new EntityTransform(ThrowGrenadeMovement.holdRel(this.aimAngle), this.aimAngle, 1);
+      return this.transform.applyTransform(grenadeRel);
     }
     const forwardHandTransform = HumanFigure.getForwardHandTransform(this.getEffectiveAimAngle());
     return this.transform.applyTransform(forwardHandTransform);
   }
 
-  protected getThrowingReleaseAbsTransform(): EntityTransform {
-    const relTransform = this.throwMovement.getReleaseRelTransform(this.aimAngle);
+  protected getThrowingReleaseAbsTransform(aimAngle: number): EntityTransform {
+    const relTransform = this.throwMovement.getReleaseRelTransform(aimAngle);
     const absTransform = this.transform.applyTransform(relTransform);
-    return new EntityTransform(absTransform.position, this.aimAngle, absTransform.facing);
+    return new EntityTransform(absTransform.position, aimAngle, absTransform.facing);
   }
 
+  /** Front (non-throwing) arm pose while holding a grenade — fixed, so aiming only moves the throwing arm. */
+  protected static readonly GRENADE_FRONT_HAND = HumanFigure.getForwardHandTransform(0).position;
+
   protected calculateHandPositions(weaponRelTransform: EntityTransform): { forwardHandPosition: Vector2 | null; backHandPosition: Vector2 | null } {
-    // Grenades are held in the back hand, ready to throw back-to-front. The front
-    // arm is left free (falls back to its default aim pose).
+    // Grenades are held in the back (throwing) hand — following the swing while
+    // throwing, else cocked at the aim. Only that arm tracks the aim; the front
+    // arm holds a fixed pose.
     if (this.isHoldingGrenade()) {
       return {
-        forwardHandPosition: null,
-        backHandPosition: HumanFigure.getBackHandTransform(0).position
+        forwardHandPosition: Combatant.GRENADE_FRONT_HAND,
+        backHandPosition: this.throwMovement.isInThrowState()
+          ? this.throwMovement.getGrenadeRelTransform().position
+          : ThrowGrenadeMovement.holdRel(this.aimAngle)
       };
     }
 
