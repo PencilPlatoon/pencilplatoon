@@ -23,11 +23,18 @@ command -v lftp >/dev/null || die "lftp not found. Install with: brew install lf
 DRY_FLAG=""
 [ "${DRY_RUN:-0}" = "1" ] && DRY_FLAG="--dry-run"
 
+# The FTP server creates uploads with a restrictive umask (files 600, dirs 700),
+# which the web server can't read → 403. Re-assert 755 on the tree after a real
+# upload so every deploy stays servable. (Skipped on a dry run — nothing changed.)
+CHMOD_CMD=""
+[ "${DRY_RUN:-0}" = "1" ] || CHMOD_CMD="chmod -R 755 $REMOTE_DIR"
+
 # cmd:fail-exit makes lftp abort (non-zero) on the first failed command, so a
 # connection/auth/transfer error propagates instead of exiting 0.
 lftp -p "$PORT" "$HOST" -e "
 set cmd:fail-exit true
 mirror -R --delete --parallel=4 $DRY_FLAG $LOCAL_DIR $REMOTE_DIR
+$CHMOD_CMD
 bye
 " || die "lftp upload to $HOST failed (connection, auth, or transfer error)"
 
