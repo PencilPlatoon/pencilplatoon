@@ -75,8 +75,10 @@ def run(name):
                 keep|=comp
 
     iso=np.full(ca.shape,255,np.uint8); iso[keep]=ca[keep]
-    tighten(iso,keep).save(f"out/{name}_iso.png")
-    print(f"{name:8} {c['mode']:12} -> {Image.open(f'out/{name}_iso.png').size}")
+    out=tighten(iso,keep); out.save(f"out/{name}_iso.png")
+    print(f"{name:8} {c['mode']:12} -> {out.size}")
 
-os.makedirs("out",exist_ok=True)
-for k in CFG: run(k)
+if __name__=="__main__":
+    import sys
+    os.makedirs("out",exist_ok=True)
+    for k in (sys.argv[1:] or CFG): run(k)

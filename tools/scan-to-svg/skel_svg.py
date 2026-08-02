@@ -87,32 +87,10 @@ def fit_circle(P):
     return cx,cy,r,resid
 
 def line_resid(P):
-    m=P.mean(0); Q=P-m
     if len(P)<2: return 0.0
+    Q=P-P.mean(0)
     _,_,V=np.linalg.svd(Q,full_matrices=False)
     return float(np.max(np.abs(Q@V[-1])))
-
-def grow_line(P,i,tol):
-    j=i+1
-    while j+1<len(P) and line_resid(P[i:j+2])<=tol: j+=1
-    return j
-
-def grow_arc(P,i,tol,maxr):
-    if i+4>=len(P): return i
-    j=i+4; last=i
-    while j<len(P):
-        cx,cy,r,res=fit_circle(P[i:j+1])
-        if res<=tol and r<=maxr and r>2: last=j; j+=1
-        else: break
-    return last
-
-def full_circle(P,tol):
-    cx,cy,r,res=fit_circle(P)
-    if res>tol*2.2 or r<4: return None
-    ang=np.sort(np.arctan2(P[:,1]-cy,P[:,0]-cx))
-    gaps=np.diff(np.r_[ang,ang[0]+2*math.pi])
-    if gaps.max() < math.radians(95): return (cx,cy,r)   # covers most of the circle
-    return None
 
 def arc_cmd(seg,cx,cy,r):
     ang=np.arctan2(seg[:,1]-cy,seg[:,0]-cx)
@@ -192,7 +170,7 @@ def fit_prims(P, eps, floor, maxr, minr, depth=0):
     if k<=0 or k>=n-1 or depth>60: k=n//2                # safety
     return fit_prims(P[:k+1],eps,floor,maxr,minr,depth+1)+fit_prims(P[k:],eps,floor,maxr,minr,depth+1)
 
-def segment_prims(P,eps,floor,maxr,minseg=10.0,minr=0.0):
+def segment_prims(P,eps,floor,maxr,minr=0.0):
     return fit_prims(P,eps,floor,maxr,minr)
 
 def ray_to_circle(E,d,c):
@@ -342,7 +320,7 @@ def build(name, thick_k=1.75, F=3):
     skel=prune_spurs(skel, 2.2*pen)                   # drop tabs while connectors are still
                                                       # attached to rings (before ring removal)
     eps=0.06; floor=max(1.0,pen*0.4); maxr=130.0*F; minseg=max(10.0,4*pen); ethr=max(12.0,pen*4); minr=2.5*pen
-    circles=[]; subpaths=[]; polys=[]
+    circles=[]                                           # stays empty in the solid-shape branch below
     if pen>8*F:                                          # a genuinely solid shape (not line-art)
         thick=black; lines=[]
     else:
@@ -367,7 +345,7 @@ def build(name, thick_k=1.75, F=3):
                 thick=thick & ~ndimage.binary_dilation(cmask,np.ones((3,3)))
     moved=[]; movemap={}
     if circles:
-        segs=[(p[1],p[2]) for P in polys for p in segment_prims(P,eps,floor,maxr,minseg,minr) if p[0]=='L']
+        segs=[(p[1],p[2]) for P in polys for p in segment_prims(P,eps,floor,maxr,minr) if p[0]=='L']
         out=[]
         for c in circles:
             nc = move_wheel_to_body(c,segs,pen) if c[1] > 0.5*H else c  # only wheels (lower half)
@@ -395,7 +373,7 @@ def build(name, thick_k=1.75, F=3):
     bd={}
     for i,P in enumerate(kept):
         Pe=extend_ends_raw(P,circles,ethr,1.5*minseg) if circles else P
-        d=prims_to_d(segment_prims(Pe,eps,floor,maxr,minseg,minr))
+        d=prims_to_d(segment_prims(Pe,eps,floor,maxr,minr))
         if d: bd[i]=d
 
     comps=[]                                              # (cx,cy,vis,hit) in draw order
@@ -431,10 +409,12 @@ def build(name, thick_k=1.75, F=3):
         parts.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f" stroke="#fff" stroke-width="%.1f"/>'%(cx,cy,br,pen*0.3))
         parts.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" dominant-baseline="central">%d</text>'%(cx,cy,fs,n))
     parts.append('</g></svg>')
-    subpaths=comps
     open(f"out/{name}_C.svg","w").write("\n".join(parts))
-    print(f"{name}: pen≈{pen:.1f}px  {len(subpaths)} strokes  {len(circles)} circles  {os.path.getsize(f'out/{name}_C.svg')//1024}KB")
+    print(f"{name}: pen≈{pen:.1f}px  {len(comps)} strokes  {len(circles)} circles  {os.path.getsize(f'out/{name}_C.svg')//1024}KB")
 
 if __name__=="__main__":
     import sys
-    for n in sys.argv[1:]: build(n)
+    # default to whatever iso.py produced (out/*_iso.png), so the subject list
+    # lives only in iso.py's CFG — no second copy to keep in sync.
+    names=sys.argv[1:] or sorted(f[:-8] for f in os.listdir("out") if f.endswith("_iso.png"))
+    for n in names: build(n)
