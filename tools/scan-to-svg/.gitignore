@@ -1,0 +1,7 @@
+# generated artifacts — regenerate with build.sh
+out/
+body3.html
+comparison3.html
+_*.png
+.venv/
+venv/
