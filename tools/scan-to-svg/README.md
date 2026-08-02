@@ -35,6 +35,20 @@ Individual steps (all operate on the `out/` directory):
 | assemble the page body | `build3.py` | `body3.html` |
 | escape non-ASCII for publishing | `entities.py` | `comparison3.html` (in place) |
 
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+- `test_skel_svg.py` — fast unit tests for the primitive-fitting geometry (needs no
+  scan): line/arc/corner classification, the corner test's own-size tolerance, the
+  `ARC_FIT` tight-fit gate, circle fitting, and the skeleton graph helpers.
+- `test_pipeline.py` — end-to-end regression over the real scan (skips if the scan
+  image is absent): asserts the cannon has no smoothing arcs and the flag keeps its
+  one genuine curved stroke.
+
 ## How the vectorizer works (`skel_svg.py`)
 
 Guiding principle: **salience is not size**, and tolerances are **relative to each

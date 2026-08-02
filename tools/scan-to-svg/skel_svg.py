@@ -179,9 +179,11 @@ def fit_prims(P, eps, floor, maxr, minr, depth=0):
         return [('L',P[0].copy(),P[-1].copy())]
     # corner vs curve: if splitting at the worst point already yields two straight runs,
     # this is a corner between line segments, not an arc — prefer the lines over one
-    # smoothing arc. A genuine curve keeps curving after the split, so its halves fail
-    # this test and the arc branch below still wins.
-    corner = 0<k<n-1 and line_resid(P[:k+1])<=tol and line_resid(P[k:])<=tol
+    # smoothing arc. Each half is judged against its OWN size-relative tolerance (not the
+    # parent's), so a genuine curve — whose halves are still curved at their own scale —
+    # fails this test and the arc branch below still wins.
+    straight=lambda Q: len(Q)>=2 and line_resid(Q)<=max(floor, eps*bbox_diag(Q))
+    corner = 0<k<n-1 and straight(P[:k+1]) and straight(P[k:])
     if n>=5 and not corner:
         cx,cy,r,aerr=fit_circle(P)
         # minr rejects rounded corners (radius ~pen) so they stay sharp; real curves keep
