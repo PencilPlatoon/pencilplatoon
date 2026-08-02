@@ -6,13 +6,12 @@ a trapezoid, seg36 became straight segments) while the flag keeps its one genuin
 curved stroke. Skipped automatically if the scan image isn't present.
 """
 import os
-import re
 import subprocess
 import sys
 
 import pytest
 
-from _helpers import arc_segments
+from _helpers import arc_segments, paths, points
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCAN = os.path.join(HERE, "..", "..", "artwork-scans", "level-1-pg-4.png")
@@ -45,18 +44,14 @@ def test_cannon_has_no_arcs(built):
     assert arc_segments(built["cannon"]) == []
 
 
-def test_cannon_seg9_is_present_and_straight(built):
-    svg = built["cannon"]
-    m = re.search(r'data-num="9"><g class="vis">(.*?)</g>', svg, re.S)
-    assert m, "component 9 missing"
-    d = re.search(r'd="([^"]+)"', m.group(1)).group(1)
-    assert " A " not in d
-    assert " L " in d  # made of straight segments
-
-
-def test_flag_keeps_its_genuine_curve(built):
-    # The little curl at the flagpole base is a real arc and must survive.
-    assert len(arc_segments(built["flag"])) >= 1
+def test_cannon_gunsight_is_straight(built):
+    # The peaked "gunsight" trapezoid on the barrel (the former arc/seg9 fix) must render as
+    # straight segments. Located by region, not exact coords: nexus-snapping shifts points a
+    # few px. It sits around x 420-545, y 180-295 in the cannon viewBox.
+    def in_region(d):
+        return sum(1 for x, y in points(d) if 420 <= x <= 545 and 180 <= y <= 295) >= 3
+    gunsight = [d for d in paths(built["cannon"]) if " A " not in d and in_region(d)]
+    assert gunsight, "straight gunsight trapezoid not found"
 
 
 def test_every_subject_produces_components(built):

@@ -26,11 +26,27 @@ def polygon_arc(cx, cy, r, a0_deg, a1_deg, n_vertices, per_edge=14):
     return np.array(pts)
 
 
-def arc_segments(svg):
-    """data-num values of components whose emitted path contains an arc command."""
+def components(svg):
+    """(data-num, d-string) for every emitted component, in order — the single SVG parser."""
     out = []
     for num, vis in re.findall(r'data-num="(\d+)"><g class="vis">(.*?)</g>', svg, re.S):
         d = re.search(r'd="([^"]+)"', vis)
-        if d and " A " in d.group(1):
-            out.append(num)
+        if d:
+            out.append((num, d.group(1)))
     return out
+
+
+def paths(svg):
+    """The `d` string of every emitted component, in order."""
+    return [d for _, d in components(svg)]
+
+
+def arc_segments(svg):
+    """data-num values of components whose emitted path contains an arc command."""
+    return [num for num, d in components(svg) if " A " in d]
+
+
+def points(d):
+    """Parse an SVG path `d` string into a list of (x, y) coordinate pairs."""
+    v = [float(x) for x in re.findall(r"-?[\d.]+", d)]
+    return list(zip(v[0::2], v[1::2]))

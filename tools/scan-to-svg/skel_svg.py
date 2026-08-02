@@ -10,6 +10,22 @@ from skimage.transform import hough_circle, hough_circle_peaks
 INK="#1a1a17"; BLUE="#2b3f8a"; RED="#c23423"
 ARC_FIT=0.5   # an arc must hug the pixels (aerr <= ARC_FIT*tol), not merely fit within tol;
               # a polygon forced through a circle passes tol loosely but never tightly.
+SOLID_FRAC=0.03  # a shape is "solid" (fill it) rather than line-art when its stroke width
+                 # is this fraction of the whole figure's size — scale-invariant, unlike a
+                 # pixel threshold. Line-art strokes are ~1% of the figure; a blob is many %.
+CIRC_MIN=18      # minimum circle radius in native scan pixels (scaled by the upsample F).
+                 # NOTE: this is deliberately ABSOLUTE, not pen-relative. Real circular
+                 # features (wheels, heads) and incidental loops (trigger guards) overlap in
+                 # pen-units — the only thing that separates them is absolute feature size at
+                 # the scan's resolution. A true multi-scan generalization needs the scan DPI
+                 # as an input; until then this assumes the sketchbook's native resolution.
+# --- topology resolution (how strokes join each other and circles); all *_PEN are pen-multiples ---
+CONTACT_IN, CONTACT_OUT = 1.6, 2.5   # a stroke end / ring fragment is "on a rim" within [r-IN·pen, r+OUT·pen]
+CONTACT_CLUSTER = 3.0                 # group free ends this close (pen-mult) as one rim junction
+RING_MEMBER = 0.7                     # a polyline is an absorbed ring fragment if >this fraction sits on a rim
+NEXUS_WEIGHT_CAP = 30.0               # cap (pen-mult) on a segment's angle-vote weight so one long edge can't dominate
+NEXUS_REG = 0.05                      # pull the meeting point toward the endpoint centroid by this fraction of total weight
+REFIT_DRIFT = 0.6                     # reject a least-squares circle refit that moves/resizes more than this fraction of r
 
 def classify(iso_path, F=1):
     im=Image.open(iso_path).convert("RGB")
@@ -85,6 +101,13 @@ def fit_circle(P):
     r=math.sqrt(max(c+cx*cx+cy*cy,1e-6))
     resid=float(np.max(np.abs(np.hypot(x-cx,y-cy)-r)))
     return cx,cy,r,resid
+
+def refit_circle(prev, pts, max_drift):
+    # least-squares refit of a circle to `pts`, accepted only if it stays within max_drift*r of
+    # `prev` (rejects a wild fit). Used to refine to ring points, and again to pull to contacts.
+    cx,cy,r=prev; fcx,fcy,fr,_=fit_circle(np.asarray(pts,float))
+    if abs(fr-r)<max_drift*r and math.hypot(fcx-cx,fcy-cy)<max_drift*r: return (fcx,fcy,fr)
+    return prev
 
 def line_resid(P):
     if len(P)<2: return 0.0
@@ -173,84 +196,6 @@ def fit_prims(P, eps, floor, maxr, minr, depth=0):
 def segment_prims(P,eps,floor,maxr,minr=0.0):
     return fit_prims(P,eps,floor,maxr,minr)
 
-def ray_to_circle(E,d,c):
-    cx,cy,r=c; L=math.hypot(d[0],d[1])
-    if L<1e-6: return None
-    ux,uy=d[0]/L,d[1]/L; ex,ey=E[0]-cx,E[1]-cy
-    b=2*(ex*ux+ey*uy); cc=ex*ex+ey*ey-r*r; disc=b*b-4*cc
-    if disc<0: return None
-    s=math.sqrt(disc); t=min((-b+s)/2,(-b-s)/2,key=abs)
-    return [E[0]+t*ux, E[1]+t*uy]
-
-def seglen(a,b): return math.hypot(b[0]-a[0],b[1]-a[1])
-
-def extend_to_circles(prims,circles,thresh,minlen):
-    # where a stroke ends near a detected circle, extend its last LONG straight
-    # segment along its own direction to the rim, discarding any junction wobble.
-    if not prims or not circles: return prims
-    def near(pt):
-        for c in circles:
-            if abs(math.hypot(pt[0]-c[0],pt[1]-c[1])-c[2])<=thresh: return c
-        return None
-    c=near(prims[-1][2])              # end side
-    if c:
-        for j in range(len(prims)-1,-1,-1):
-            if prims[j][0]=='L' and seglen(prims[j][1],prims[j][2])>=minlen:
-                a,b=prims[j][1],prims[j][2]; nb=ray_to_circle(b,(b[0]-a[0],b[1]-a[1]),c)
-                if nb is not None: prims=prims[:j+1]; prims[j]=('L',a,nb)
-                break
-    c=near(prims[0][1])               # start side
-    if c:
-        for j in range(len(prims)):
-            if prims[j][0]=='L' and seglen(prims[j][1],prims[j][2])>=minlen:
-                a,b=prims[j][1],prims[j][2]; na=ray_to_circle(a,(a[0]-b[0],a[1]-b[1]),c)
-                if na is not None: prims=prims[j:]; prims[0]=('L',na,b)
-                break
-    return prims
-
-def move_wheel_to_body(c, segs, pen):
-    # keep the wheel's size; translate it straight up until it touches the bottom of
-    # the frame (tangent to the nearest long edge above it). Ground isn't wanted, so
-    # only edges above the centre matter and we never move down.
-    cx,cy,r=c; best=None; bestny=1.0
-    for a,b in segs:
-        if seglen(a,b) < 1.5*r: continue                 # frame edges are long
-        ax,ay=a; bx,by=b; dx,dy=bx-ax,by-ay; L2=dx*dx+dy*dy
-        if L2<1: continue
-        t=((cx-ax)*dx+(cy-ay)*dy)/L2
-        if t<-0.15 or t>1.15: continue                   # foot of perpendicular on the edge
-        fx,fy=ax+t*dx, ay+t*dy; pd=math.hypot(cx-fx,cy-fy)
-        if fy<cy-1 and r<pd<=2.4*r:                      # a gap to a frame edge above
-            if best is None or pd<best:                  # nearest edge above
-                best=pd; nlen=math.hypot(dx,dy); bestny=abs(dx/nlen)  # |normal_y|
-    if best is None: return c
-    delta=min((best-r)/max(bestny,0.3), 1.3*r)           # rise to tangency (capped)
-    return (cx, cy-delta, r)
-
-def extend_ends_raw(P, circles, thresh, span):
-    # robustly reconnect a polyline end to a nearby wheel: from a point ~span back
-    # (past tip wobble) shoot along the line and replace the tip with a straight run to
-    # the rim. Independent of how the line later segments.
-    P=np.asarray(P,float); n=len(P)
-    for end in (0,-1):
-        ex,ey=P[end]
-        hit=next(((cx,cy,r) for cx,cy,r in circles if abs(math.hypot(ex-cx,ey-cy)-r)<=thresh), None)
-        if not hit: continue
-        cx,cy,r=hit; kk=min(n-1,max(4,int(span)))
-        far=P[kk] if end==0 else P[n-1-kk]
-        ux,uy=ex-far[0],ey-far[1]; L=math.hypot(ux,uy)
-        if L<1e-6: continue
-        ux,uy=ux/L,uy/L
-        b=2*((far[0]-cx)*ux+(far[1]-cy)*uy); c=(far[0]-cx)**2+(far[1]-cy)**2-r*r; disc=b*b-4*c
-        if disc<0:
-            dd=math.hypot(ex-cx,ey-cy); npt=np.array([cx+(ex-cx)/dd*r, cy+(ey-cy)/dd*r])
-        else:
-            s=math.sqrt(disc); npt=min((np.array([far[0]+t*ux,far[1]+t*uy]) for t in ((-b+s)/2,(-b-s)/2)),
-                                       key=lambda p:math.hypot(p[0]-ex,p[1]-ey))
-        P = np.vstack([npt, P[kk:]]) if end==0 else np.vstack([P[:n-kk], npt])
-        n=len(P)
-    return P
-
 def prims_to_d(prims):
     if not prims: return ""
     d="M %.1f %.1f"%(prims[0][1][0],prims[0][1][1])
@@ -260,16 +205,16 @@ def prims_to_d(prims):
     return d
 
 def detect_circles(skel, rmin, rmax, atol, cov_min=300):
-    # Hough circle detection: finds circles from all skeleton points collectively,
-    # even when the loop is fragmented into separate arcs. Returns circles and the
-    # skeleton with the circle rings removed (so they aren't double-drawn as strokes).
+    # Hough circle detection: finds circles from all skeleton points collectively, even when the
+    # loop is fragmented into separate arcs. Returns each circle and its ring points (so the
+    # circle can later be refit to pass through its stroke-contacts as well as its ring).
     radii=np.arange(rmin,rmax+1)
-    if len(radii)==0: return [], skel
+    if len(radii)==0: return [], []
     hres=hough_circle(skel,radii)
     accums,cxs,cys,rs=hough_circle_peaks(hres,radii,total_num_peaks=8,
         min_xdistance=max(3,rmin//2),min_ydistance=max(3,rmin//2))
     pts=np.argwhere(skel); ys=pts[:,0].astype(float); xs=pts[:,1].astype(float)
-    out=[]; remove=np.zeros(len(pts),bool)
+    out=[]; rings=[]; remove=np.zeros(len(pts),bool)
     for a,cx,cy,r in zip(accums,cxs,cys,rs):
         if a<0.17: continue                            # floor: rejects tangles (score-based)
         d=np.hypot(xs-cx,ys-cy); ring=np.abs(d-r)<=atol
@@ -279,10 +224,14 @@ def detect_circles(skel, rmin, rmax, atol, cov_min=300):
         gaps=np.diff(np.r_[ang,ang[0]+2*np.pi]); cov=360-math.degrees(gaps.max())
         if cov<cov_min: continue                       # near-complete loop (goes ~all the way)
         if any(np.hypot(cx-ocx,cy-ocy)<max(ocr,r)*0.6 for ocx,ocy,ocr in out): continue
-        out.append((float(cx),float(cy),float(r))); remove|=ring
+        rp=np.c_[xs[ring],ys[ring]]
+        # refine Hough's voted (integer-radius) circle by least-squares on its own ring points,
+        # which matches the drawn ring far better (Hough is biased small); keep it if sane.
+        cx,cy,r=refit_circle((cx,cy,r), rp, 0.5)
+        out.append((float(cx),float(cy),float(r))); rings.append(rp); remove|=ring
     if os.environ.get("DBGCIRC"): print("  circles:",[(round(x),round(y),round(r)) for x,y,r in out])
-    skel2=skel.copy(); rp=pts[remove]; skel2[rp[:,0],rp[:,1]]=False
-    return out, skel2
+    skel2=skel.copy(); rp=pts[remove]; skel2[rp[:,0],rp[:,1]]=False   # rings removed: no chord strokes
+    return out, skel2, rings
 
 def fill_paths(mask, tag, col, speckle=5):
     Image.fromarray(np.where(mask,0,255).astype(np.uint8)).convert("RGB").save(f"out/_{tag}.png")
@@ -294,6 +243,116 @@ def fill_paths(mask, tag, col, speckle=5):
         tra=' transform="%s"'%tr if tr else ''
         out.append('<path d="%s" fill="%s"%s/>'%(pd,col,tra))
     return out
+
+def _line_isect(lines, anchor):
+    # The meeting point minimises the weighted sum of PERPENDICULAR distances to each segment's
+    # line (p_i, unit dir u_i, weight w_i). Perpendicular distance is the angle-change cost, so a
+    # segment reaches this point mainly by lengthening/shortening along its axis (cheap) rather
+    # than tilting (costly) — shape is preserved. Longer segments are weighted more (their angle
+    # is more salient). Light regularisation toward `anchor` keeps it stable for near-parallel lines.
+    W=sum(w for _,_,w in lines); reg=NEXUS_REG*W+1e-6
+    A=reg*np.eye(2); b=reg*np.asarray(anchor,float)
+    for p,u,w in lines:
+        M=w*(np.eye(2)-np.outer(u,u)); A+=M; b+=M@np.asarray(p,float)
+    return np.linalg.solve(A,b)
+
+def _body_line(P, e, pen):
+    # a point on the stroke just past its end-wobble, and the unit direction pointing outward,
+    # so the meeting point is set by the stroke's true orientation, not its junction wobble.
+    n=len(P); step=min(max(1,int(2.5*pen)), max(1,(n-1)//2))
+    if e==0: a=P[step]; b=P[min(n-1,2*step)]
+    else:    a=P[n-1-step]; b=P[max(0,n-1-2*step)]
+    v=a-b; L=math.hypot(v[0],v[1])
+    if L<1e-6: v=(P[0]-P[-1]) if e==0 else (P[-1]-P[0]); L=math.hypot(v[0],v[1])
+    return (a, (v/L if L>1e-6 else np.array([1.0,0.0])))
+
+def resolve_topology(polys, poly_nodes, circles, rings, pen):
+    # Preserve the scan's TOPOLOGY. Priority: connectivity > shape (orientation+straightness) >
+    # size > position. The skeleton already carries the connectivity — strokes meeting at a
+    # junction share a node BLOB. We cluster by that blob (not by distance, so two nearby T's stay
+    # two T's), then:
+    #   (1) drop ring-arc polylines (the idealised circle stands in for the whole rim);
+    #   (2) at each junction of >=2 strokes, set the meeting point to the strokes' own line
+    #       intersection (keeps their angles, kills wobble kinks); a lone stroke touching a circle
+    #       meets it along its own direction;
+    #   (3) a circle YIELDS to its multi-stroke contacts: refit it through (ring points + those
+    #       nexuses), so its rim moves to pass through where the strokes actually meet.
+    bin_,bout=CONTACT_IN*pen,CONTACT_OUT*pen
+    # absorb ring fragments (e.g. a bulge that survived the tighter ring-removal in detect_circles):
+    # a polyline hugging a rim — most points in the contact band and near-constant radius — is drawn
+    # by the idealised circle, not as its own stroke.
+    is_ring=[False]*len(polys)
+    for i,P in enumerate(polys):
+        for cx,cy,r in circles:
+            d=np.hypot(P[:,0]-cx,P[:,1]-cy); inb=(d>=r-bin_)&(d<=r+bout)
+            if inb.mean()>RING_MEMBER and inb.any() and (d[inb].max()-d[inb].min())<CONTACT_CLUSTER*pen:
+                is_ring[i]=True; break
+    S=[np.asarray(polys[i],float) for i in range(len(polys)) if not is_ring[i]]
+    N=[poly_nodes[i] for i in range(len(polys)) if not is_ring[i]]
+    from collections import defaultdict
+    grp=defaultdict(list)                                  # node blob id -> [(stroke, end)]
+    for i,(na,nb) in enumerate(N):
+        if len(S[i])>=2:
+            if na>0: grp[na].append((i,0))
+            if nb>0: grp[nb].append((i,-1))
+    posf=lambda ie: S[ie[0]][0 if ie[1]==0 else -1]
+    def near_circle(pt):
+        for ci,(cx,cy,r) in enumerate(circles):
+            if r-bin_ <= math.hypot(pt[0]-cx,pt[1]-cy) <= r+bout: return ci
+        return None
+    def seg_nexus(mem):                                   # angle-preserving meeting point of the members
+        ln=[(*_body_line(S[i],e,pen), min(bbox_diag(S[i]),NEXUS_WEIGHT_CAP*pen)) for (i,e) in mem]
+        return _line_isect(ln, np.mean([posf(m) for m in mem],0))
+    target={}; contacts=defaultdict(list); free=[]
+    for nid,mem in grp.items():                           # (1) interior junctions by connectivity
+        if len(mem)>=2:
+            nx=seg_nexus(mem)
+            for m in mem: target[m]=nx
+            ci=near_circle(nx)
+            if ci is not None: contacts[ci].append(nx)
+        else: free.append(mem[0])
+    fc=defaultdict(list)                                   # (2) circle contacts: cluster near-rim free ends
+    for m in free:
+        ci=near_circle(posf(m))
+        if ci is not None: fc[ci].append(m)
+    singles=[]
+    for ci,mem in fc.items():
+        seen=set()
+        for a in mem:
+            if a in seen: continue
+            cl=[a]; seen.add(a); pa=posf(a)
+            for b in mem:
+                if b not in seen and math.hypot(*(posf(b)-pa))<=CONTACT_CLUSTER*pen: cl.append(b); seen.add(b)
+            if len(cl)>=2:                                # >=2 strokes meet here: they set the point
+                nx=seg_nexus(cl)
+                for m in cl: target[m]=nx
+                contacts[ci].append(nx)
+            else: singles.append((cl[0],ci))              # lone stroke: yields to the circle (step 4)
+    circles=list(circles)
+    for ci,pts in contacts.items():                       # (3) circle yields: refit through contacts+ring
+        w=max(1,len(rings[ci])//(3*len(pts)))             # weight contacts to ~a third of the ring's pull
+        fit=np.vstack([rings[ci]]+[np.array(pts)]*w)
+        circles[ci]=refit_circle(circles[ci], fit, REFIT_DRIFT)
+    for (i,e),ci in singles:                              # (4) lone stroke meets its circle along its axis
+        a,u=_body_line(S[i],e,pen); cx,cy,r=circles[ci]; ep=posf((i,e))
+        ex,ey=a[0]-cx,a[1]-cy; bq=2*(ex*u[0]+ey*u[1]); cq=ex*ex+ey*ey-r*r; disc=bq*bq-4*cq
+        if disc>=0:
+            s=math.sqrt(disc)
+            cand=[np.array([a[0]+t*u[0],a[1]+t*u[1]]) for t in ((-bq+s)/2,(-bq-s)/2)]
+            target[(i,e)]=min(cand,key=lambda q:math.hypot(q[0]-ep[0],q[1]-ep[1]))
+    out=[]
+    for i,P in enumerate(S):
+        P=[np.asarray(p,float) for p in P]; n=len(P)
+        t0=target.get((i,0)); t1=target.get((i,-1))
+        if n<=4:                                          # too short to have wobble: just move ends
+            if t1 is not None: P[-1]=t1
+            if t0 is not None: P[0]=t0
+        else:
+            step=min(max(1,int(2.5*pen)), (n-1)//2)       # replace end wobble with a straight run
+            if t1 is not None: P=P[:n-step]+[t1]
+            if t0 is not None: P=[t0]+P[step:]
+        out.append(np.array(P))
+    return out, circles
 
 def build(name, thick_k=1.75, F=3):
     # F = upsample factor: skeletonise at higher resolution so thin walls between merged
@@ -319,39 +378,42 @@ def build(name, thick_k=1.75, F=3):
         dist=ndimage.distance_transform_edt(black); skel=skeletonize(black)
     skel=prune_spurs(skel, 2.2*pen)                   # drop tabs while connectors are still
                                                       # attached to rings (before ring removal)
-    eps=0.06; floor=max(1.0,pen*0.4); maxr=130.0*F; minseg=max(10.0,4*pen); ethr=max(12.0,pen*4); minr=2.5*pen
-    circles=[]                                           # stays empty in the solid-shape branch below
-    if pen>8*F:                                          # a genuinely solid shape (not line-art)
+    eps=0.06; floor=max(1.0,pen*0.4); maxr=130.0*F; minr=2.5*pen
+    ys0,xs0=np.where(black); fig=math.hypot(np.ptp(xs0),np.ptp(ys0)) if len(xs0) else 1.0
+    circles=[]; rings=[]                                 # stay empty in the solid-shape branch below
+    if pen>SOLID_FRAC*fig:                               # a genuinely solid shape (not line-art)
         thick=black; lines=[]
     else:
         thick=ndimage.binary_dilation(black & (2*dist>thick_k*pen), np.ones((3,3)))
-        # snap whole circles first (wheels, heads). rmin ~18px at 1x scan, scaled by F;
-        # excludes small incidental loops (trigger guards) that outscore wheels.
-        circles,skel2=detect_circles(skel, 18*F, int(min(W,H)/3), max(6.0,pen*1.8))
-        lines=skeleton_polylines(skel2)
+        # find circles (wheels, heads). CIRC_MIN (scaled by F) is the smallest radius kept,
+        # which rejects small incidental loops (trigger guards).
+        circles,skel,rings=detect_circles(skel, CIRC_MIN*F, int(min(W,H)/3), max(6.0,pen*1.8))
+        lines=skeleton_polylines(skel)   # rings removed: strokes only (no chords across a wheel)
 
-    polys=[np.array([(x,y) for (y,x) in ln],float) for ln in lines if len(ln)>=2]
-    # wheel hubs: a solid dot at the centre. Detect, drop from the fill, and redraw at
-    # the wheel's final centre so it travels with the wheel when it snaps to the frame.
+    # node identity per skeleton pixel: junction blobs (deg>=3) and free ends (deg==1). Clustering
+    # meeting strokes by blob (connectivity) keeps two nearby junctions distinct — unlike distance.
+    Sb=skel.astype(np.uint8); Kk=np.ones((3,3),int); Kk[1,1]=0
+    deg=ndimage.convolve(Sb,Kk,mode='constant')*Sb
+    node_labels,_=ndimage.label(Sb & (deg!=2), structure=np.ones((3,3)))
+    polys=[]; poly_nodes=[]
+    for ln in lines:
+        if len(ln)<2: continue
+        polys.append(np.array([(x,y) for (y,x) in ln],float))
+        poly_nodes.append((int(node_labels[ln[0][0],ln[0][1]]), int(node_labels[ln[-1][0],ln[-1][1]])))
+    # Wheel hubs: a solid dot at a circle's centre. Detect it, draw it as a faithful feature,
+    # and remove it from the fill. Each shape is idealised on its own — circles stay where
+    # they were detected. We do NOT nudge circles to force contact with neighbouring strokes:
+    # that cascades into worse distortions (kinked frames, slivers) than the small gaps it closes.
     hubs=[]
     if circles:
         yy,xx=np.mgrid[0:H,0:W]
         for cx,cy,r in circles:
-            if cy<=0.5*H: continue                       # wheels only
-            cmask=((xx-cx)**2+(yy-cy)**2) < (0.4*r)**2
+            cmask=((xx-cx)**2+(yy-cy)**2) < (0.4*r)**2   # a solid dot concentric with the circle
             ink=black & cmask
             if ink.sum()>=max(30,0.4*pen*pen):
-                hubs.append((cx,cy,math.sqrt(ink.sum()/math.pi)))
+                ys,xs=np.where(ink)
+                hubs.append((float(xs.mean()),float(ys.mean()),math.sqrt(ink.sum()/math.pi)))
                 thick=thick & ~ndimage.binary_dilation(cmask,np.ones((3,3)))
-    moved=[]; movemap={}
-    if circles:
-        segs=[(p[1],p[2]) for P in polys for p in segment_prims(P,eps,floor,maxr,minr) if p[0]=='L']
-        out=[]
-        for c in circles:
-            nc = move_wheel_to_body(c,segs,pen) if c[1] > 0.5*H else c  # only wheels (lower half)
-            out.append(nc); movemap[(c[0],c[1])]=nc
-            if nc!=c: moved.append(nc)
-        circles=out
 
     HITW=pen*2.8
     def cen(mask): ys,xs=np.where(mask); return (float(xs.mean()),float(ys.mean()))
@@ -367,13 +429,12 @@ def build(name, thick_k=1.75, F=3):
                 cx,cy=cen(comp); out.append((cx,cy,vis,hit))
         return out
 
-    kept=[P for P in polys
-          if not (moved and any(all(math.hypot(x-cx,y-cy)<=r+pen for x,y in P) for cx,cy,r in moved))]
+    polys,circles=resolve_topology(polys,poly_nodes,circles,rings,pen)   # topology: nexuses + circle-yield
+    kept=polys
     groups=link_strokes(kept)
     bd={}
     for i,P in enumerate(kept):
-        Pe=extend_ends_raw(P,circles,ethr,1.5*minseg) if circles else P
-        d=prims_to_d(segment_prims(Pe,eps,floor,maxr,minr))
+        d=prims_to_d(segment_prims(P,eps,floor,maxr,minr))
         if d: bd[i]=d
 
     comps=[]                                              # (cx,cy,vis,hit) in draw order
@@ -383,6 +444,7 @@ def build(name, thick_k=1.75, F=3):
         ds=[bd[i] for i in g if i in bd]
         if not ds: continue
         dstr=" ".join(ds); pts=np.vstack([kept[i] for i in g])
+        if bbox_diag(pts) < pen: continue                 # drop degenerate slivers (no real extent)
         vis='<path d="%s" fill="none" stroke="%s" stroke-width="%.1f" stroke-linecap="round" stroke-linejoin="round"/>'%(dstr,INK,pen)
         hit='<path class="hit" d="%s" fill="none" stroke="transparent" stroke-width="%.1f" stroke-linecap="round"/>'%(dstr,HITW)
         comps.append((float(pts[:,0].mean()),float(pts[:,1].mean()),vis,hit))
@@ -391,11 +453,11 @@ def build(name, thick_k=1.75, F=3):
         hit='<circle class="hit" cx="%.1f" cy="%.1f" r="%.1f" fill="none" stroke="transparent" stroke-width="%.1f"/>'%(cx,cy,r,HITW)
         comps.append((cx,cy,vis,hit))
     if thick.sum()>20: comps+=fill_comps(thick,INK,f"{name}_thk")
-    for cx,cy,har in hubs:
-        mcx,mcy,_=movemap.get((cx,cy),(cx,cy,0)); rr=max(har,pen*0.6)
-        vis='<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'%(mcx,mcy,rr,INK)
-        hit='<circle class="hit" cx="%.1f" cy="%.1f" r="%.1f" fill="transparent"/>'%(mcx,mcy,rr+pen)
-        comps.append((mcx,mcy,vis,hit))
+    for hx,hy,har in hubs:                                # already at the wheel's final centre
+        rr=max(har,pen*0.6)
+        vis='<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'%(hx,hy,rr,INK)
+        hit='<circle class="hit" cx="%.1f" cy="%.1f" r="%.1f" fill="transparent"/>'%(hx,hy,rr+pen)
+        comps.append((hx,hy,vis,hit))
 
     parts=['<svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">'%(W,H,W,H)]
     br=pen*1.4; fs=pen*1.8; cr=pen*2.6; cX=cr+pen; cY=cr+pen   # corner bubble (fixed top-left)

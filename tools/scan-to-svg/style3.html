@@ -58,6 +58,12 @@
   .seg:hover .vis path[fill]:not([fill="none"]){fill:#e8402f}
   .seg:hover .vis circle{stroke:#e8402f}
   .seg:hover .vis circle[fill]:not([fill="none"]){fill:#e8402f}
+  /* left "overlay" panel: the aligned scan with the vector hidden on top of it. The right
+     (clean) panel drives the hover; the matching segment then draws red here on the scan.
+     Per-segment link rules are generated in build3.py. */
+  .art.overlay .vis path{stroke:transparent;fill:transparent}
+  .art.overlay .vis circle{stroke:transparent;fill:transparent}
+  .art.overlay .hit{pointer-events:none}
   .zoombtn{position:absolute;top:15px;right:15px;z-index:6;width:34px;height:34px;border-radius:50%;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink);display:grid;place-items:center;text-decoration:none}
   .zoombtn:hover{border-color:var(--blue);color:var(--blue)}

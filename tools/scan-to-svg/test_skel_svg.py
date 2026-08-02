@@ -42,15 +42,11 @@ def test_line_resid_positive_for_bent():
     assert S.line_resid(P) > 4
 
 
-# --- bbox_diag / seglen --------------------------------------------------
+# --- bbox_diag -----------------------------------------------------------
 
 def test_bbox_diag():
     P = np.array([[0.0, 0.0], [3.0, 4.0], [1.0, 1.0]])
     assert S.bbox_diag(P) == pytest.approx(5.0)
-
-
-def test_seglen():
-    assert S.seglen((0, 0), (3, 4)) == pytest.approx(5.0)
 
 
 # --- max_dev_index -------------------------------------------------------
@@ -143,20 +139,6 @@ def test_arc_cmd_flags_and_endpoint():
 def test_prims_to_d_line():
     prims = [("L", np.array([0.0, 0.0]), np.array([10.0, 20.0]))]
     assert S.prims_to_d(prims) == "M 0.0 0.0 L 10.0 20.0"
-
-
-# --- ray_to_circle -------------------------------------------------------
-
-def test_ray_to_circle_picks_nearest_intersection():
-    # From origin heading +x toward a circle centred at (10,0) r=3: hits x=7.
-    pt = S.ray_to_circle([0.0, 0.0], (1.0, 0.0), (10.0, 0.0, 3.0))
-    assert pt[0] == pytest.approx(7.0)
-    assert pt[1] == pytest.approx(0.0)
-
-
-def test_ray_to_circle_misses_returns_none():
-    # Parallel to x-axis but offset far above the circle -> no intersection.
-    assert S.ray_to_circle([0.0, 100.0], (1.0, 0.0), (10.0, 0.0, 3.0)) is None
 
 
 # --- skeleton graph helpers ----------------------------------------------

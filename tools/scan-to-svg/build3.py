@@ -1,8 +1,38 @@
-import base64, os
+import base64, os, re
 def b64(f): return base64.b64encode(open(f,"rb").read()).decode()
 def read(f): return open(f).read()
 def kb(f): return "%.1f&#8202;KB"%(os.path.getsize(f)/1024)
 def paths(s): return str(s.count("<path"))
+
+def vec(name):
+    return read(f"out/{name}_C.svg")
+
+def scan_overlay(name):
+    # Left panel: the aligned scan (the iso the vector was traced from) with a hidden copy of
+    # the vector segments on top. CSS keeps the vector invisible until its twin is hovered in
+    # the clean panel, at which point that one segment draws red on the scan — for comparing
+    # how the idealised segment diverges from the original ink at the same coordinates.
+    svg=read(f"out/{name}_C.svg")
+    m=re.search(r'viewBox="0 0 (\d+) (\d+)"',svg); W,H=m.group(1),m.group(2)
+    scan=('<image x="0" y="0" width="%s" height="%s" preserveAspectRatio="none" '
+          'href="data:image/png;base64,%s"/>')%(W,H,b64(f"out/{name}_iso.png"))
+    svg=re.sub(r'<g class="nums".*?</g></svg>','</svg>',svg,flags=re.S)   # no number bubbles here
+    return re.sub(r'(<svg[^>]*>)', lambda mm: mm.group(1)+scan, svg, count=1)
+
+def link_css():
+    # Generate the per-segment link: hovering segment N in a row's clean (.vec) panel draws
+    # segment N red in that same row's scan (.overlay) panel. `.cells:has(...)` scopes it to
+    # the hovered row, so one rule set covers every row.
+    maxn=max((int(n) for f in os.listdir("out") if f.endswith("_C.svg")
+              for n in re.findall(r'data-num="(\d+)"', read(f"out/{f}"))), default=0)
+    r=[]
+    for n in range(1,maxn+1):
+        s='.cells:has(.vec .seg[data-num="%d"]:hover) .overlay .seg[data-num="%d"] .vis'%(n,n)
+        r.append('%s path{stroke:#e8402f}'%s)
+        r.append('%s path[fill]:not([fill="none"]){fill:#e8402f}'%s)
+        r.append('%s circle{stroke:#e8402f}'%s)
+        r.append('%s circle[fill]:not([fill="none"]){fill:#e8402f}'%s)
+    return "<style>"+"".join(r)+"</style>"
 
 comps=[
  ("flag","Capture flag","colour + fine emblem &mdash; the hard case"),
@@ -30,18 +60,19 @@ def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64
 
 # featured flag: original / hybrid / redraw
 featured=(tile("raster","Flag · original",img("out/flag_crop.png","flag original"),"raster source")
-        + tile("vec","Flag · hybrid (auto)",read("out/flag_C.svg"),kb("out/flag_C.svg")+" · auto")
+        + tile("vec","Flag · hybrid (auto)",vec("flag"),kb("out/flag_C.svg")+" · auto")
         + tile("vec","Flag · clean redraw",read(flagB),kb(flagB)+" · by hand"))
 
 rows=""
 for key,name,note in comps:
-    C=read(f"out/{key}_C.svg")
-    cells=(tile("raster",name+" · original",img(f"out/{key}_crop.png",name+" original"),"context")
+    C=vec(key)
+    cells=(tile("overlay",name+" · scan",scan_overlay(key),"hover the hybrid &rarr;")
          + tile("vec",name+" · hybrid",C,kb(f"out/{key}_C.svg")+" · "+paths(C)+"p"))
     rows+=('<div class="row"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
            '<div class="cells">%s</div></div>')%(name,note,cells)
 
-body=('<input id="shownums" type="checkbox">'
+body=(link_css()
+ +'<input id="shownums" type="checkbox">'
  '<label class="numtoggle" for="shownums"><span class="dot"></span>Element numbers</label>'
  '<div class="wrap">'
  '<header class="masthead"><p class="eyebrow">Scan &rarr; SVG &middot; fidelity study v8</p>'
