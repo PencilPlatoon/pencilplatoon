@@ -102,10 +102,11 @@ function buildAdjacency(m){
 function floodFrom(startSid){
   // everything reachable through shared nodes AND blob attachments; returns the
   // sids of both edges and blobs in the connected component. Works from either.
+  // masked (deleted) elements cut connectivity -- flood neither enters nor crosses them
   const out = new Set(), seenE = new Set(), seenB = new Set(), q = [];
-  const takeBlob = bs => { if(seenB.has(bs)) return; seenB.add(bs); out.add(bs);
-    for(const es of (adj.blob.get(bs).edges||[])) if(!seenE.has(es)){ seenE.add(es); q.push(es); } };
-  const takeEdge = es => { if(!seenE.has(es)){ seenE.add(es); q.push(es); } };
+  const takeBlob = bs => { if(seenB.has(bs) || masked.has(bs)) return; seenB.add(bs); out.add(bs);
+    for(const es of (adj.blob.get(bs).edges||[])) if(!seenE.has(es) && !masked.has(es)){ seenE.add(es); q.push(es); } };
+  const takeEdge = es => { if(!seenE.has(es) && !masked.has(es)){ seenE.add(es); q.push(es); } };
   adj.blob.has(startSid) ? takeBlob(startSid) : takeEdge(startSid);
   while(q.length){
     const e = adj.edge.get(q.pop()); out.add(e.sid);
