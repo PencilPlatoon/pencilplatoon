@@ -53,7 +53,7 @@ def test_t_junction_leaves_the_stem_unpaired():
                     reason="mg_iso.png not present")
 def test_real_crossing_pairs_up():
     # the mg has genuine crossings; at least one 4-way junction resolves to two pairs
-    g = vectorize(os.path.join(ISO, "mg_iso.png"), milestone=3)
+    g = vectorize(os.path.join(ISO, "mg_iso.png"), milestone=5)
     deg = {}
     for e in g.edges.values():
         deg[e.a] = deg.get(e.a, 0) + 1; deg[e.b] = deg.get(e.b, 0) + 1

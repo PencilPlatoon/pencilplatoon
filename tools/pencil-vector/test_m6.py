@@ -32,13 +32,13 @@ def _e(i, a, b, pts):
 
 def test_blobs_get_interior_holes():
     # the SMG's solid has real hollows -- they must be traced, not swallowed
-    g = vectorize(_iso("soldier"), milestone=3)
+    g = vectorize(_iso("soldier"), milestone=6)
     blobs = [nd for nd in g.nodes.values() if nd.kind == BLOB]
     assert any(nd.ann.get("holes") for nd in blobs)
 
 
 def test_rotational_order_is_the_incident_edges():
-    g = vectorize(_iso("cannon"), milestone=3)
+    g = vectorize(_iso("cannon"), milestone=6)
     for nid, nd in g.nodes.items():
         if nd.kind == BLOB:
             continue
@@ -48,7 +48,7 @@ def test_rotational_order_is_the_incident_edges():
 
 def test_nested_fill_gets_a_higher_paint_order():
     # the flag's inner region sits inside the field -> z >= 1
-    g = vectorize(_iso("flag"), milestone=3)
+    g = vectorize(_iso("flag"), milestone=6)
     zs = [nd.ann.get("z", 0) for nd in g.nodes.values() if nd.kind == BLOB]
     assert max(zs) >= 1
 

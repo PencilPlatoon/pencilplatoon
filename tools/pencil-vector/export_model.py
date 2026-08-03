@@ -11,7 +11,7 @@ import os
 import sys
 
 from model import BLOB
-from vectorize import vectorize
+from vectorize import LATEST, vectorize
 
 
 def _pts(a):
@@ -40,7 +40,7 @@ def model_dict(g, subject: str) -> dict:
 
 
 def export(in_path: str, subject: str, out_path: str) -> dict:
-    d = model_dict(vectorize(in_path, milestone=3), subject)
+    d = model_dict(vectorize(in_path, milestone=LATEST), subject)
     with open(out_path, "w") as f:
         json.dump(d, f)
     return d

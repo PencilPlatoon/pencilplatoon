@@ -22,15 +22,17 @@ from stableid import assign
 from svgdump import dump
 from widthclass import segment
 
-LATEST = 3                      # highest implemented milestone
+LATEST = 6                      # highest implemented milestone
 SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not length, decides
                                 # which short leaves are twigs vs. real connectors/continuations
 
 
 def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
-    """Run the pipeline up to `milestone`. M1: naive whole-mask skeleton. M2:
-    width-class segmentation (strokes on the thin mask, blobs filled). M3:
-    assign stable IDs and freeze."""
+    """Run the pipeline up to `milestone` -- each milestone adds the features up
+    to it, so a given milestone's output is what the approach produced at that
+    stage. M1 naive skeleton; M2 width classes; M3 stable IDs + freeze; M4/M5 add
+    connectivity (no render change); M6 interior holes + embedding. Only render-
+    changing milestones differ visually (M1, M2, M3, M6)."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
     ink = ingest(rgb, thresh_bias=thresh_bias)
     if milestone <= 1:
@@ -42,17 +44,20 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
     blob_masks = {}
     for b in blobs:                         # blobs are first-class nodes (§6.3)
         g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
-                            ann={"width_class": b.width_class, "holes": b.holes})
+                            ann={"width_class": b.width_class,
+                                 "holes": b.holes if milestone >= 6 else []})   # holes are M6
         blob_masks[nid] = b.mask
         nid += 1
 
-    if milestone >= 3:
+    if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
         prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
-        assign(g)                           # stable IDs + freeze (Stage 5)
-        attach_edges_to_blobs(g, blob_masks)  # edge<->blob incidence for flood (§6.3)
-        resolve_continuity(g)               # junction resolution for continuity flood (§6.4)
-        rotational_order(g)                 # planar embedding: cyclic edge order (§8)
-        containment(g)                      # ... and paint order for nested fills (§8)
+        assign(g)
+        attach_edges_to_blobs(g, blob_masks)
+    if milestone >= 5:                      # M5: junction resolution for continuity flood (§6.4)
+        resolve_continuity(g)
+    if milestone >= 6:                      # M6: planar embedding (§8)
+        rotational_order(g)
+        containment(g)
     return g
 
 
