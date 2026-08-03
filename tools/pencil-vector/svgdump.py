@@ -13,16 +13,23 @@ STROKE = "#111"
 NODE_FILL = {"endpoint": "#2a7", "junction": "#e8402f", "blob": "#39f"}
 
 
-def _d(pts) -> str:
+def _d(pts, close: bool = False) -> str:
     head = "M%.1f %.1f" % (pts[0][0], pts[0][1])
     rest = "".join("L%.1f %.1f" % (x, y) for x, y in pts[1:])
-    return head + rest
+    return head + rest + (" Z" if close else "")
 
 
 def dump(g: Graph, show_nodes: bool = False) -> str:
     w_img, h = g.size
     sw = max(1.0, g.w)
     out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d">' % (w_img, h)]
+
+    # blobs first (filled), so strokes meeting them draw on top
+    for nd in g.nodes.values():
+        if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
+            out.append('<path data-blob="%d" d="%s" fill="%s"/>'
+                       % (nd.id, _d(nd.boundary, close=True), STROKE))
+
     out.append('<g fill="none" stroke="%s" stroke-width="%.2f" '
                'stroke-linecap="round" stroke-linejoin="round">' % (STROKE, sw))
     for e in g.edges.values():

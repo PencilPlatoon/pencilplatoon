@@ -23,7 +23,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 | # | milestone | status |
 |---|-----------|--------|
 | **M1** | Stage 0 (ink + `w`) → naive skeleton → graph → one `<path>` per edge | ✅ done |
-| M2 | Width classes: strokes vs blobs vs variable (taper), with hysteresis | — |
+| **M2** | Width classes (hysteresis): filled regions → blobs, line-work → strokes | ✅ done |
 | M3 | Stable IDs + topology freeze; ID-stability test | — |
 | M4 | Cleanup tool (manual highlight/delete/flood/export) | — |
 | M5 | Junction resolution + continuity flood | — |
@@ -49,9 +49,15 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 |------|------|
 | `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
 | `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
+| `widthclass.py` | Stage 1 (M2) — hysteresis width classing: filled regions → blobs |
 | `graph.py` | skeleton → node/edge graph (naive; junction resolution is M5) |
-| `svgdump.py` | M1 export — one `<path>` per edge |
-| `vectorize.py` | end-to-end driver |
+| `svgdump.py` | export — filled blobs + one `<path>` per stroke edge |
+| `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
+
+M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
+spray) fills flat black rather than its hue — a later concern (the plan keeps colour
+separate). The `variable`/taper class (splitting an elongated fill into a monotone
+ramp) is also deferred; every fill is a `blob` for now.
 
 ## Tests
 

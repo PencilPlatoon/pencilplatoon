@@ -53,8 +53,10 @@ def _trace_run(start, came_from, skel, node_at):
         y, x = nxt
 
 
-def build(ink: Ink) -> Graph:
-    skel = skeletonize(ink.mask)
+def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
+    # `mask` defaults to all ink (M1). M2 passes the thin (stroke-only) mask so
+    # blob interiors aren't skeletonized into centerlines (§6.2).
+    skel = skeletonize(ink.mask if mask is None else mask)
     deg = _degree(skel)
 
     # Cluster the non-corridor pixels (endpoints deg==1, junctions deg>=3) into
