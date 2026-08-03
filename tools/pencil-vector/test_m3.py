@@ -86,25 +86,28 @@ def _line(a, b, n=8):
 
 
 def test_prune_keeps_collinear_leaf_drops_angled_twig():
-    # A junction J with a long stroke to the left, a SHORT leaf continuing it to
-    # the right (collinear -> a fragmented continuation, keep) and a SHORT leaf
-    # going up (angled -> a real twig, prune).
-    J, Lend, Cend, Dend = (0, 0), (-40, 0), (5, 0), (0, 5)
+    # A junction J with a long stroke to the left, a SHORT collinear leaf to the
+    # right (a fragmented continuation, keep), a SHORT angled leaf up (a real
+    # twig, prune), and a LONGER angled leaf down (a deliberate segment, keep --
+    # long enough not to be a thinning artifact even though it's not collinear).
+    J, Lend, Cend, Dup, Ddn = (0, 0), (-40, 0), (5, 0), (0, 4), (0, 10)
     nodes = {
         0: Node(0, JUNCTION, J), 1: Node(1, ENDPOINT, Lend),
-        2: Node(2, ENDPOINT, Cend), 3: Node(3, ENDPOINT, Dend),
+        2: Node(2, ENDPOINT, Cend), 3: Node(3, ENDPOINT, Dup), 4: Node(4, ENDPOINT, Ddn),
     }
     def edge(i, b, pts):
         return Edge(i, 0, b, pts, np.full(len(pts), 2.0))
     edges = {
         0: edge(0, 1, _line(J, Lend)),      # long stroke
         1: edge(1, 2, _line(J, Cend)),      # collinear short leaf -> keep
-        2: edge(2, 3, _line(J, Dend)),      # angled short leaf -> prune
+        2: edge(2, 3, _line(J, Dup)),       # angled short leaf (4px < 6) -> prune
+        3: edge(3, 4, _line(J, Ddn)),       # angled longer leaf (10px > 6) -> keep
     }
     g = Graph(nodes=nodes, edges=edges, w=4.0, size=(100, 100))
-    prune_spurs(g, max_len=6.0)             # 5px leaves < 6; 40px stroke safe
+    prune_spurs(g, max_len=6.0)             # threshold 6px (=1.5w here)
     assert 1 in g.edges, "collinear continuation was wrongly pruned"
-    assert 2 not in g.edges, "angled twig was not pruned"
+    assert 3 in g.edges, "a long enough segment was wrongly pruned as a twig"
+    assert 2 not in g.edges, "angled short twig was not pruned"
     assert 0 in g.edges
 
 

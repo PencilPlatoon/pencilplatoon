@@ -22,7 +22,8 @@ from svgdump import dump
 from widthclass import segment
 
 LATEST = 3                      # highest implemented milestone
-SPUR_W = 1.5                    # prune leaf twigs shorter than this many w (§6.4)
+SPUR_W = 1.2                    # only leaves shorter than this many w can be twigs (§6.4);
+                                # a deliberate segment is at least ~this long even off a blob
 
 
 def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
