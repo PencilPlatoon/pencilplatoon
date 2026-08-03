@@ -10,7 +10,7 @@ import numpy as np
 import pytest
 
 from embedding import containment, count_crossings, rotational_order, validate_embedding
-from model import BLOB, Edge
+from model import BLOB, Edge, Graph, Node
 from vectorize import vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -47,10 +47,14 @@ def test_rotational_order_is_the_incident_edges():
 
 
 def test_nested_fill_gets_a_higher_paint_order():
-    # the flag's inner region sits inside the field -> z >= 1
-    g = vectorize(_iso("flag"), milestone=6)
-    zs = [nd.ann.get("z", 0) for nd in g.nodes.values() if nd.kind == BLOB]
-    assert max(zs) >= 1
+    # a small fill inside a larger one paints on top (higher z)
+    outer = np.array([(0, 0), (100, 0), (100, 100), (0, 100)], float)
+    inner = np.array([(10, 10), (30, 10), (30, 30), (10, 30)], float)
+    nodes = {0: Node(0, BLOB, (50, 50), boundary=outer),
+             1: Node(1, BLOB, (20, 20), boundary=inner)}
+    containment(Graph(nodes=nodes, edges={}, w=4.0, size=(100, 100)))
+    assert nodes[1].ann["z"] >= 1       # inner is enclosed -> painted after
+    assert nodes[0].ann["z"] == 0       # outer encloses nothing
 
 
 def test_count_crossings():

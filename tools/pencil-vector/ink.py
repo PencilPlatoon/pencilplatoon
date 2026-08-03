@@ -21,6 +21,8 @@ from skimage.morphology import skeletonize
 # a 6px dot) and let ink-density do the rest.
 GRAIN_AREA = 4          # px; drop connected components at or below this
 SAUVOLA_WINDOW = 25     # px; local-threshold neighborhood for uneven pencil
+DARK_ABS = 0.4          # any pixel this dark is ink regardless of local contrast: Sauvola
+                        # otherwise carves false holes out of a large uniform-dark fill
 
 
 @dataclass
@@ -56,9 +58,11 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0) -> Ink:
     gray = rgb.mean(2) / 255.0 if rgb.ndim == 3 else rgb / 255.0
 
     thr = threshold_sauvola(gray, window_size=SAUVOLA_WINDOW)
-    # Sauvola alone flags texture inside large blank areas; require the pixel
-    # be genuinely darker than mid-gray too, so paper stays paper.
-    mask = (gray < thr + thresh_bias) & (gray < 0.65 + thresh_bias)
+    # Sauvola alone flags texture inside large blank areas, so require the pixel be
+    # genuinely darker than mid-gray too (paper stays paper). But Sauvola also *misses*
+    # the interior of a large uniform-dark fill (no local contrast there) -- so accept
+    # any absolutely-dark pixel as ink as well, or that interior becomes a false hole.
+    mask = ((gray < thr + thresh_bias) | (gray < DARK_ABS + thresh_bias)) & (gray < 0.65 + thresh_bias)
 
     # Speckle rejection on imaging grounds only: drop paper-grain-sized specks.
     lab, n = ndimage.label(mask, structure=np.ones((3, 3)))
