@@ -142,27 +142,40 @@ def _runs_into_blob(free_end, out_dir, blob_masks, w) -> bool:
     return False
 
 
+OVERLAP_FRAC = 0.6      # a stroke lying this fraction within ~1w of a blob is part of it
+
+
+def _edge_touches_blob(e: Edge, mask, near, w) -> bool:
+    """A stroke is connected to a blob if its end runs *into* the blob, or if it
+    lies *along/over* it -- most of the stroke within ~1w of the blob (§6.3).
+    Endpoint-only misses outline strokes that run beside the fill."""
+    p = e.pts
+    for end, inner in [(p[0], p[min(len(p) - 1, 4)]), (p[-1], p[max(0, len(p) - 5)])]:
+        end = np.asarray(end, float)
+        out = end - np.asarray(inner, float)
+        n = float(np.hypot(*out))
+        if n > 0 and _runs_into_blob(end, out / n, [mask], w):
+            return True
+    xi = np.clip(p[:, 0].astype(int), 0, near.shape[1] - 1)
+    yi = np.clip(p[:, 1].astype(int), 0, near.shape[0] - 1)
+    return float(near[yi, xi].mean()) > OVERLAP_FRAC
+
+
 def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
-    """Record edge<->blob incidence (§6.3): a stroke whose end runs into a blob is
-    connected to it. Stores each blob's attached edge sids on its `ann['edges']`
-    and the blob sids on each edge's `ann['blobs']`, so flood-select can traverse
-    a blob as a connectivity hub. `blob_masks` maps blob node id -> mask."""
+    """Record edge<->blob incidence (§6.3): a stroke connected to a blob (running
+    into it, or lying along it) is stored on the blob's `ann['edges']` and the
+    blob sid on the edge's `ann['blobs']`, so flood can traverse the blob as a
+    connectivity hub. `blob_masks` maps blob node id -> mask."""
     for nid, mask in blob_masks.items():
         nb = g.nodes[nid]
+        near = ndimage.binary_dilation(mask, iterations=max(1, int(round(g.w))))
         attached = []
         for e in g.edges.values():
-            p = e.pts
-            ends = [(p[0], p[min(len(p) - 1, 4)]), (p[-1], p[max(0, len(p) - 5)])]
-            for end, inner in ends:
-                end = np.asarray(end, float)
-                out = end - np.asarray(inner, float)
-                n = float(np.hypot(*out))
-                if n > 0 and _runs_into_blob(end, out / n, [mask], g.w):
-                    attached.append(e.sid)
-                    e.ann.setdefault("blobs", [])
-                    if nb.sid not in e.ann["blobs"]:
-                        e.ann["blobs"].append(nb.sid)
-                    break
+            if _edge_touches_blob(e, mask, near, g.w):
+                attached.append(e.sid)
+                e.ann.setdefault("blobs", [])
+                if nb.sid not in e.ann["blobs"]:
+                    e.ann["blobs"].append(nb.sid)
         nb.ann["edges"] = attached
     return g
 
