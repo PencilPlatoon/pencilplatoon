@@ -128,27 +128,47 @@ def _dir_from(e: Edge, jpos: np.ndarray, span: int = 6) -> np.ndarray:
     return v / n if n > 0 else v
 
 
-def prune_spurs(g: Graph, max_len: float) -> Graph:
-    """Remove short twigs that thinning manufactures from boundary noise on wide
-    strokes (§6.4) -- a leaf edge shorter than `max_len` hanging off a junction.
+def _runs_into_blob(free_end, out_dir, blob_masks, w) -> bool:
+    """Does the stroke ATTACH to a blob at this end -- i.e. if you keep going
+    past the free end, do you land inside a blob (not in an empty concave notch)?
+    This is the edge->blob incidence the topology needs: a stroke ending on a
+    blob is connected to it, not dangling (§2.1, §6.3)."""
+    for k in (0.5, 1.0, 1.5):
+        p = free_end + out_dir * k * w
+        xi, yi = int(round(p[0])), int(round(p[1]))
+        for m in blob_masks:
+            if 0 <= yi < m.shape[0] and 0 <= xi < m.shape[1] and m[yi, xi]:
+                return True
+    return False
 
-    But a short leaf that runs *collinear* with one of the other edges at that
-    junction is not a twig: it's the continuation of that stroke, fragmented by
-    the skeleton. Keep it (its neighbour effectively absorbs it -- full merge
-    into one extended segment is junction resolution, M5). Only leaves that stick
-    out at an angle (no near-collinear partner) are real twigs. A standalone
+
+def prune_spurs(g: Graph, max_len: float, blob_masks=()) -> Graph:
+    """Remove short twigs that thinning manufactures from boundary noise on wide
+    strokes (§6.4). Connectivity is the invariant (§2.1): a leaf is a real twig
+    only if its free end connects to *nothing*. Keep it if it connects to
+    something --
+
+      - it **attaches to a blob** (running into it, not poking an empty notch), or
+      - it runs **collinear** with a junction partner (a continuation of that
+        stroke, fragmented by the skeleton; full merge is junction resolution, M5).
+
+    Only a short leaf that neither attaches nor continues is a thinning twig.
+    Length is just the twig-size ceiling, not the discriminator. A standalone
     short mark (both ends free) is always kept."""
     from model import BLOB, ENDPOINT, JUNCTION
 
-    def is_twig(e, junc):
+    def keeps_connectivity(e, leaf, junc):
         jpos = np.array(g.nodes[junc].pos, float)
+        fe = np.array(e.pts[0] if leaf == e.a else e.pts[-1], float)
+        out = fe - jpos
+        out = out / (float(np.hypot(*out)) or 1.0)
+        if _runs_into_blob(fe, out, blob_masks, g.w):
+            return True                     # attaches to a blob -> connected
         myd = _dir_from(e, jpos)
-        best = 999.0
-        for o in g.edges.values():
-            if o.id != e.id and (o.a == junc or o.b == junc):
-                cos = float(np.clip(np.dot(-myd, _dir_from(o, jpos)), -1, 1))
-                best = min(best, math.degrees(math.acos(cos)))
-        return best > CONT_ANGLE            # no collinear partner -> a real twig
+        best = min((math.degrees(math.acos(float(np.clip(np.dot(-myd, _dir_from(o, jpos)), -1, 1))))
+                    for o in g.edges.values()
+                    if o.id != e.id and (o.a == junc or o.b == junc)), default=999.0)
+        return best <= CONT_ANGLE           # continues a stroke -> connected
 
     changed = True
     while changed:
@@ -160,8 +180,9 @@ def prune_spurs(g: Graph, max_len: float) -> Graph:
         for eid, e in list(g.edges.items()):
             da, db = deg.get(e.a, 0), deg.get(e.b, 0)
             if min(da, db) == 1 and max(da, db) >= 3 and e.length < max_len:
+                leaf = e.a if da == 1 else e.b
                 junc = e.b if da == 1 else e.a
-                if is_twig(e, junc):
+                if not keeps_connectivity(e, leaf, junc):
                     del g.edges[eid]
                     changed = True
 

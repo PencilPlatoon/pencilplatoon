@@ -22,8 +22,8 @@ from svgdump import dump
 from widthclass import segment
 
 LATEST = 3                      # highest implemented milestone
-SPUR_W = 1.2                    # only leaves shorter than this many w can be twigs (§6.4);
-                                # a deliberate segment is at least ~this long even off a blob
+SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not length, decides
+                                # which short leaves are twigs vs. real connectors/continuations
 
 
 def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
@@ -44,7 +44,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
         nid += 1
 
     if milestone >= 3:
-        prune_spurs(g, SPUR_W * ink.w)      # drop thinning twigs before freezing
+        prune_spurs(g, SPUR_W * ink.w, blob_masks=[b.mask for b in blobs])
         assign(g)                           # stable IDs + freeze (Stage 5)
     return g
 

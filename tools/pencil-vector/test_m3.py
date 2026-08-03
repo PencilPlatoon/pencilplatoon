@@ -111,6 +111,29 @@ def test_prune_keeps_collinear_leaf_drops_angled_twig():
     assert 0 in g.edges
 
 
+def test_prune_keeps_leaf_that_attaches_to_a_blob():
+    # A short angled leaf that would prune on its own is KEPT when its free end
+    # runs into a blob -- it's a connector, not a twig (connectivity > geometry).
+    J, Lend, Rend, Aend = (50, 50), (10, 50), (90, 50), (50, 54)
+    def make():
+        nodes = {0: Node(0, JUNCTION, J), 1: Node(1, ENDPOINT, Lend),
+                 2: Node(2, ENDPOINT, Aend), 3: Node(3, ENDPOINT, Rend)}
+        edges = {0: Edge(0, 0, 1, _line(J, Lend), np.full(8, 2.0)),   # long stroke left
+                 3: Edge(3, 0, 3, _line(J, Rend), np.full(8, 2.0)),   # long stroke right (J is deg 3)
+                 2: Edge(2, 0, 2, _line(J, Aend), np.full(8, 2.0))}   # 4px leaf, angled up
+        return Graph(nodes=nodes, edges=edges, w=4.0, size=(100, 100))
+    blob = np.zeros((100, 100), bool)
+    blob[56:66, 44:56] = True                # a blob just past the leaf's free end
+
+    attached = make()
+    prune_spurs(attached, max_len=6.0, blob_masks=[blob])
+    assert 2 in attached.edges, "leaf running into a blob was wrongly pruned"
+
+    dangling = make()
+    prune_spurs(dangling, max_len=6.0)       # same leaf, no blob -> a real twig
+    assert 2 not in dangling.edges, "angled twig with no blob was not pruned"
+
+
 def test_spurs_pruned_at_m3():
     # M3 prunes thinning twigs, so it has no more edges than M2
     m2 = vectorize(_path("cannon"), milestone=2)

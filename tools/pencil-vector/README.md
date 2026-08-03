@@ -61,11 +61,13 @@ identities. The `test_m3.py` ID-stability test perturbs the threshold a few
 percent and asserts ≥95% of edge IDs survive on clean line-art, and that on
 blob-heavy inputs the IDs never churn beyond genuine geometry change.
 
-Spur pruning drops a leaf only if it is **both** short (< ~1.2w — a deliberate
-segment is at least that long) **and** angled (no near-collinear partner at its
-junction). A collinear short leaf is a fragmented continuation of that stroke, and
-a longer leaf is a real segment even off a blob; both are kept. Merging a
-continuation into one extended segment is junction resolution (M5).
+Spur pruning is decided by **connectivity**, the primary invariant (§2.1), not by
+geometry. A short leaf is a thinning twig only if its free end connects to
+*nothing*. It is kept if it connects to something — either it **attaches to a
+blob** (extending the end lands inside the blob, not in an empty concave notch —
+the edge→blob incidence blobs need as first-class nodes, §6.3), or it runs
+**collinear** with a junction partner (a continuation of that stroke, fragmented
+by the skeleton; full merge is M5). Length is only the twig-size ceiling.
 
 M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
 spray) fills flat black rather than its hue — a later concern (the plan keeps colour
