@@ -26,7 +26,10 @@
   .toolbar button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .toolbar .hint{font-size:11.5px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
   .stage{flex:1;display:flex;min-height:0}
-  .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto}
+  .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;position:relative}
+  #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
+    font-family:var(--mono);font-weight:700;font-size:15px;min-width:22px;height:26px;border-radius:13px;
+    padding:0 9px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px #000}
   .canvas svg{background:var(--paper);border-radius:8px;max-width:100%;max-height:100%;
     box-shadow:0 12px 40px -16px #000}
   aside{width:290px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
@@ -67,7 +70,7 @@
   <span class="hint">click = toggle one · shift-click = fill / anti-fill connected · Del = mask</span>
 </div>
 <div class="stage">
-  <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
   <aside>
     <div class="sel">Selected: <b id="selN">0</b> &nbsp; Masked: <span id="maskN">0</span></div>
     <h3>Edit log <span class="n" id="logN"></span></h3>
@@ -135,17 +138,17 @@ function renderLog(){
 }
 
 function draw(){
-  const m = model, sw = Math.max(1, m.w);
+  const m = model, sw = Math.max(1, m.w); let n = 0;
+  // number blobs first, then edges -- same order as the comparison page's tabs
   const parts = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
-  // blobs first (under strokes)
   for(const b of m.blobs){
     const d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
-    parts.push(`<g class="el" data-sid="${b.sid}"><path class="blob" d="${d}"/>`
+    parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"><path class="blob" d="${d}"/>`
       + `<path class="hit blobhit" d="${d}"/></g>`);
   }
   for(const e of m.edges){
     const pts = e.pts.map(p=>p.join(",")).join(" ");
-    parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}">`
+    parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}" data-num="${++n}">`
       + `<polyline class="edge" points="${pts}" stroke-width="${sw}"/>`
       + `<polyline class="hit" points="${pts}" stroke-width="${sw*2.8}"/></g>`);
   }
@@ -164,11 +167,14 @@ function loadSubject(name){
 
 function wireCanvas(){
   const svg = $("#view");
+  const badge = $("#numbadge");
   svg.addEventListener("mouseover", e => {
-    const el = e.target.closest(".el"); if(el && !el.classList.contains("masked")) el.classList.add("hover");
+    const el = e.target.closest(".el"); if(el && !el.classList.contains("masked")){
+      el.classList.add("hover"); badge.textContent = "#" + el.dataset.num; badge.style.display = "flex";
+    }
   });
   svg.addEventListener("mouseout", e => {
-    const el = e.target.closest(".el"); if(el) el.classList.remove("hover");
+    const el = e.target.closest(".el"); if(el){ el.classList.remove("hover"); badge.style.display = "none"; }
   });
   svg.addEventListener("click", e => {
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
