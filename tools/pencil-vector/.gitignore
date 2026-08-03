@@ -1,5 +1,7 @@
 # generated artifacts
 out/
+cleanup.html
+cleanup_test.html
 .venv/
 venv/
 __pycache__/

@@ -25,7 +25,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 | **M1** | Stage 0 (ink + `w`) → naive skeleton → graph → one `<path>` per edge | ✅ done |
 | **M2** | Width classes (hysteresis): filled regions → blobs, line-work → strokes | ✅ done |
 | **M3** | Spur prune + stable IDs (geometry-derived) + topology freeze | ✅ done |
-| M4 | Cleanup tool (manual highlight/delete/flood/export) | — |
+| **M4** | Cleanup tool — manual highlight / delete / flood-select / export | ✅ done |
 | M5 | Junction resolution + continuity flood | — |
 | M6 | Planar embedding + post-fit validation | — |
 | M7 | Geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) | — |
@@ -54,6 +54,22 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 | `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
 | `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
 | `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
+| `export_model.py` | serialize the frozen graph to `out/<subject>_model.json` (§13) |
+| `cleanup_template.html` + `build_cleanup.py` | the M4 cleanup tool → `cleanup.html` |
+
+## Cleanup tool (M4)
+
+`./build.sh` generates a standalone **`cleanup.html`** (all subjects' models inlined —
+no server needed). Open it in a browser to extract an asset by hand:
+
+- **hover** highlights a segment (unit = one junction-to-junction edge);
+- **click** selects/deselects; **shift-click** flood-selects everything connected
+  by raw adjacency; **alt-click** excludes a branch from the selection;
+- **Delete → mask** hides the selection (recorded, never mutating the model);
+- **Export asset…** emits the selection as a named SVG;
+- every op is appended to an **edit log** keyed on the stable `sid`s, downloadable as
+  JSON so it replays against a re-run of the pipeline (§10). Continuity-aware
+  flood, hints, and free-cut are later milestones (M5+).
 
 M3 note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
 cell), not traversal order, so re-running with tweaked tolerances keeps the same

@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pencil Vector · Cleanup</title>
+<style>
+  :root{
+    --bg:#16171b; --panel:#1e2026; --hair:#31333c; --ink:#e9e7e0; --muted:#9a978d;
+    --paper:#f6f1e6; --blue:#5878e6; --red:#e8402f; --green:#37b26a;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
+  header{display:flex;align-items:baseline;gap:20px;padding:12px 18px;border-bottom:1px solid var(--hair)}
+  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
+  header .sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .subjects{display:flex;gap:6px;margin-left:auto}
+  .subjects button{font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  .subjects button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .toolbar{display:flex;align-items:center;gap:8px;padding:9px 18px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
+  .toolbar button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  .toolbar button:hover{border-color:var(--blue)}
+  .toolbar button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .toolbar .hint{font-size:11.5px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+  .stage{flex:1;display:flex;min-height:0}
+  .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto}
+  .canvas svg{background:var(--paper);border-radius:8px;max-width:100%;max-height:100%;
+    box-shadow:0 12px 40px -16px #000}
+  aside{width:290px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+  aside .sel{padding:12px 16px;border-bottom:1px solid var(--hair);font-family:var(--mono);font-size:12px}
+  aside .sel b{color:var(--blue)}
+  aside h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  #log{margin:0;padding:0 16px;list-style:none;overflow:auto;flex:1;font-family:var(--mono);font-size:11.5px}
+  #log li{padding:6px 0;border-bottom:1px solid var(--hair);color:var(--ink)}
+  #log li .k{color:var(--green)} #log li .n{color:var(--muted)}
+  #log .empty{color:var(--muted);padding:10px 0}
+  aside .foot{padding:12px 16px;border-top:1px solid var(--hair);display:flex;gap:8px}
+  aside .foot button{flex:1;font:inherit;font-size:12px;padding:7px;border-radius:7px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+
+  /* drawing elements */
+  .edge{fill:none;stroke:#141414;stroke-linecap:round;stroke-linejoin:round}
+  .blob{fill:#141414;stroke:none}
+  .hit{stroke:transparent;fill:none;pointer-events:stroke;cursor:pointer}
+  .hit.blobhit{fill:transparent;pointer-events:fill}
+  .el.hover .edge,.el.hover .blob{stroke:var(--red)}
+  .el.hover .blob{fill:var(--red)}
+  .el.sel .edge{stroke:var(--blue)} .el.sel .blob{fill:var(--blue)}
+  .el.masked{opacity:.12}
+  .el.masked .hit{pointer-events:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pencil&nbsp;Vector <span class="sub">· cleanup tool · M4</span></h1>
+  <div class="subjects" id="subjects"></div>
+</header>
+<div class="toolbar">
+  <button id="floodBtn">Flood-select: off</button>
+  <button id="delBtn">Delete → mask</button>
+  <button id="expBtn">Export asset…</button>
+  <button id="clrBtn">Clear selection</button>
+  <button id="resetBtn">Reset drawing</button>
+  <span class="hint">click = select · shift-click = flood · alt-click = exclude · Del = mask</span>
+</div>
+<div class="stage">
+  <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <aside>
+    <div class="sel">Selected: <b id="selN">0</b> &nbsp; Masked: <span id="maskN">0</span></div>
+    <h3>Edit log <span class="n" id="logN"></span></h3>
+    <ol id="log"><li class="empty">no edits yet</li></ol>
+    <div class="foot">
+      <button id="dlLog">Download log</button>
+    </div>
+  </aside>
+</div>
+<script>
+const MODELS = __MODELS__;
+const SVGNS = "http://www.w3.org/2000/svg";
+const $ = s => document.querySelector(s);
+
+let model, adj, selected, masked, log, floodMode = false;
+
+function buildAdjacency(m){
+  // node id -> [edge id]; used for raw-adjacency flood-select
+  const a = new Map();
+  for(const e of m.edges){
+    for(const n of [e.a, e.b]){ if(!a.has(n)) a.set(n, []); a.get(n).push(e.id); }
+  }
+  return a;
+}
+
+function floodFrom(edgeId){
+  // all edge sids reachable through shared nodes (raw adjacency, M4)
+  const byId = new Map(model.edges.map(e => [e.id, e]));
+  const seen = new Set([edgeId]), stack = [edgeId], out = new Set();
+  while(stack.length){
+    const e = byId.get(stack.pop()); out.add(e.sid);
+    for(const n of [e.a, e.b]) for(const nb of (adj.get(n)||[]))
+      if(!seen.has(nb)){ seen.add(nb); stack.push(nb); }
+  }
+  return out;
+}
+
+function elFor(sid){ return $(`.el[data-sid="${CSS.escape(sid)}"]`); }
+
+function render(){
+  for(const el of document.querySelectorAll(".el")){
+    const sid = el.dataset.sid;
+    el.classList.toggle("sel", selected.has(sid) && !masked.has(sid));
+    el.classList.toggle("masked", masked.has(sid));
+  }
+  $("#selN").textContent = [...selected].filter(s => !masked.has(s)).length;
+  $("#maskN").textContent = masked.size;
+}
+
+function renderLog(){
+  const ol = $("#log");
+  if(!log.length){ ol.innerHTML = '<li class="empty">no edits yet</li>'; $("#logN").textContent=""; return; }
+  $("#logN").textContent = `(${log.length})`;
+  ol.innerHTML = log.map((o,i) =>
+    `<li><span class="k">${o.op}</span> ${o.asset?('"'+o.asset+'" '):''}<span class="n">×${o.sids.length}</span></li>`
+  ).join("");
+  ol.scrollTop = ol.scrollHeight;
+}
+
+function draw(){
+  const m = model, sw = Math.max(1, m.w);
+  const parts = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
+  // blobs first (under strokes)
+  for(const b of m.blobs){
+    const d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
+    parts.push(`<g class="el" data-sid="${b.sid}"><path class="blob" d="${d}"/>`
+      + `<path class="hit blobhit" d="${d}"/></g>`);
+  }
+  for(const e of m.edges){
+    const pts = e.pts.map(p=>p.join(",")).join(" ");
+    parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}">`
+      + `<polyline class="edge" points="${pts}" stroke-width="${sw}"/>`
+      + `<polyline class="hit" points="${pts}" stroke-width="${sw*2.8}"/></g>`);
+  }
+  parts.push("</svg>");
+  const wrap = document.createElement("div"); wrap.innerHTML = parts.join("");
+  $("#view").replaceWith(wrap.firstChild);
+  $("#view").id = "view";
+}
+
+function loadSubject(name){
+  model = MODELS[name]; adj = buildAdjacency(model);
+  selected = new Set(); masked = new Set(); log = [];
+  for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
+  draw(); render(); renderLog(); wireCanvas();
+}
+
+function wireCanvas(){
+  const svg = $("#view");
+  svg.addEventListener("mouseover", e => {
+    const el = e.target.closest(".el"); if(el && !el.classList.contains("masked")) el.classList.add("hover");
+  });
+  svg.addEventListener("mouseout", e => {
+    const el = e.target.closest(".el"); if(el) el.classList.remove("hover");
+  });
+  svg.addEventListener("click", e => {
+    const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
+    const sid = el.dataset.sid;
+    if(e.altKey){ selected.delete(sid); }                       // exclude
+    else if(e.shiftKey || floodMode){                            // flood (raw adjacency)
+      if(el.dataset.eid!==undefined) for(const s of floodFrom(+el.dataset.eid)) selected.add(s);
+      else selected.add(sid);                                    // a blob: just itself
+    } else {                                                     // toggle
+      selected.has(sid) ? selected.delete(sid) : selected.add(sid);
+    }
+    render();
+  });
+}
+
+function activeSel(){ return [...selected].filter(s => !masked.has(s)); }
+
+function deleteSelected(){
+  const s = activeSel(); if(!s.length) return;
+  for(const sid of s) masked.add(sid);
+  selected.clear();
+  log.push({op:"delete", sids:s}); render(); renderLog();
+}
+
+function exportSelection(){
+  const s = activeSel(); if(!s.length){ alert("Select something to export first."); return; }
+  const name = prompt("Asset name:", "weapon"); if(!name) return;
+  const set = new Set(s), m = model, sw = Math.max(1, m.w);
+  const out = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
+  for(const b of m.blobs) if(set.has(b.sid))
+    out.push(`<path d="M${b.boundary.map(p=>p.join(" ")).join("L")}Z" fill="#141414"/>`);
+  out.push(`<g fill="none" stroke="#141414" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
+  for(const e of m.edges) if(set.has(e.sid))
+    out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
+  out.push("</g></svg>");
+  download(`${m.subject}_${name}.svg`, out.join(""), "image/svg+xml");
+  log.push({op:"export", asset:name, sids:s}); renderLog();
+}
+
+function download(fname, text, mime){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([text], {type:mime}));
+  a.download = fname; a.click(); URL.revokeObjectURL(a.href);
+}
+
+// wire toolbar
+$("#floodBtn").onclick = e => { floodMode=!floodMode;
+  e.target.classList.toggle("on", floodMode); e.target.textContent = "Flood-select: " + (floodMode?"on":"off"); };
+$("#delBtn").onclick = deleteSelected;
+$("#expBtn").onclick = exportSelection;
+$("#clrBtn").onclick = () => { selected.clear(); render(); };
+$("#resetBtn").onclick = () => loadSubject(model.subject);
+$("#dlLog").onclick = () => download(`${model.subject}_edits.json`,
+  JSON.stringify({subject:model.subject, edits:log}, null, 2), "application/json");
+document.addEventListener("keydown", e => {
+  if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
+});
+
+// subject buttons
+const names = Object.keys(MODELS);
+$("#subjects").innerHTML = names.map(n=>`<button data-name="${n}">${n}</button>`).join("");
+for(const b of document.querySelectorAll(".subjects button")) b.onclick = () => loadSubject(b.dataset.name);
+loadSubject(names.includes("cannon") ? "cannon" : names[0]);
+</script>
+</body>
+</html>

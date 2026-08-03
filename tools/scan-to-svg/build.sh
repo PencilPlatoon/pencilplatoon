@@ -16,6 +16,8 @@ for s in flag cannon soldier mg dying; do
     ( cd ../pencil-vector && python3 vectorize.py --milestone=$m "../scan-to-svg/out/${s}_iso.png" "out/${s}_m${m}.svg" )
   done
 done
+# M4 cleanup tool: serialize the frozen models, then inline them into a standalone app
+( cd ../pencil-vector && python3 export_model.py && python3 build_cleanup.py )
 
 python3 build3.py                    # assemble the comparison page body          -> body3.html
 cat style3.html body3.html > comparison3.html
