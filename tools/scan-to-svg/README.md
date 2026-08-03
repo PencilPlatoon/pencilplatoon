@@ -105,11 +105,23 @@ The skeleton already encodes which strokes meet: they share a junction *blob*.
 - **Ring fragments are absorbed.** A polyline that hugs a rim (a bulge that survived
   ring-removal) is dropped — the idealized circle stands in for the whole rim.
 
-### Solid regions
+### Solid regions (blobs)
 
-- A shape is **solid** (filled via vtracer, not skeletonized as line-art) when its
-  stroke width is a large fraction of the whole figure (`SOLID_FRAC`), and locally
-  thick areas within line-art are **density-filled**.
+- A region is **solid** when its stroke width is a large fraction of the whole figure
+  (`SOLID_FRAC`), or a locally-thick area within line-art (ink more than `thick_k·pen`
+  wide). Two steps make the fill match the drawing: the thick core is **grown along the
+  ink while it stays wider than a pen-line** (so a blob follows its own taper down to
+  true line-width and hands off to a stroke cleanly, instead of stopping abruptly and
+  leaving the still-wide taper drawn as a too-thin centerline), then the **rim is
+  recovered out to the ink's true edge** (so the fill isn't a pen-half inside it).
+- **Blobs are first-class, like circles.** Their interior is removed from the skeleton
+  (so strokes stop at the boundary instead of running through), and their outline is
+  **straightened with the same `blob_outline` → `fit_prims`** used for strokes — clean
+  straight edges and sharp corners, not vtracer's pixel-stepped polygon.
+- **Blob corners are nexus candidates.** A stroke ending at a blob snaps to its nearest
+  corner (a shared meeting point) or, failing that, its nearest edge. The blob is a
+  fixed shape, so the stroke yields to it (unlike a circle, which can resize).
+- Coloured regions (flag emblem, blood) are still traced by **vtracer**.
 
 All tuning knobs live as documented module constants at the top of `skel_svg.py`
 (`ARC_FIT`, `SOLID_FRAC`, `CIRC_MIN`, and the `CONTACT_*` / `NEXUS_*` / `REFIT_DRIFT`

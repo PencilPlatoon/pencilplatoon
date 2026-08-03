@@ -6,6 +6,7 @@ import numpy as np, os, re, vtracer, math
 from scipy import ndimage
 from skimage.morphology import skeletonize, remove_small_objects
 from skimage.transform import hough_circle, hough_circle_peaks
+from skimage.measure import find_contours
 
 INK="#1a1a17"; BLUE="#2b3f8a"; RED="#c23423"
 ARC_FIT=0.5   # an arc must hug the pixels (aerr <= ARC_FIT*tol), not merely fit within tol;
@@ -196,6 +197,21 @@ def fit_prims(P, eps, floor, maxr, minr, depth=0):
 def segment_prims(P,eps,floor,maxr,minr=0.0):
     return fit_prims(P,eps,floor,maxr,minr)
 
+def blob_outline(comp, eps, floor, maxr, minr):
+    # Straighten a solid region's outline with the SAME primitive fitting used for strokes:
+    # trace its boundary and fit lines/arcs, so a blob gets clean straight edges and sharp
+    # corners instead of vtracer's pixel-stepped polygon. Returns the closed prims, or None.
+    cs=find_contours(comp.astype(float),0.5)
+    if not cs: return None
+    C=max(cs,key=len); P=np.column_stack([C[:,1],C[:,0]])          # boundary as (x,y)
+    ctr=P.mean(0); k=int(np.argmax(np.hypot(P[:,0]-ctr[0],P[:,1]-ctr[1])))
+    P=np.vstack([P[k:],P[:k+1]])                                    # open the loop at a corner
+    return fit_prims(P,eps,floor,maxr,minr)
+
+def outline_verts(prims):
+    # the corner points of a fitted outline (prim endpoints), for use as nexus candidates
+    return [np.asarray(prims[0][1],float)]+[np.asarray(p[2],float) for p in prims]
+
 def prims_to_d(prims):
     if not prims: return ""
     d="M %.1f %.1f"%(prims[0][1][0],prims[0][1][1])
@@ -266,7 +282,7 @@ def _body_line(P, e, pen):
     if L<1e-6: v=(P[0]-P[-1]) if e==0 else (P[-1]-P[0]); L=math.hypot(v[0],v[1])
     return (a, (v/L if L>1e-6 else np.array([1.0,0.0])))
 
-def resolve_topology(polys, poly_nodes, circles, rings, pen):
+def resolve_topology(polys, poly_nodes, circles, rings, blob_polys, pen):
     # Preserve the scan's TOPOLOGY. Priority: connectivity > shape (orientation+straightness) >
     # size > position. The skeleton already carries the connectivity — strokes meeting at a
     # junction share a node BLOB. We cluster by that blob (not by distance, so two nearby T's stay
@@ -311,10 +327,11 @@ def resolve_topology(polys, poly_nodes, circles, rings, pen):
             ci=near_circle(nx)
             if ci is not None: contacts[ci].append(nx)
         else: free.append(mem[0])
-    fc=defaultdict(list)                                   # (2) circle contacts: cluster near-rim free ends
+    fc=defaultdict(list); blob_free=[]                     # (2) route free ends to a circle or a blob
     for m in free:
         ci=near_circle(posf(m))
         if ci is not None: fc[ci].append(m)
+        elif blob_polys: blob_free.append(m)
     singles=[]
     for ci,mem in fc.items():
         seen=set()
@@ -340,6 +357,23 @@ def resolve_topology(polys, poly_nodes, circles, rings, pen):
             s=math.sqrt(disc)
             cand=[np.array([a[0]+t*u[0],a[1]+t*u[1]]) for t in ((-bq+s)/2,(-bq-s)/2)]
             target[(i,e)]=min(cand,key=lambda q:math.hypot(q[0]-ep[0],q[1]-ep[1]))
+    def _foot(p,a,b):                                     # nearest point on segment a..b to p
+        ab=b-a; L2=float(ab@ab)
+        if L2<1: return a
+        t=max(0.0,min(1.0,float((p-a)@ab)/L2)); return a+t*ab
+    for m in blob_free:                                   # (5) strokes meet a fixed blob: snap the end
+        ep=posf(m); best=None                             # to its nearest corner (a shared nexus), else edge
+        for verts in blob_polys:
+            for v in verts:
+                dd=math.hypot(ep[0]-v[0],ep[1]-v[1])
+                if dd<=CONTACT_IN*pen and (best is None or dd<best[0]): best=(dd,np.asarray(v,float))
+        if best is None:
+            for verts in blob_polys:
+                for j in range(len(verts)-1):
+                    q=_foot(ep,np.asarray(verts[j],float),np.asarray(verts[j+1],float))
+                    dd=math.hypot(ep[0]-q[0],ep[1]-q[1])
+                    if dd<=CONTACT_OUT*pen and (best is None or dd<best[0]): best=(dd,q)
+        if best is not None: target[m]=best[1]
     out=[]
     for i,P in enumerate(S):
         P=[np.asarray(p,float) for p in P]; n=len(P)
@@ -384,11 +418,16 @@ def build(name, thick_k=1.75, F=3):
     if pen>SOLID_FRAC*fig:                               # a genuinely solid shape (not line-art)
         thick=black; lines=[]
     else:
-        thick=ndimage.binary_dilation(black & (2*dist>thick_k*pen), np.ones((3,3)))
+        # a "solid" region is the ink around a locally-thick core. Take the deep core, then grow
+        # it back out to the ink's true edge (dilate within `black` by the erosion depth) so the
+        # filled blob matches the drawing rather than sitting a pen-half inside it.
+        core=black & (2*dist>thick_k*pen)
+        thick=black & (ndimage.distance_transform_edt(~core) <= thick_k*pen/2+2)
         # find circles (wheels, heads). CIRC_MIN (scaled by F) is the smallest radius kept,
         # which rejects small incidental loops (trigger guards).
         circles,skel,rings=detect_circles(skel, CIRC_MIN*F, int(min(W,H)/3), max(6.0,pen*1.8))
-        lines=skeleton_polylines(skel)   # rings removed: strokes only (no chords across a wheel)
+        skel=skel & ~thick               # a blob is drawn as a filled shape; strokes stop at its
+        lines=skeleton_polylines(skel)   # edge, they don't run through it (no interior medial axis)
 
     # node identity per skeleton pixel: junction blobs (deg>=3) and free ends (deg==1). Clustering
     # meeting strokes by blob (connectivity) keeps two nearby junctions distinct — unlike distance.
@@ -429,7 +468,15 @@ def build(name, thick_k=1.75, F=3):
                 cx,cy=cen(comp); out.append((cx,cy,vis,hit))
         return out
 
-    polys,circles=resolve_topology(polys,poly_nodes,circles,rings,pen)   # topology: nexuses + circle-yield
+    blobs=[]                                              # (prims, vertices, centroid) per solid region
+    lab,nc=ndimage.label(thick)
+    for i in range(1,nc+1):
+        comp=(lab==i)
+        if comp.sum()<max(20,0.3*pen*pen): continue
+        pr=blob_outline(comp,eps,floor,maxr,minr)
+        if not pr: continue
+        ys,xs=np.where(comp); blobs.append((pr,outline_verts(pr),(float(xs.mean()),float(ys.mean()))))
+    polys,circles=resolve_topology(polys,poly_nodes,circles,rings,[b[1] for b in blobs],pen)
     kept=polys
     groups=link_strokes(kept)
     bd={}
@@ -452,7 +499,11 @@ def build(name, thick_k=1.75, F=3):
         vis='<circle cx="%.1f" cy="%.1f" r="%.1f" fill="none" stroke="%s" stroke-width="%.1f"/>'%(cx,cy,r,INK,pen)
         hit='<circle class="hit" cx="%.1f" cy="%.1f" r="%.1f" fill="none" stroke="transparent" stroke-width="%.1f"/>'%(cx,cy,r,HITW)
         comps.append((cx,cy,vis,hit))
-    if thick.sum()>20: comps+=fill_comps(thick,INK,f"{name}_thk")
+    for pr,verts,(cx,cy) in blobs:                        # straightened solid regions (lines/arcs + corners)
+        d=prims_to_d(pr)+" Z"
+        vis='<path d="%s" fill="%s"/>'%(d,INK)
+        hit='<path class="hit" d="%s" fill="transparent"/>'%d
+        comps.append((cx,cy,vis,hit))
     for hx,hy,har in hubs:                                # already at the wheel's final centre
         rr=max(har,pen*0.6)
         vis='<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'%(hx,hy,rr,INK)
