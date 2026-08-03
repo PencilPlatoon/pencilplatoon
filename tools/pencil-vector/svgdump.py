@@ -1,15 +1,22 @@
-"""M1 export -- dump the graph as an SVG (plan §12, §11 complexity note 1).
+"""Export the graph as an SVG (plan §12, §11 complexity note 1).
 
-Every collapsed graph edge becomes exactly one `<path>` drawn as a centerline
-at stroke-width `w` with round caps -- the topology graph stays literally
-visible in the SVG. This is the ugly-but-end-to-end M1 output; role-specific
-export (static / rigged / collider) is M8.
+Each stroke edge becomes one centerline `<path>` at stroke-width `w`; each blob a
+filled `<path>` -- the topology graph stays literally visible in the SVG.
+
+The markup mirrors the `scan-to-svg` hybrid's interactive structure so the
+comparison page's shared CSS drives it: every component is a
+`<g class="seg" data-num="N">` wrapping a `<g class="vis">` (what you see), a wide
+transparent `.hit` area (so thin strokes are easy to hover), and a `.corner`
+number bubble shown on hover. A trailing `<g class="nums">` overlays a numbered
+bubble on each component for the element-number toggle. `data-sid` carries the
+stable id (M3) for reference.
 """
 from __future__ import annotations
 
 from model import BLOB, Graph
 
 STROKE = "#111"
+HIT_W = 2.8             # wide invisible hit stroke, in units of w
 NODE_FILL = {"endpoint": "#2a7", "junction": "#e8402f", "blob": "#39f"}
 
 
@@ -19,32 +26,61 @@ def _d(pts, close: bool = False) -> str:
     return head + rest + (" Z" if close else "")
 
 
+def _sid(el) -> str:
+    return ' data-sid="%s"' % el.sid if el.sid else ""
+
+
 def dump(g: Graph, show_nodes: bool = False) -> str:
     w_img, h = g.size
     sw = max(1.0, g.w)
-    out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d">' % (w_img, h)]
+    hitw = HIT_W * sw
 
-    def sid(el):
-        return ' data-sid="%s"' % el.sid if el.sid else ""
-
-    # blobs first (filled), so strokes meeting them draw on top
+    # (cx, cy, vis, hit) in draw order: blobs first (filled, behind), then strokes.
+    comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            out.append('<path data-blob="%d"%s d="%s" fill="%s"/>'
-                       % (nd.id, sid(nd), _d(nd.boundary, close=True), STROKE))
-
-    out.append('<g fill="none" stroke="%s" stroke-width="%.2f" '
-               'stroke-linecap="round" stroke-linejoin="round">' % (STROKE, sw))
+            d = _d(nd.boundary, close=True)
+            vis = '<path data-blob="%d"%s d="%s" fill="%s"/>' % (nd.id, _sid(nd), d, STROKE)
+            hit = '<path class="hit" d="%s" fill="transparent"/>' % d
+            comps.append((nd.pos[0], nd.pos[1], vis, hit))
     for e in g.edges.values():
-        out.append('<path data-edge="%d"%s d="%s"/>' % (e.id, sid(e), _d(e.pts)))
+        d = _d(e.pts)
+        vis = ('<path data-edge="%d"%s d="%s" fill="none" stroke="%s" stroke-width="%.2f" '
+               'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, STROKE, sw))
+        hit = ('<path class="hit" d="%s" fill="none" stroke="transparent" '
+               'stroke-width="%.1f" stroke-linecap="round"/>' % (d, hitw))
+        cx = float(e.pts[:, 0].mean())
+        cy = float(e.pts[:, 1].mean())
+        comps.append((cx, cy, vis, hit))
+
+    out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d">' % (w_img, h)]
+
+    cr = sw * 2.6                           # corner number bubble (fixed top-left, on hover)
+    cx0 = cy0 = cr + sw
+    for n, (_, _, vis, hit) in enumerate(comps, 1):
+        corner = ('<g class="corner"><circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f"/>'
+                  '<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
+                  'dominant-baseline="central" font-family="system-ui,sans-serif" '
+                  'font-weight="700">%d</text></g>' % (cx0, cy0, cr, cx0, cy0, cr * 1.15, n))
+        out.append('<g class="seg" data-num="%d"><g class="vis">%s</g>%s%s</g>'
+                   % (n, vis, hit, corner))
+
+    br = sw * 1.4                            # numbered-bubble overlay (element-number toggle)
+    fs = sw * 1.8
+    out.append('<g class="nums" font-family="system-ui,sans-serif" font-weight="700">')
+    for n, (cx, cy, _, _) in enumerate(comps, 1):
+        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f" stroke="#fff" '
+                   'stroke-width="%.1f"/>' % (cx, cy, br, sw * 0.3))
+        out.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
+                   'dominant-baseline="central">%d</text>' % (cx, cy, fs, n))
     out.append("</g>")
 
-    if show_nodes:
+    if show_nodes:                          # debug overlay of node kinds
         out.append("<g>")
         for nd in g.nodes.values():
-            x, y = nd.pos
             out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'
-                       % (x, y, sw * (0.9 if nd.kind == BLOB else 0.7), NODE_FILL[nd.kind]))
+                       % (nd.pos[0], nd.pos[1], sw * (0.9 if nd.kind == BLOB else 0.7),
+                          NODE_FILL[nd.kind]))
         out.append("</g>")
 
     out.append("</svg>")

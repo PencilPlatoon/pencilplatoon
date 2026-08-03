@@ -59,8 +59,11 @@ def test_edges_are_junction_to_junction(name):
         assert len(e.pts) >= 2 and len(e.r) == len(e.pts)
 
 
-def test_dump_emits_a_path_per_edge():
+def test_dump_emits_a_seg_per_edge():
+    # M1 has no blobs, so every component is a stroke edge: one interactive
+    # <g class="seg"> and one data-edge apiece.
     g = _graph("cannon")
     svg = dump(g, show_nodes=True)
-    assert svg.count("<path") == len(g.edges)
+    assert svg.count('class="seg"') == len(g.edges)
+    assert svg.count('data-edge="') == len(g.edges)
     assert svg.startswith("<svg") and svg.rstrip().endswith("</svg>")
