@@ -12,7 +12,7 @@ python3 skel_svg.py                  # vectorize everything iso.py produced     
 # Runs from its own dir (local imports); reads our isos.
 mkdir -p ../pencil-vector/out
 for s in flag cannon soldier mg dying; do
-  for m in 1 2; do
+  for m in 1 2 3; do
     ( cd ../pencil-vector && python3 vectorize.py --milestone=$m "../scan-to-svg/out/${s}_iso.png" "out/${s}_m${m}.svg" )
   done
 done

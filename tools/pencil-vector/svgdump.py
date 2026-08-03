@@ -24,16 +24,19 @@ def dump(g: Graph, show_nodes: bool = False) -> str:
     sw = max(1.0, g.w)
     out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d">' % (w_img, h)]
 
+    def sid(el):
+        return ' data-sid="%s"' % el.sid if el.sid else ""
+
     # blobs first (filled), so strokes meeting them draw on top
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            out.append('<path data-blob="%d" d="%s" fill="%s"/>'
-                       % (nd.id, _d(nd.boundary, close=True), STROKE))
+            out.append('<path data-blob="%d"%s d="%s" fill="%s"/>'
+                       % (nd.id, sid(nd), _d(nd.boundary, close=True), STROKE))
 
     out.append('<g fill="none" stroke="%s" stroke-width="%.2f" '
                'stroke-linecap="round" stroke-linejoin="round">' % (STROKE, sw))
     for e in g.edges.values():
-        out.append('<path data-edge="%d" d="%s"/>' % (e.id, _d(e.pts)))
+        out.append('<path data-edge="%d"%s d="%s"/>' % (e.id, sid(e), _d(e.pts)))
     out.append("</g>")
 
     if show_nodes:

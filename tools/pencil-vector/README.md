@@ -24,7 +24,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 |---|-----------|--------|
 | **M1** | Stage 0 (ink + `w`) → naive skeleton → graph → one `<path>` per edge | ✅ done |
 | **M2** | Width classes (hysteresis): filled regions → blobs, line-work → strokes | ✅ done |
-| M3 | Stable IDs + topology freeze; ID-stability test | — |
+| **M3** | Spur prune + stable IDs (geometry-derived) + topology freeze | ✅ done |
 | M4 | Cleanup tool (manual highlight/delete/flood/export) | — |
 | M5 | Junction resolution + continuity flood | — |
 | M6 | Planar embedding + post-fit validation | — |
@@ -50,9 +50,16 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 | `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
 | `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
 | `widthclass.py` | Stage 1 (M2) — hysteresis width classing: filled regions → blobs |
-| `graph.py` | skeleton → node/edge graph (naive; junction resolution is M5) |
-| `svgdump.py` | export — filled blobs + one `<path>` per stroke edge |
+| `graph.py` | skeleton → node/edge graph + spur pruning (§6.4) |
+| `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
+| `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
 | `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
+
+M3 note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
+cell), not traversal order, so re-running with tweaked tolerances keeps the same
+identities. The `test_m3.py` ID-stability test perturbs the threshold a few
+percent and asserts ≥95% of edge IDs survive on clean line-art, and that on
+blob-heavy inputs the IDs never churn beyond genuine geometry change.
 
 M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
 spray) fills flat black rather than its hue — a later concern (the plan keeps colour

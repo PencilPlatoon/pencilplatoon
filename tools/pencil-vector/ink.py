@@ -47,15 +47,18 @@ def _modal_pen_width(mask: np.ndarray, dist: np.ndarray) -> float:
     return float(2.0 * peak)
 
 
-def ingest(rgb: np.ndarray) -> Ink:
+def ingest(rgb: np.ndarray, thresh_bias: float = 0.0) -> Ink:
     """RGB uint8 image -> Ink. Local (Sauvola) threshold handles the uneven
-    illumination of pencil on paper where global Otsu underperforms."""
+    illumination of pencil on paper where global Otsu underperforms.
+
+    `thresh_bias` nudges the ink threshold (used by the M3 ID-stability test to
+    perturb binarization a few percent and check identities still hold)."""
     gray = rgb.mean(2) / 255.0 if rgb.ndim == 3 else rgb / 255.0
 
     thr = threshold_sauvola(gray, window_size=SAUVOLA_WINDOW)
     # Sauvola alone flags texture inside large blank areas; require the pixel
     # be genuinely darker than mid-gray too, so paper stays paper.
-    mask = (gray < thr) & (gray < 0.65)
+    mask = (gray < thr + thresh_bias) & (gray < 0.65 + thresh_bias)
 
     # Speckle rejection on imaging grounds only: drop paper-grain-sized specks.
     lab, n = ndimage.label(mask, structure=np.ones((3, 3)))

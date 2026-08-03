@@ -29,6 +29,7 @@ class Node:
     kind: str
     pos: tuple[float, float]              # (x, y) representative point
     boundary: np.ndarray | None = None    # (M,2) outline, blobs only
+    sid: str = ""                         # stable id (M3); survives re-runs
     ann: dict = field(default_factory=dict)
 
 
@@ -42,6 +43,7 @@ class Edge:
     pts: np.ndarray                       # (N,2) centerline polyline
     r: np.ndarray                         # (N,) half-width sampled along pts
     width_class: str = "stroke"           # stroke | blob | variable (Stage 1)
+    sid: str = ""                         # stable id (M3); survives re-runs
     ann: dict = field(default_factory=dict)
 
     @property
@@ -57,6 +59,7 @@ class Graph:
     edges: dict[int, Edge]
     w: float                              # modal pen width, the unit of scale
     size: tuple[int, int]                 # (width, height) of the source raster
+    frozen: bool = False                  # set once stable IDs are assigned (M3)
 
     def neighbors(self, node_id: int) -> list[Edge]:
         return [e for e in self.edges.values() if e.a == node_id or e.b == node_id]

@@ -108,3 +108,37 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
 
     h, w_img = skel.shape
     return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h))
+
+
+def prune_spurs(g: Graph, max_len: float) -> Graph:
+    """Remove short twigs that thinning manufactures from boundary noise on wide
+    strokes (§6.4) -- a leaf edge shorter than `max_len` hanging off a junction.
+    Not overshoot repair: a standalone short mark (both ends free) is kept."""
+    from model import BLOB, ENDPOINT, JUNCTION
+
+    changed = True
+    while changed:
+        changed = False
+        deg: dict = {}
+        for e in g.edges.values():
+            deg[e.a] = deg.get(e.a, 0) + 1
+            deg[e.b] = deg.get(e.b, 0) + 1
+        for eid, e in list(g.edges.items()):
+            da, db = deg.get(e.a, 0), deg.get(e.b, 0)
+            if min(da, db) == 1 and max(da, db) >= 3 and e.length < max_len:
+                del g.edges[eid]
+                changed = True
+
+    used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
+    for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
+        del g.nodes[nid]
+    # a junction that lost branches down to two may now be a through-point; leave
+    # that merge to junction resolution (M5). Refresh endpoint/junction labels.
+    deg = {}
+    for e in g.edges.values():
+        deg[e.a] = deg.get(e.a, 0) + 1
+        deg[e.b] = deg.get(e.b, 0) + 1
+    for nid, nd in g.nodes.items():
+        if nd.kind in (ENDPOINT, JUNCTION):
+            nd.kind = ENDPOINT if deg.get(nid, 0) <= 1 else JUNCTION
+    return g

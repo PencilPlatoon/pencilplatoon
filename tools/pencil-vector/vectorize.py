@@ -14,20 +14,23 @@ import sys
 import numpy as np
 from PIL import Image
 
-from graph import build
+from graph import build, prune_spurs
 from ink import ingest
 from model import BLOB, Node
+from stableid import assign
 from svgdump import dump
 from widthclass import segment
 
-LATEST = 2                      # highest implemented milestone
+LATEST = 3                      # highest implemented milestone
+SPUR_W = 1.5                    # prune leaf twigs shorter than this many w (§6.4)
 
 
-def vectorize(in_path: str, milestone: int = LATEST):
+def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
     """Run the pipeline up to `milestone`. M1: naive whole-mask skeleton. M2:
-    width-class segmentation -- strokes on the thin mask, blobs filled."""
+    width-class segmentation (strokes on the thin mask, blobs filled). M3:
+    assign stable IDs and freeze."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
-    ink = ingest(rgb)
+    ink = ingest(rgb, thresh_bias=thresh_bias)
     if milestone <= 1:
         return build(ink)
 
@@ -38,6 +41,10 @@ def vectorize(in_path: str, milestone: int = LATEST):
         g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
                             ann={"width_class": b.width_class})
         nid += 1
+
+    if milestone >= 3:
+        prune_spurs(g, SPUR_W * ink.w)      # drop thinning twigs before freezing
+        assign(g)                           # stable IDs + freeze (Stage 5)
     return g
 
 
