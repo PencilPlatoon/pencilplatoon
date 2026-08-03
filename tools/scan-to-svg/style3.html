@@ -81,26 +81,28 @@
   .row .cells{grid-template-columns:repeat(3,1fr)}
 
   /* Pencil Vector cell: a milestone tab-strip (M1, M2, …) over one cell; shows one render at a
-     time. Radios drive it (pure CSS); tabs/panels stay in the same milestone order so nth-of-type
-     lines them up. Static rules cover up to 8 milestones. */
-  .art.pv{display:flex;flex-direction:column;gap:11px;padding-top:12px;cursor:default}
+     time. The panels use display:contents so the shown SVG becomes a direct child of .art and
+     sizes exactly like the other columns' SVGs (a wrapper would break the % height chain); the
+     tab strip floats in reserved top padding. Radios drive it (pure CSS); tabs/panels stay in
+     milestone order so nth-of-type lines them up. Static rules cover up to 8 milestones. */
+  .art.pv{position:relative;padding-top:38px;cursor:default}
   .pvr{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
-  .pvtabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;flex:0 0 auto}
+  .pvtabs{position:absolute;top:9px;left:10px;right:10px;z-index:4;display:flex;gap:6px;
+    flex-wrap:wrap;justify-content:center}
   .pvtabs label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);
     background:var(--panel-2);border:1px solid var(--hair);border-radius:20px;padding:3px 11px;
     cursor:pointer;transition:color .12s,border-color .12s,background .12s}
   .pvtabs label:hover{border-color:var(--blue);color:var(--ink)}
-  .pvpanels{flex:1 1 auto;display:grid;place-items:center;min-height:0}
-  .pvpanel{display:none;max-width:100%;max-height:100%}
-  .pvpanel svg{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
-  .pv:has(.pvr:nth-of-type(1):checked) .pvpanel:nth-of-type(1){display:block}
-  .pv:has(.pvr:nth-of-type(2):checked) .pvpanel:nth-of-type(2){display:block}
-  .pv:has(.pvr:nth-of-type(3):checked) .pvpanel:nth-of-type(3){display:block}
-  .pv:has(.pvr:nth-of-type(4):checked) .pvpanel:nth-of-type(4){display:block}
-  .pv:has(.pvr:nth-of-type(5):checked) .pvpanel:nth-of-type(5){display:block}
-  .pv:has(.pvr:nth-of-type(6):checked) .pvpanel:nth-of-type(6){display:block}
-  .pv:has(.pvr:nth-of-type(7):checked) .pvpanel:nth-of-type(7){display:block}
-  .pv:has(.pvr:nth-of-type(8):checked) .pvpanel:nth-of-type(8){display:block}
+  .pvpanels{display:contents}
+  .pvpanel{display:none}
+  .pv:has(.pvr:nth-of-type(1):checked) .pvpanel:nth-of-type(1){display:contents}
+  .pv:has(.pvr:nth-of-type(2):checked) .pvpanel:nth-of-type(2){display:contents}
+  .pv:has(.pvr:nth-of-type(3):checked) .pvpanel:nth-of-type(3){display:contents}
+  .pv:has(.pvr:nth-of-type(4):checked) .pvpanel:nth-of-type(4){display:contents}
+  .pv:has(.pvr:nth-of-type(5):checked) .pvpanel:nth-of-type(5){display:contents}
+  .pv:has(.pvr:nth-of-type(6):checked) .pvpanel:nth-of-type(6){display:contents}
+  .pv:has(.pvr:nth-of-type(7):checked) .pvpanel:nth-of-type(7){display:contents}
+  .pv:has(.pvr:nth-of-type(8):checked) .pvpanel:nth-of-type(8){display:contents}
   .pv:has(.pvr:nth-of-type(1):checked) .pvtabs label:nth-of-type(1),
   .pv:has(.pvr:nth-of-type(2):checked) .pvtabs label:nth-of-type(2),
   .pv:has(.pvr:nth-of-type(3):checked) .pvtabs label:nth-of-type(3),
