@@ -144,8 +144,8 @@ function draw(){
   }
   parts.push("</svg>");
   const wrap = document.createElement("div"); wrap.innerHTML = parts.join("");
-  $("#view").replaceWith(wrap.firstChild);
-  $("#view").id = "view";
+  const svg = wrap.firstChild; svg.id = "view";     // id BEFORE it replaces the old node
+  $("#view").replaceWith(svg);
 }
 
 function loadSubject(name){
