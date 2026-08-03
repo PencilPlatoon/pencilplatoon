@@ -14,6 +14,7 @@ import sys
 import numpy as np
 from PIL import Image
 
+from embedding import containment, rotational_order
 from graph import attach_edges_to_blobs, build, prune_spurs, resolve_continuity
 from ink import ingest
 from model import BLOB, Node
@@ -41,7 +42,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
     blob_masks = {}
     for b in blobs:                         # blobs are first-class nodes (§6.3)
         g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
-                            ann={"width_class": b.width_class})
+                            ann={"width_class": b.width_class, "holes": b.holes})
         blob_masks[nid] = b.mask
         nid += 1
 
@@ -50,6 +51,8 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
         assign(g)                           # stable IDs + freeze (Stage 5)
         attach_edges_to_blobs(g, blob_masks)  # edge<->blob incidence for flood (§6.3)
         resolve_continuity(g)               # junction resolution for continuity flood (§6.4)
+        rotational_order(g)                 # planar embedding: cyclic edge order (§8)
+        containment(g)                      # ... and paint order for nested fills (§8)
     return g
 
 

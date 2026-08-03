@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>Pencil&nbsp;Vector <span class="sub">· cleanup tool · M4</span></h1>
+  <h1>Pencil&nbsp;Vector <span class="sub">· cleanup tool</span></h1>
   <div class="subjects" id="subjects"></div>
 </header>
 <div class="toolbar">
@@ -163,9 +163,10 @@ function draw(){
   // number blobs first, then edges -- same order as the comparison page's tabs
   const parts = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
   for(const b of m.blobs){
-    const d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
-    parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"><path class="blob" d="${d}"/>`
-      + `<path class="hit blobhit" d="${d}"/></g>`);
+    let d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
+    for(const h of (b.holes||[])) d += " M" + h.map(p=>p.join(" ")).join("L") + "Z";   // §6.2 holes
+    parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"><path class="blob" d="${d}" fill-rule="evenodd"/>`
+      + `<path class="hit blobhit" d="${d}" fill-rule="evenodd"/></g>`);
   }
   for(const e of m.edges){
     const pts = e.pts.map(p=>p.join(",")).join(" ");
@@ -226,8 +227,11 @@ function exportSelection(){
   const name = prompt("Asset name:", "weapon"); if(!name) return;
   const set = new Set(s), m = model, sw = Math.max(1, m.w);
   const out = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
-  for(const b of m.blobs) if(set.has(b.sid))
-    out.push(`<path d="M${b.boundary.map(p=>p.join(" ")).join("L")}Z" fill="#141414"/>`);
+  for(const b of m.blobs) if(set.has(b.sid)){
+    let d = "M"+b.boundary.map(p=>p.join(" ")).join("L")+"Z";
+    for(const h of (b.holes||[])) d += " M"+h.map(p=>p.join(" ")).join("L")+"Z";
+    out.push(`<path d="${d}" fill="#141414" fill-rule="evenodd"/>`);
+  }
   out.push(`<g fill="none" stroke="#141414" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
   for(const e of m.edges) if(set.has(e.sid))
     out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);

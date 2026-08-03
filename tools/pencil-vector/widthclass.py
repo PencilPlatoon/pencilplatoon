@@ -20,7 +20,7 @@ is a stroke however fat it is, and belongs as a centerline, not a fill.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from scipy import ndimage
@@ -48,15 +48,17 @@ LINE_ASPECT = 60.0      # length/width above which a component may be a line
 LINE_MAX_W = 3.0        # ...but only if it never exceeds this width (in w) anywhere
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
+MIN_HOLE_W2 = 1.5       # keep interior holes bigger than this many w^2; smaller = noise
 POLY_TOL_W = 0.5        # boundary decimation tolerance, in units of w
 
 
 @dataclass
 class Blob:
     mask: np.ndarray            # bool region
-    boundary: np.ndarray        # (M,2) closed outline as (x,y)
+    boundary: np.ndarray        # (M,2) closed outer outline as (x,y)
     width_class: str            # 'blob' or 'variable'
     centroid: tuple[float, float]
+    holes: list = field(default_factory=list)   # interior hole outlines (§6.2), each (M,2) (x,y)
 
 
 def _wide_mask(ink: Ink) -> np.ndarray:
@@ -87,15 +89,33 @@ def _is_line(comp: np.ndarray, dist: np.ndarray, w: float) -> bool:
     return aspect > LINE_ASPECT and 2.0 * d.max() < LINE_MAX_W * w
 
 
-def _boundary(comp: np.ndarray, w: float) -> np.ndarray | None:
+def _poly_area(c: np.ndarray) -> float:
+    x, y = c[:, 1], c[:, 0]
+    return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
+
+
+def _xy(poly: np.ndarray) -> np.ndarray:
+    return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
+
+
+def _boundaries(comp: np.ndarray, w: float):
+    """Trace the outer boundary AND any interior holes (§6.2), each decimated.
+    Holes below a noise floor are dropped (speckle, not a real hollow)."""
     cs = find_contours(comp.astype(float), 0.5)
     if not cs:
-        return None
-    c = max(cs, key=len)                              # outer boundary, longest
-    poly = approximate_polygon(c, tolerance=POLY_TOL_W * w)   # (row,col)
-    if len(poly) < 3:
-        return None
-    return np.column_stack([poly[:, 1], poly[:, 0]])  # -> (x,y)
+        return None, []
+    cs = sorted(cs, key=_poly_area, reverse=True)      # largest area = outer boundary
+    outer = approximate_polygon(cs[0], tolerance=POLY_TOL_W * w)
+    if len(outer) < 3:
+        return None, []
+    holes = []
+    for c in cs[1:]:
+        if _poly_area(c) < MIN_HOLE_W2 * w * w:
+            continue
+        h = approximate_polygon(c, tolerance=POLY_TOL_W * w)
+        if len(h) >= 3:
+            holes.append(_xy(h))
+    return _xy(outer), holes
 
 
 def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
@@ -117,11 +137,11 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
             continue
         if _is_line(comp, ink.dist, ink.w):
             continue                                  # rescued: stays a stroke
-        b = _boundary(comp, ink.w)
-        if b is None:
+        outer, holes = _boundaries(comp, ink.w)
+        if outer is None:
             continue
         ys, xs = np.where(comp)
-        blobs.append(Blob(mask=comp, boundary=b, width_class=BLOB,
+        blobs.append(Blob(mask=comp, boundary=outer, holes=holes, width_class=BLOB,
                           centroid=(float(xs.mean()), float(ys.mean()))))
         blob_union |= comp
 

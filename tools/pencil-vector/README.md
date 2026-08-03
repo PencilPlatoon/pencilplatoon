@@ -27,7 +27,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 | **M3** | Spur prune + stable IDs (geometry-derived) + topology freeze | ✅ done |
 | **M4** | Cleanup tool — manual highlight / delete / flood-select / export | ✅ done |
 | **M5** | Junction resolution (continuity pairing) + continuity flood | ✅ done |
-| M6 | Planar embedding + post-fit validation | — |
+| **M6** | Planar embedding — interior holes, rotational order, containment/z, validation | ✅ done |
 | M7 | Geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) | — |
 | M8 | Constraints, LOD, colliders, role-specific export | — |
 
@@ -52,6 +52,7 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 | `widthclass.py` | Stage 1 (M2) — solid detection (thick-core seed + density grow) → blobs |
 | `graph.py` | skeleton → node/edge graph, spur pruning (§6.4), blob incidence, continuity |
 | `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
+| `embedding.py` | Stage 6 (M6) — rotational order, containment/z, post-fit crossing check |
 | `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
 | `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
 | `export_model.py` | serialize the frozen graph to `out/<subject>_model.json` (§13) |

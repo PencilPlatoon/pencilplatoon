@@ -25,7 +25,9 @@ def model_dict(g, subject: str) -> dict:
             blobs.append({"id": nd.id, "sid": nd.sid,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)],
                           "boundary": _pts(nd.boundary),
-                          "edges": nd.ann.get("edges", [])})   # incident strokes (§6.3)
+                          "holes": [_pts(h) for h in nd.ann.get("holes", [])],  # §6.2
+                          "edges": nd.ann.get("edges", []),     # incident strokes (§6.3)
+                          "z": nd.ann.get("z", 0)})             # paint order (§8 containment)
         else:
             nodes.append({"id": nd.id, "sid": nd.sid, "kind": nd.kind,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)]})

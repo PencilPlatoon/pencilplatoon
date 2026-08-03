@@ -36,12 +36,16 @@ def dump(g: Graph, show_nodes: bool = False) -> str:
     hitw = HIT_W * sw
 
     # (cx, cy, vis, hit) in draw order: blobs first (filled, behind), then strokes.
+    # Node order keeps numbering stable; holes are cut out with the evenodd rule (§6.2).
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
             d = _d(nd.boundary, close=True)
-            vis = '<path data-blob="%d"%s d="%s" fill="%s"/>' % (nd.id, _sid(nd), d, STROKE)
-            hit = '<path class="hit" d="%s" fill="transparent"/>' % d
+            for hole in nd.ann.get("holes", []):
+                if len(hole) >= 3:
+                    d += " " + _d(hole, close=True)
+            vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, STROKE)
+            hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))
     for e in g.edges.values():
         d = _d(e.pts)
