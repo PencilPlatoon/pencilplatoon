@@ -10,6 +10,8 @@ is M3's job (§7), and is called out so nothing downstream leans on them early.
 """
 from __future__ import annotations
 
+import math
+
 import numpy as np
 from scipy import ndimage
 from skimage.morphology import skeletonize
@@ -110,11 +112,43 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
     return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h))
 
 
+CONT_ANGLE = 44.0       # deg: a leaf within this of a junction partner is a continuation
+
+
+def _dir_from(e: Edge, jpos: np.ndarray, span: int = 6) -> np.ndarray:
+    """Unit direction of edge `e` leaving the endpoint nearest `jpos`, averaged
+    over ~`span` px so a couple of noisy pixels don't swing the angle."""
+    p = e.pts
+    if np.hypot(*(p[0] - jpos)) <= np.hypot(*(p[-1] - jpos)):
+        a, b = p[0], p[min(len(p) - 1, span)]
+    else:
+        a, b = p[-1], p[max(0, len(p) - 1 - span)]
+    v = b - a
+    n = float(np.hypot(*v))
+    return v / n if n > 0 else v
+
+
 def prune_spurs(g: Graph, max_len: float) -> Graph:
     """Remove short twigs that thinning manufactures from boundary noise on wide
     strokes (§6.4) -- a leaf edge shorter than `max_len` hanging off a junction.
-    Not overshoot repair: a standalone short mark (both ends free) is kept."""
+
+    But a short leaf that runs *collinear* with one of the other edges at that
+    junction is not a twig: it's the continuation of that stroke, fragmented by
+    the skeleton. Keep it (its neighbour effectively absorbs it -- full merge
+    into one extended segment is junction resolution, M5). Only leaves that stick
+    out at an angle (no near-collinear partner) are real twigs. A standalone
+    short mark (both ends free) is always kept."""
     from model import BLOB, ENDPOINT, JUNCTION
+
+    def is_twig(e, junc):
+        jpos = np.array(g.nodes[junc].pos, float)
+        myd = _dir_from(e, jpos)
+        best = 999.0
+        for o in g.edges.values():
+            if o.id != e.id and (o.a == junc or o.b == junc):
+                cos = float(np.clip(np.dot(-myd, _dir_from(o, jpos)), -1, 1))
+                best = min(best, math.degrees(math.acos(cos)))
+        return best > CONT_ANGLE            # no collinear partner -> a real twig
 
     changed = True
     while changed:
@@ -126,8 +160,10 @@ def prune_spurs(g: Graph, max_len: float) -> Graph:
         for eid, e in list(g.edges.items()):
             da, db = deg.get(e.a, 0), deg.get(e.b, 0)
             if min(da, db) == 1 and max(da, db) >= 3 and e.length < max_len:
-                del g.edges[eid]
-                changed = True
+                junc = e.b if da == 1 else e.a
+                if is_twig(e, junc):
+                    del g.edges[eid]
+                    changed = True
 
     used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
     for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:

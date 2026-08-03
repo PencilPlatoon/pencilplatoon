@@ -14,7 +14,8 @@ import numpy as np
 import pytest
 from PIL import Image
 
-from model import BLOB
+from graph import prune_spurs
+from model import ENDPOINT, JUNCTION, BLOB, Edge, Graph, Node
 from vectorize import vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -78,6 +79,33 @@ def test_ids_are_unique():
 def test_graph_freezes_at_m3_not_before():
     assert vectorize(_path("cannon"), milestone=3).frozen is True
     assert vectorize(_path("cannon"), milestone=2).frozen is False
+
+
+def _line(a, b, n=8):
+    return np.column_stack([np.linspace(a[0], b[0], n), np.linspace(a[1], b[1], n)])
+
+
+def test_prune_keeps_collinear_leaf_drops_angled_twig():
+    # A junction J with a long stroke to the left, a SHORT leaf continuing it to
+    # the right (collinear -> a fragmented continuation, keep) and a SHORT leaf
+    # going up (angled -> a real twig, prune).
+    J, Lend, Cend, Dend = (0, 0), (-40, 0), (5, 0), (0, 5)
+    nodes = {
+        0: Node(0, JUNCTION, J), 1: Node(1, ENDPOINT, Lend),
+        2: Node(2, ENDPOINT, Cend), 3: Node(3, ENDPOINT, Dend),
+    }
+    def edge(i, b, pts):
+        return Edge(i, 0, b, pts, np.full(len(pts), 2.0))
+    edges = {
+        0: edge(0, 1, _line(J, Lend)),      # long stroke
+        1: edge(1, 2, _line(J, Cend)),      # collinear short leaf -> keep
+        2: edge(2, 3, _line(J, Dend)),      # angled short leaf -> prune
+    }
+    g = Graph(nodes=nodes, edges=edges, w=4.0, size=(100, 100))
+    prune_spurs(g, max_len=6.0)             # 5px leaves < 6; 40px stroke safe
+    assert 1 in g.edges, "collinear continuation was wrongly pruned"
+    assert 2 not in g.edges, "angled twig was not pruned"
+    assert 0 in g.edges
 
 
 def test_spurs_pruned_at_m3():

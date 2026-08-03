@@ -61,6 +61,11 @@ identities. The `test_m3.py` ID-stability test perturbs the threshold a few
 percent and asserts ≥95% of edge IDs survive on clean line-art, and that on
 blob-heavy inputs the IDs never churn beyond genuine geometry change.
 
+Spur pruning keeps a short leaf that runs **collinear** with a junction partner
+(it's a fragmented continuation of that stroke, not a twig) and only drops leaves
+that stick out at an angle — merging the continuation into one extended segment is
+junction resolution (M5).
+
 M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
 spray) fills flat black rather than its hue — a later concern (the plan keeps colour
 separate). The `variable`/taper class (splitting an elongated fill into a monotone
