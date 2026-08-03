@@ -8,10 +8,11 @@ each to the right representation:
     blob      r >> w, low aspect ratio        -> boundary polygon + fill
     variable  r ramps monotonically           -> filled outline (a taper)
 
-The wide (blob/variable) regions are found by a **hysteresis** on the distance
-transform -- enter the wide state well above pen width, leave it only once the
-ink has narrowed back toward a stroke -- so a single noisy threshold can't make
-a taper flap in and out of "wide" and litter it with spurious boundaries.
+A region is solid where ink is locally dense (from thick strokes or crosshatch);
+its raw outer boundary is traced as-is. Boundary idealization (smoothing,
+straightening, arc-fitting) is a later, uniform step (M7) applied to line-work
+and blob outlines alike, and interior holes (§6.2) are left in place for later
+tracing -- neither is done here, where the job is only classification.
 
 A long thick *line* (a deliberately heavy outline stroke, e.g. a flag pole) is
 rescued back to `stroke`: high length-to-width aspect with near-constant width
@@ -59,9 +60,10 @@ class Blob:
 
 
 def _wide_mask(ink: Ink) -> np.ndarray:
-    """Solid regions: seed on a genuine thick core, grow through ink that is
-    either still thick OR locally dense (so crosshatch is pulled in), then fill
-    enclosed white gaps (drawing noise) so the blob is solid, not pocked."""
+    """Solid regions: seed on a genuine thick core, then grow through ink that is
+    either still thick OR locally dense (so crosshatch is pulled in). Interior
+    holes are left in place -- §6.2 keeps them, and filling them here would
+    swallow real hollows; tracing them is later work."""
     d, m, w = ink.dist, ink.mask, ink.w
     seed = m & (d > WIDE_ENTER * w)
     if not seed.any():
@@ -70,8 +72,7 @@ def _wide_mask(ink: Ink) -> np.ndarray:
     grow = m & ((d > WIDE_EXIT * w) | (dens > DENS_GROW))
     lab, _ = ndimage.label(grow, structure=np.ones((3, 3)))
     keep = np.unique(lab[seed])
-    solid = np.isin(lab, keep[keep > 0])
-    return ndimage.binary_fill_holes(solid)
+    return np.isin(lab, keep[keep > 0])
 
 
 def _is_line(comp: np.ndarray, dist: np.ndarray, w: float) -> bool:

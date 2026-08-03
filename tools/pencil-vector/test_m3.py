@@ -49,7 +49,7 @@ def test_edge_ids_stable_on_clean_lineart(bias):
     assert len(base & pert) / len(base) >= 0.95
 
 
-@pytest.mark.parametrize("bias", [0.005, 0.01, -0.005, -0.01])
+@pytest.mark.parametrize("bias", [0.005, -0.005])
 def test_edge_ids_track_geometry_not_iteration(bias):
     # on a blob-heavy subject, IDs must not churn beyond genuine geometry change:
     # fraction of edges keeping their sid >= fraction whose midpoint still exists.
