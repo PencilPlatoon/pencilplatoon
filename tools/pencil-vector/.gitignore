@@ -1,0 +1,6 @@
+# generated artifacts
+out/
+.venv/
+venv/
+__pycache__/
+*.pyc

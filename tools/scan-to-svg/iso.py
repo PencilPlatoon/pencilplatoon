@@ -11,9 +11,8 @@ CFG={
  "cannon": dict(mode="isolate",region=(1006,333,1390,596),seed=(1052,338,1454,594),band=6,
                 protect=[(42,100),(198,272)],minsize=120),
  "dying":  dict(mode="isolate",region=(1344,1728,1618,2014),seed=(1360,1734,1612,2012),band=5),
- "soldier":dict(mode="weapon_open",region=(1370,260,1611,558),r=3),
- "mg":     dict(mode="weapon_zone",region=(984,1723,1434,2012),
-                zones=[(80,60,292,118),(168,86,244,158)],minsize=25),
+ "soldier":dict(mode="isolate",region=(1370,260,1611,558),seed=(1400,300,1560,540),band=6),
+ "mg":     dict(mode="isolate",region=(984,1723,1434,2012),seed=(1040,1740,1280,1960),band=6),
 }
 
 def remove_ground(mask,band,protect=()):

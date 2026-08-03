@@ -1,0 +1,64 @@
+# Pencil Vector
+
+A **parallel, from-scratch** implementation of the scan→SVG vectorizer, built
+to the architecture in [`../../vectorizer-implementation-plan.md`](../../vectorizer-implementation-plan.md).
+It exists alongside the older `../scan-to-svg/` tool, which stays untouched.
+
+The two differ fundamentally. `scan-to-svg` *substitutes* geometry as it goes
+(a run of points becomes a circle). This one is **model-based and
+annotation-first**: connectivity is frozen ground truth, every geometric fit is
+recorded *about* an edge rather than replacing it, and export decides which
+annotations to cash in. See the plan's core principles (§2) and invariant
+hierarchy (§3).
+
+## Build order
+
+Each milestone writes its own **retained** render, `out/<subject>_m<N>.svg` — a new
+milestone never overwrites a prior one, and each milestone's code path stays
+runnable. The comparison page (`../scan-to-svg`) turns those into a per-cell tab
+strip (M1, M2, …) so you can flip through the approach's progress on each subject.
+
+Milestones follow the plan §12 — end-to-end early, depth later:
+
+| # | milestone | status |
+|---|-----------|--------|
+| **M1** | Stage 0 (ink + `w`) → naive skeleton → graph → one `<path>` per edge | ✅ done |
+| M2 | Width classes: strokes vs blobs vs variable (taper), with hysteresis | — |
+| M3 | Stable IDs + topology freeze; ID-stability test | — |
+| M4 | Cleanup tool (manual highlight/delete/flood/export) | — |
+| M5 | Junction resolution + continuity flood | — |
+| M6 | Planar embedding + post-fit validation | — |
+| M7 | Geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) | — |
+| M8 | Constraints, LOD, colliders, role-specific export | — |
+
+## Run
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
+python vectorize.py ../scan-to-svg/out/cannon_iso.png out/cannon_m1.svg
+```
+
+Prints the derived pen width `w` (the unit every downstream tolerance is
+measured in) and the node/edge counts, and writes an SVG where each collapsed
+graph edge is one centerline `<path>` at stroke-width `w`.
+
+## Modules
+
+| file | role |
+|------|------|
+| `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
+| `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
+| `graph.py` | skeleton → node/edge graph (naive; junction resolution is M5) |
+| `svgdump.py` | M1 export — one `<path>` per edge |
+| `vectorize.py` | end-to-end driver |
+
+## Tests
+
+```bash
+pip install -r requirements-dev.txt
+pytest
+```
+
+`test_m1.py` runs the pipeline on the checked-in isolated subjects and asserts
+`w` is sane and the graph is well-formed (skips if the isos aren't present).

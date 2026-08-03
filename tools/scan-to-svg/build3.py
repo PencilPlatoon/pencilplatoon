@@ -7,6 +7,33 @@ def paths(s): return str(s.count("<path"))
 def vec(name):
     return read(f"out/{name}_C.svg")
 
+def pv_milestones(name):
+    # Every retained Pencil Vector render for this subject, oldest milestone first.
+    fs=[f"../pencil-vector/out/{f}" for f in os.listdir("../pencil-vector/out")
+        if re.match(rf"{name}_m\d+\.svg$", f)] if os.path.isdir("../pencil-vector/out") else []
+    return sorted(fs, key=lambda p:int(re.search(r"_m(\d+)\.svg$",p).group(1)))
+
+def pv_cell(name):
+    # Pencil Vector cell: a radio-driven tab per milestone (M1, M2, ...) over the same cell,
+    # showing one render at a time. Data-driven, so new milestones' SVGs auto-add a tab.
+    ms=pv_milestones(name)
+    if not ms: return '<svg viewBox="0 0 10 10"></svg>'
+    radios=tabs=panels=""
+    for i,p in enumerate(ms):
+        n=re.search(r"_m(\d+)\.svg$",p).group(1)
+        rid=f"pv-{name}-m{n}"
+        chk=" checked" if i==len(ms)-1 else ""          # default to the latest milestone
+        radios+='<input class="pvr" type="radio" name="pv-%s" id="%s"%s>'%(name,rid,chk)
+        tabs+='<label for="%s">M%s</label>'%(rid,n)
+        panels+='<div class="pvpanel">%s</div>'%read(p)
+    return '%s<div class="pvtabs">%s</div><div class="pvpanels">%s</div>'%(radios,tabs,panels)
+
+def pv_meta(name):
+    ms=pv_milestones(name)
+    if not ms: return "not built"
+    p=ms[-1]; n=re.search(r"_m(\d+)\.svg$",p).group(1)
+    return "M%s · "%n+kb(p)+" · "+str(read(p).count("data-edge"))+"e"
+
 def scan_overlay(name):
     # Left panel: the aligned scan (the iso the vector was traced from) with a hidden copy of
     # the vector segments on top. CSS keeps the vector invisible until its twin is hovered in
@@ -67,7 +94,8 @@ rows=""
 for key,name,note in comps:
     C=vec(key)
     cells=(tile("overlay",name+" · scan",scan_overlay(key),"hover the hybrid &rarr;")
-         + tile("vec",name+" · hybrid",C,kb(f"out/{key}_C.svg")+" · "+paths(C)+"p"))
+         + tile("vec",name+" · hybrid (old)",C,kb(f"out/{key}_C.svg")+" · "+paths(C)+"p")
+         + tile("pv",name+" · Pencil Vector",pv_cell(key),pv_meta(key)))
     rows+=('<div class="row"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
            '<div class="cells">%s</div></div>')%(name,note,cells)
 
@@ -81,8 +109,8 @@ body=(link_css()
  '<section class="featured"><div class="feat-head"><h2>The flag, three ways</h2>'
  '<p>Click the redraw and zoom in to check the emblem and pole — it scales without blurring, unlike the raster original beside it.</p></div>'
  '<div class="cells feat-cells">'+featured+'</div></section>'
- '<section class="matrix"><h2>All four approaches, every candidate</h2>'
- '<p class="sub">Original scan &rarr; hybrid. The <em>hybrid</em> snaps all line-work to one pen width (round caps, never thinner than the pen), fits lines / arcs / circles, and keeps solid areas solid &mdash; a clean, tiny SVG produced automatically.</p>'
+ '<section class="matrix"><h2>Old approach vs. new, every candidate</h2>'
+ '<p class="sub">Three panels per row: original <em>scan</em> &rarr; <em>hybrid (old)</em>, the shipping <code>scan-to-svg</code> tool that fits lines / arcs / circles and keeps solid areas solid &rarr; <em>Pencil&nbsp;Vector</em>, the ground-up model-based vectorizer being built to the implementation plan. Its cell carries a <strong>tab per milestone</strong> (M1, M2, &hellip;) &mdash; flip through to watch the approach evolve; each milestone&rsquo;s render is kept. M1 is raw skeleton&rarr;graph (one centerline path per edge, no width classes or arc fitting yet), so it looks rougher on purpose.</p>'
  +rows+'</section>'
  '<footer class="foot"><p><strong>Where this lands:</strong> <em>hybrid</em> stays the batch default &mdash; subject-only, 12&ndash;21&#8202;KB, clean flat colour. <em>Auto-trace</em> when you want pencil texture; <em>redraw</em> for props you rig or recolour at runtime.</p>'
  '<p>Next: the <strong>Auto-detect + isolate</strong> button in <code>level-image-saver.html</code>, wrapping exactly this pipeline with draggable boxes and an eraser for the leftovers.</p></footer>'

@@ -78,7 +78,39 @@
   .row{display:grid;grid-template-columns:190px 1fr;gap:24px;padding:22px 0;border-top:1px solid var(--hair)}
   .rowhead h3{font-family:var(--serif);font-weight:600;font-size:20px;margin:0}
   .rowhead p{color:var(--muted);font-size:13px;margin:6px 0 0}
-  .row .cells{grid-template-columns:repeat(2,1fr)}
+  .row .cells{grid-template-columns:repeat(3,1fr)}
+
+  /* Pencil Vector cell: a milestone tab-strip (M1, M2, …) over one cell; shows one render at a
+     time. Radios drive it (pure CSS); tabs/panels stay in the same milestone order so nth-of-type
+     lines them up. Static rules cover up to 8 milestones. */
+  .art.pv{display:flex;flex-direction:column;gap:11px;padding-top:12px;cursor:default}
+  .pvr{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
+  .pvtabs{display:flex;gap:6px;flex-wrap:wrap;justify-content:center;flex:0 0 auto}
+  .pvtabs label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--hair);border-radius:20px;padding:3px 11px;
+    cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+  .pvtabs label:hover{border-color:var(--blue);color:var(--ink)}
+  .pvpanels{flex:1 1 auto;display:grid;place-items:center;min-height:0}
+  .pvpanel{display:none;max-width:100%;max-height:100%}
+  .pvpanel svg{max-width:100%;max-height:100%;width:auto;height:auto;display:block}
+  .pv:has(.pvr:nth-of-type(1):checked) .pvpanel:nth-of-type(1){display:block}
+  .pv:has(.pvr:nth-of-type(2):checked) .pvpanel:nth-of-type(2){display:block}
+  .pv:has(.pvr:nth-of-type(3):checked) .pvpanel:nth-of-type(3){display:block}
+  .pv:has(.pvr:nth-of-type(4):checked) .pvpanel:nth-of-type(4){display:block}
+  .pv:has(.pvr:nth-of-type(5):checked) .pvpanel:nth-of-type(5){display:block}
+  .pv:has(.pvr:nth-of-type(6):checked) .pvpanel:nth-of-type(6){display:block}
+  .pv:has(.pvr:nth-of-type(7):checked) .pvpanel:nth-of-type(7){display:block}
+  .pv:has(.pvr:nth-of-type(8):checked) .pvpanel:nth-of-type(8){display:block}
+  .pv:has(.pvr:nth-of-type(1):checked) .pvtabs label:nth-of-type(1),
+  .pv:has(.pvr:nth-of-type(2):checked) .pvtabs label:nth-of-type(2),
+  .pv:has(.pvr:nth-of-type(3):checked) .pvtabs label:nth-of-type(3),
+  .pv:has(.pvr:nth-of-type(4):checked) .pvtabs label:nth-of-type(4),
+  .pv:has(.pvr:nth-of-type(5):checked) .pvtabs label:nth-of-type(5),
+  .pv:has(.pvr:nth-of-type(6):checked) .pvtabs label:nth-of-type(6),
+  .pv:has(.pvr:nth-of-type(7):checked) .pvtabs label:nth-of-type(7),
+  .pv:has(.pvr:nth-of-type(8):checked) .pvtabs label:nth-of-type(8){
+    background:var(--blue);border-color:var(--blue);color:#fff}
+  .pv:has(.pvr:focus-visible) .pvtabs{outline:2px solid var(--blue);outline-offset:3px;border-radius:22px}
 
   .foot{border-top:1px solid var(--hair);margin-top:8px;padding-top:24px}
   .foot p{color:var(--muted);font-size:14.5px;max-width:76ch;margin:0 0 12px}
