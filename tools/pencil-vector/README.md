@@ -26,7 +26,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 | **M2** | Width classes (hysteresis): filled regions → blobs, line-work → strokes | ✅ done |
 | **M3** | Spur prune + stable IDs (geometry-derived) + topology freeze | ✅ done |
 | **M4** | Cleanup tool — manual highlight / delete / flood-select / export | ✅ done |
-| M5 | Junction resolution + continuity flood | — |
+| **M5** | Junction resolution (continuity pairing) + continuity flood | ✅ done |
 | M6 | Planar embedding + post-fit validation | — |
 | M7 | Geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) | — |
 | M8 | Constraints, LOD, colliders, role-specific export | — |
@@ -50,7 +50,7 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 | `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
 | `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
 | `widthclass.py` | Stage 1 (M2) — solid detection (thick-core seed + density grow) → blobs |
-| `graph.py` | skeleton → node/edge graph + spur pruning (§6.4) |
+| `graph.py` | skeleton → node/edge graph, spur pruning (§6.4), blob incidence, continuity |
 | `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
 | `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
 | `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
@@ -63,13 +63,17 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 no server needed). Open it in a browser to extract an asset by hand:
 
 - **hover** highlights a segment (unit = one junction-to-junction edge);
-- **click** selects/deselects; **shift-click** flood-selects everything connected
-  by raw adjacency; **alt-click** excludes a branch from the selection;
+- **click** toggles one segment; **shift-click** fills the connected component, or
+  anti-fills it if the clicked segment is already selected;
+- **ctrl/⌘-click** selects one continuity *stroke* (through junctions, §10);
+- flood is **continuity-aware** (M5): it follows a stroke through a junction but does
+  not leak across a crossing (an arm crossing a sword shaft doesn't drag in the
+  figure), and it stops at deleted (masked) segments;
 - **Delete → mask** hides the selection (recorded, never mutating the model);
 - **Export asset…** emits the selection as a named SVG;
 - every op is appended to an **edit log** keyed on the stable `sid`s, downloadable as
-  JSON so it replays against a re-run of the pipeline (§10). Continuity-aware
-  flood, hints, and free-cut are later milestones (M5+).
+  JSON so it replays against a re-run of the pipeline (§10). Hints and free-cut are
+  later work.
 
 M3 note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
 cell), not traversal order, so re-running with tweaked tolerances keeps the same

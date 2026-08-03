@@ -14,7 +14,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-from graph import attach_edges_to_blobs, build, prune_spurs
+from graph import attach_edges_to_blobs, build, prune_spurs, resolve_continuity
 from ink import ingest
 from model import BLOB, Node
 from stableid import assign
@@ -49,6 +49,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
         prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
         assign(g)                           # stable IDs + freeze (Stage 5)
         attach_edges_to_blobs(g, blob_masks)  # edge<->blob incidence for flood (§6.3)
+        resolve_continuity(g)               # junction resolution for continuity flood (§6.4)
     return g
 
 

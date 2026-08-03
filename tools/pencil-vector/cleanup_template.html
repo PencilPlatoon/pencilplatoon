@@ -67,7 +67,7 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="hint">click = toggle one · shift-click = fill / anti-fill connected · Del = mask</span>
+  <span class="hint">click = toggle · shift-click = fill / anti-fill · ctrl-click = select stroke · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -110,8 +110,28 @@ function floodFrom(startSid){
   adj.blob.has(startSid) ? takeBlob(startSid) : takeEdge(startSid);
   while(q.length){
     const e = adj.edge.get(q.pop()); out.add(e.sid);
-    for(const k of ["n"+e.a, "n"+e.b]) for(const es of (adj.hub.get(k)||[])) takeEdge(es);
-    for(const bs of (e.blobs||[])) takeBlob(bs);
+    for(const nid of [e.a, e.b]){                               // skeleton-node hub
+      const myP = (e.cont||{})[nid];                            // e's through-partner here
+      for(const es of (adj.hub.get("n"+nid)||[])){
+        if(es === e.sid) continue;
+        const otherP = (adj.edge.get(es).cont||{})[nid];
+        if(myP && otherP && myP !== es) continue;               // two crossing strokes -> don't leak
+        takeEdge(es);
+      }
+    }
+    for(const bs of (e.blobs||[])) takeBlob(bs);                // blob hub (no continuity)
+  }
+  return out;
+}
+
+function strokeChain(startSid){
+  // the single continuity chain through junctions -- one stroke (§10 "select stroke")
+  if(!adj.edge.has(startSid)) return new Set([startSid]);       // a blob: just itself
+  const out = new Set([startSid]), q = [startSid];
+  while(q.length){
+    const e = adj.edge.get(q.pop());
+    for(const nid of [e.a, e.b]){ const p = (e.cont||{})[nid];
+      if(p && !out.has(p) && !masked.has(p)){ out.add(p); q.push(p); } }
   }
   return out;
 }
@@ -180,7 +200,9 @@ function wireCanvas(){
   svg.addEventListener("click", e => {
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
-    if(e.shiftKey || floodMode){                                 // fill / anti-fill the component
+    if(e.ctrlKey || e.metaKey){                                  // select one continuity stroke
+      for(const s of strokeChain(sid)) selected.add(s);
+    } else if(e.shiftKey || floodMode){                          // fill / anti-fill the component
       const comp = floodFrom(sid), on = selected.has(sid);       // clicked already selected -> anti-fill
       for(const s of comp) on ? selected.delete(s) : selected.add(s);
     } else {                                                     // toggle one segment

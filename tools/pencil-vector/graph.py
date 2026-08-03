@@ -11,6 +11,7 @@ is M3's job (§7), and is called out so nothing downstream leans on them early.
 from __future__ import annotations
 
 import math
+from collections import defaultdict
 
 import numpy as np
 from scipy import ndimage
@@ -159,6 +160,45 @@ def _edge_touches_blob(e: Edge, mask, near, w) -> bool:
     xi = np.clip(p[:, 0].astype(int), 0, near.shape[1] - 1)
     yi = np.clip(p[:, 1].astype(int), 0, near.shape[0] - 1)
     return float(near[yi, xi].mean()) > OVERLAP_FRAC
+
+
+CONT_MAX_TURN = 60.0    # deg: two edges are one stroke through a junction if the bend
+                        # from straight-through is under this (a T-stem turns ~90, an X-cross ~90)
+
+
+def resolve_continuity(g: Graph) -> Graph:
+    """Junction resolution (Stage 4, §6.4): at each junction pair the edges that
+    continue smoothly through it -- a stroke passing through -- greedily by the
+    straightest continuation (Noris 'reverse drawing'). An edge that has no
+    smooth partner is a T-termination. Records the partner sid per (edge, node)
+    on `edge.ann['cont']` so flood can follow a stroke through a junction without
+    leaking across a crossing."""
+    inc = defaultdict(list)
+    for e in g.edges.values():
+        inc[e.a].append(e)
+        inc[e.b].append(e)
+    for nid, edges in inc.items():
+        if len(edges) < 3:
+            continue                        # degree<3: no real junction to resolve
+        pos = np.array(g.nodes[nid].pos, float)
+        d = {e.id: _dir_from(e, pos) for e in edges}    # direction leaving the node
+        pairs = []
+        for i in range(len(edges)):
+            for j in range(i + 1, len(edges)):
+                cos = float(np.clip(np.dot(d[edges[i].id], d[edges[j].id]), -1, 1))
+                turn = 180.0 - math.degrees(math.acos(cos))   # 0 = dead straight through
+                pairs.append((turn, edges[i], edges[j]))
+        pairs.sort(key=lambda p: p[0])
+        used = set()
+        for turn, ea, eb in pairs:
+            if turn > CONT_MAX_TURN:
+                break
+            if ea.id in used or eb.id in used:
+                continue
+            used.update((ea.id, eb.id))
+            ea.ann.setdefault("cont", {})[nid] = eb.sid
+            eb.ann.setdefault("cont", {})[nid] = ea.sid
+    return g
 
 
 def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
