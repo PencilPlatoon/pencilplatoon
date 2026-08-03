@@ -64,7 +64,7 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="hint">click = select · shift-click = flood · alt-click = exclude · Del = mask</span>
+  <span class="hint">click = toggle one · shift-click = fill / anti-fill connected · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg></div>
@@ -173,10 +173,10 @@ function wireCanvas(){
   svg.addEventListener("click", e => {
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
-    if(e.altKey){ selected.delete(sid); }                       // exclude
-    else if(e.shiftKey || floodMode){                            // flood (edges + blobs)
-      for(const s of floodFrom(sid)) selected.add(s);
-    } else {                                                     // toggle
+    if(e.shiftKey || floodMode){                                 // fill / anti-fill the component
+      const comp = floodFrom(sid), on = selected.has(sid);       // clicked already selected -> anti-fill
+      for(const s of comp) on ? selected.delete(s) : selected.add(s);
+    } else {                                                     // toggle one segment
       selected.has(sid) ? selected.delete(sid) : selected.add(sid);
     }
     render();
