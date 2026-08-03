@@ -49,7 +49,7 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 |------|------|
 | `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
 | `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
-| `widthclass.py` | Stage 1 (M2) — hysteresis width classing: filled regions → blobs |
+| `widthclass.py` | Stage 1 (M2) — solid detection (thick-core seed + density grow) → blobs |
 | `graph.py` | skeleton → node/edge graph + spur pruning (§6.4) |
 | `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
 | `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
@@ -68,6 +68,12 @@ blob** (extending the end lands inside the blob, not in an empty concave notch �
 the edge→blob incidence blobs need as first-class nodes, §6.3), or it runs
 **collinear** with a junction partner (a continuation of that stroke, fragmented
 by the skeleton; full merge is M5). Length is only the twig-size ceiling.
+
+A region is **solid** where ink is locally dense — seeded on a genuine thick core
+(a thin-line junction can't seed) and grown through ink that is either still thick
+or *locally dense*, so crosshatch/scribble reads as solid even though its strokes
+are thin. Enclosed white gaps (drawing noise) are filled. This keeps solids solid
+instead of leaving concave gaps, pinches, and stray medial-axis strokes.
 
 M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
 spray) fills flat black rather than its hue — a later concern (the plan keeps colour

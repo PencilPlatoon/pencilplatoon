@@ -50,10 +50,12 @@ def test_strokes_survive_alongside_blobs():
 
 
 def test_blob_interior_removed_from_skeleton():
-    # M2 skeletonizes only the thin mask, so it has fewer edges than M1's
-    # whole-mask skeleton (the gun's messy centerlines are gone)
-    p = os.path.join(ISO, "cannon_iso.png")
-    assert len(vectorize(p, milestone=2).edges) < len(vectorize(p, milestone=1).edges)
+    # solid regions are taken out of the stroke mask before skeletonizing, so the
+    # thin mask carries meaningfully less ink than the whole drawing
+    ink = ingest(_iso("cannon"))
+    blobs, thin = segment(ink)
+    assert blobs
+    assert thin.sum() < 0.9 * ink.mask.sum()
 
 
 def test_thin_mask_excludes_blob_pixels():

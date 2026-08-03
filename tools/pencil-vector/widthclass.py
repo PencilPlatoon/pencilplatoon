@@ -29,11 +29,14 @@ from skimage.morphology import skeletonize
 from ink import Ink
 from model import BLOB
 
-# Hysteresis thresholds on the distance transform (half-width), in units of w.
-# A normal stroke sits at r ~ w/2 = 0.5w; enter "wide" well above that, and only
-# leave once ink narrows to near a stroke.
-WIDE_ENTER = 1.15       # seed a wide region where r > 1.15w  (full width > 2.3w)
-WIDE_EXIT = 0.75        # grow it down to where r > 0.75w      (full width > 1.5w)
+# A region is solid where ink is locally DENSE -- from thick strokes OR from
+# crosshatch/scribble whose individual strokes are thin. Thickness alone misses
+# the scribbled kind and leaves the blob with concave gaps and internal strokes.
+WIDE_ENTER = 1.15       # SEED a blob only at a genuine thick core, r > 1.15w
+                        # (a junction of thin lines has no such core, so it can't seed)
+WIDE_EXIT = 0.75        # GROW through still-thick ink, r > 0.75w ...
+DENS_WIN = 2.5          # ... or through locally dense ink: fraction of ink in a
+DENS_GROW = 0.5         # window this wide (in w) above this -> part of the solid
 
 # Thick-line rescue (plan §6.1.2): a heavy *outline stroke* is very elongated and
 # never much wider than a stroke -- keep it a centerline, not a fill. A filled
@@ -56,19 +59,19 @@ class Blob:
 
 
 def _wide_mask(ink: Ink) -> np.ndarray:
-    """Hysteresis on the distance transform, then recover the rim out to the
-    true ink edge so the fill matches the drawing (not a pen-half inside it)."""
+    """Solid regions: seed on a genuine thick core, grow through ink that is
+    either still thick OR locally dense (so crosshatch is pulled in), then fill
+    enclosed white gaps (drawing noise) so the blob is solid, not pocked."""
     d, m, w = ink.dist, ink.mask, ink.w
     seed = m & (d > WIDE_ENTER * w)
-    band = m & (d > WIDE_EXIT * w)
     if not seed.any():
         return np.zeros_like(m)
-    lab, _ = ndimage.label(band, structure=np.ones((3, 3)))
+    dens = ndimage.uniform_filter(m.astype(float), size=max(3, int(round(DENS_WIN * w))))
+    grow = m & ((d > WIDE_EXIT * w) | (dens > DENS_GROW))
+    lab, _ = ndimage.label(grow, structure=np.ones((3, 3)))
     keep = np.unique(lab[seed])
-    wide = np.isin(lab, keep[keep > 0])
-    # the wide/band boundary sits ~WIDE_EXIT*w inside the ink; grow back to the edge
-    grow = WIDE_EXIT * w + 1.0
-    return m & (ndimage.distance_transform_edt(~wide) <= grow)
+    solid = np.isin(lab, keep[keep > 0])
+    return ndimage.binary_fill_holes(solid)
 
 
 def _is_line(comp: np.ndarray, dist: np.ndarray, w: float) -> bool:
