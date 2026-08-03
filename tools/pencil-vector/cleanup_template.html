@@ -233,9 +233,11 @@ document.addEventListener("keydown", e => {
   if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
 });
 
-// subject buttons
+// subject buttons -- full titles matching the comparison page
+const TITLES = {flag:"Capture flag", cannon:"Wheeled cannon", soldier:"Gunner’s SMG",
+                mg:"Mounted MG", dying:"Hit soldier"};
 const names = Object.keys(MODELS);
-$("#subjects").innerHTML = names.map(n=>`<button data-name="${n}">${n}</button>`).join("");
+$("#subjects").innerHTML = names.map(n=>`<button data-name="${n}">${TITLES[n]||n}</button>`).join("");
 for(const b of document.querySelectorAll(".subjects button")) b.onclick = () => loadSubject(b.dataset.name);
 loadSubject(names.includes("cannon") ? "cannon" : names[0]);
 </script>
