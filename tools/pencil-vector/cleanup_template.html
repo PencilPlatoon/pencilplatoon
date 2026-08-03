@@ -85,22 +85,29 @@ const $ = s => document.querySelector(s);
 let model, adj, selected, masked, log, floodMode = false;
 
 function buildAdjacency(m){
-  // node id -> [edge id]; used for raw-adjacency flood-select
-  const a = new Map();
+  // hub key -> [edge sid]. A hub is a skeleton node ("n"+id) OR a blob sid, so a
+  // blob is a connectivity hub the flood can pass through (§6.3, raw adjacency).
+  const hub = new Map();
+  const push = (k, es) => { if(!hub.has(k)) hub.set(k, []); hub.get(k).push(es); };
   for(const e of m.edges){
-    for(const n of [e.a, e.b]){ if(!a.has(n)) a.set(n, []); a.get(n).push(e.id); }
+    push("n"+e.a, e.sid); push("n"+e.b, e.sid);
+    for(const bs of (e.blobs||[])) push(bs, e.sid);
   }
-  return a;
+  return { hub, edge:new Map(m.edges.map(e=>[e.sid,e])), blob:new Map(m.blobs.map(b=>[b.sid,b])) };
 }
 
-function floodFrom(edgeId){
-  // all edge sids reachable through shared nodes (raw adjacency, M4)
-  const byId = new Map(model.edges.map(e => [e.id, e]));
-  const seen = new Set([edgeId]), stack = [edgeId], out = new Set();
-  while(stack.length){
-    const e = byId.get(stack.pop()); out.add(e.sid);
-    for(const n of [e.a, e.b]) for(const nb of (adj.get(n)||[]))
-      if(!seen.has(nb)){ seen.add(nb); stack.push(nb); }
+function floodFrom(startSid){
+  // everything reachable through shared nodes AND blob attachments; returns the
+  // sids of both edges and blobs in the connected component. Works from either.
+  const out = new Set(), seenE = new Set(), seenB = new Set(), q = [];
+  const takeBlob = bs => { if(seenB.has(bs)) return; seenB.add(bs); out.add(bs);
+    for(const es of (adj.blob.get(bs).edges||[])) if(!seenE.has(es)){ seenE.add(es); q.push(es); } };
+  const takeEdge = es => { if(!seenE.has(es)){ seenE.add(es); q.push(es); } };
+  adj.blob.has(startSid) ? takeBlob(startSid) : takeEdge(startSid);
+  while(q.length){
+    const e = adj.edge.get(q.pop()); out.add(e.sid);
+    for(const k of ["n"+e.a, "n"+e.b]) for(const es of (adj.hub.get(k)||[])) takeEdge(es);
+    for(const bs of (e.blobs||[])) takeBlob(bs);
   }
   return out;
 }
@@ -167,9 +174,8 @@ function wireCanvas(){
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
     if(e.altKey){ selected.delete(sid); }                       // exclude
-    else if(e.shiftKey || floodMode){                            // flood (raw adjacency)
-      if(el.dataset.eid!==undefined) for(const s of floodFrom(+el.dataset.eid)) selected.add(s);
-      else selected.add(sid);                                    // a blob: just itself
+    else if(e.shiftKey || floodMode){                            // flood (edges + blobs)
+      for(const s of floodFrom(sid)) selected.add(s);
     } else {                                                     // toggle
       selected.has(sid) ? selected.delete(sid) : selected.add(sid);
     }

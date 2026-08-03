@@ -14,7 +14,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-from graph import build, prune_spurs
+from graph import attach_edges_to_blobs, build, prune_spurs
 from ink import ingest
 from model import BLOB, Node
 from stableid import assign
@@ -38,14 +38,17 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
     blobs, thin = segment(ink)              # Stage 1
     g = build(ink, mask=thin)               # strokes only
     nid = (max(g.nodes) + 1) if g.nodes else 0
+    blob_masks = {}
     for b in blobs:                         # blobs are first-class nodes (§6.3)
         g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
                             ann={"width_class": b.width_class})
+        blob_masks[nid] = b.mask
         nid += 1
 
     if milestone >= 3:
-        prune_spurs(g, SPUR_W * ink.w, blob_masks=[b.mask for b in blobs])
+        prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
         assign(g)                           # stable IDs + freeze (Stage 5)
+        attach_edges_to_blobs(g, blob_masks)  # edge<->blob incidence for flood (§6.3)
     return g
 
 

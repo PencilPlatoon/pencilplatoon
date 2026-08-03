@@ -24,11 +24,13 @@ def model_dict(g, subject: str) -> dict:
         if nd.kind == BLOB:
             blobs.append({"id": nd.id, "sid": nd.sid,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)],
-                          "boundary": _pts(nd.boundary)})
+                          "boundary": _pts(nd.boundary),
+                          "edges": nd.ann.get("edges", [])})   # incident strokes (§6.3)
         else:
             nodes.append({"id": nd.id, "sid": nd.sid, "kind": nd.kind,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)]})
-    edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _pts(e.pts)}
+    edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _pts(e.pts),
+              "blobs": e.ann.get("blobs", [])}
              for e in g.edges.values()]
     return {"subject": subject, "w": round(g.w, 2), "size": list(g.size),
             "nodes": nodes, "edges": edges, "blobs": blobs}

@@ -142,6 +142,31 @@ def _runs_into_blob(free_end, out_dir, blob_masks, w) -> bool:
     return False
 
 
+def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
+    """Record edge<->blob incidence (§6.3): a stroke whose end runs into a blob is
+    connected to it. Stores each blob's attached edge sids on its `ann['edges']`
+    and the blob sids on each edge's `ann['blobs']`, so flood-select can traverse
+    a blob as a connectivity hub. `blob_masks` maps blob node id -> mask."""
+    for nid, mask in blob_masks.items():
+        nb = g.nodes[nid]
+        attached = []
+        for e in g.edges.values():
+            p = e.pts
+            ends = [(p[0], p[min(len(p) - 1, 4)]), (p[-1], p[max(0, len(p) - 5)])]
+            for end, inner in ends:
+                end = np.asarray(end, float)
+                out = end - np.asarray(inner, float)
+                n = float(np.hypot(*out))
+                if n > 0 and _runs_into_blob(end, out / n, [mask], g.w):
+                    attached.append(e.sid)
+                    e.ann.setdefault("blobs", [])
+                    if nb.sid not in e.ann["blobs"]:
+                        e.ann["blobs"].append(nb.sid)
+                    break
+        nb.ann["edges"] = attached
+    return g
+
+
 def prune_spurs(g: Graph, max_len: float, blob_masks=()) -> Graph:
     """Remove short twigs that thinning manufactures from boundary noise on wide
     strokes (§6.4). Connectivity is the invariant (§2.1): a leaf is a real twig
