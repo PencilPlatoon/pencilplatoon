@@ -54,6 +54,9 @@
   .hit{pointer-events:all}
   .corner{display:none}
   .seg:hover .corner{display:inline}
+  /* the corner number is small in the shrunk-to-fit cell; enlarge it there only.
+     The zoom (a clone under #lbframe) already renders it big, so leave that alone. */
+  .art .seg:hover .corner{transform:scale(2);transform-box:fill-box;transform-origin:center}
   .seg:hover .vis path{stroke:#e8402f}
   .seg:hover .vis path[fill]:not([fill="none"]){fill:#e8402f}
   .seg:hover .vis circle{stroke:#e8402f}
