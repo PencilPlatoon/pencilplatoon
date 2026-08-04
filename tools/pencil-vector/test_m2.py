@@ -88,6 +88,21 @@ def test_supersample_recovers_small_receiver_holes():
         "recovered holes are all large; the sub-pen-scale hole was still lost"
 
 
+def test_no_microblobs_on_cannon_wheel():
+    # Regression (§6.1): a blob is a genuine 2D solid, not any locally-thick line-art.
+    # A doubled stroke on the wheel rim and the small hub mark used to seed microblobs
+    # that pass a total-area test but have no 2D interior. The cannon's real fills are
+    # only the gun-on-top; nothing solid should land on the (line-art) right wheel.
+    ink = ingest(_iso("cannon"))
+    blobs, _ = segment(ink)
+    assert len(blobs) <= 2, f"cannon has {len(blobs)} blobs; microblobs likely returned"
+    s = ink.scale
+    for b in blobs:                                    # right wheel bbox, native px
+        cx, cy = b.centroid[0] / s, b.centroid[1] / s
+        assert not (195 <= cx <= 232 and 165 <= cy <= 214), \
+            f"a blob sits on the wheel at native ({cx:.0f},{cy:.0f}) -- microblob"
+
+
 def test_dump_emits_fills_and_strokes():
     g = vectorize(os.path.join(ISO, "soldier_iso.png"), milestone=2)
     svg = dump(g)

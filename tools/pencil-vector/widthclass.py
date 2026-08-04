@@ -25,7 +25,7 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import ndimage
 from skimage.measure import approximate_polygon, find_contours
-from skimage.morphology import skeletonize
+from skimage.morphology import binary_opening, disk, skeletonize
 
 from ink import Ink
 from model import BLOB
@@ -46,6 +46,19 @@ DENS_GROW = 0.5         # window this wide (in w) above this -> part of the soli
 # it's elongation + thinness, not uniformity, that says "line" -- §6.1.4.)
 LINE_ASPECT = 60.0      # length/width above which a component may be a line
 LINE_MAX_W = 3.0        # ...but only if it never exceeds this width (in w) anywhere
+
+# A blob is a genuinely 2D solid (plan §6.1: r >> w, low aspect) -- NOT merely a
+# region with enough total ink. Two things masquerade as blobs under a total-area
+# test and must be rejected on 2D grounds instead:
+#   * nubs -- thin protrusions where strokes attach to a fill (the density-grow
+#     crawls a little way down the stroke). Removed by OPENING the fill by ~a pen
+#     radius: a protrusion narrower than the pen cannot survive it. (Opening does
+#     not fill interior holes, so recovered hollows are safe.)
+#   * microblobs -- a thickened spot on line-art (a doubled stroke) or a small dark
+#     mark (a hub dot). These have almost no 2D INTERIOR, so require a deep core.
+OPEN_R = 0.9            # open the fill by this many pen radii to shave nubs/slivers
+CORE_R = 1.0            # a "2D core" pixel lies more than this many w from any edge
+MIN_CORE_W2 = 3.0       # a blob must own at least this many w^2 of such core
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
 MIN_HOLE_PX = 6.0       # keep interior holes bigger than this many *native* px; smaller =
@@ -122,6 +135,13 @@ def _boundaries(comp: np.ndarray, w: float, scale: int = 1):
     return _xy(outer), holes
 
 
+def _has_2d_core(comp: np.ndarray, w: float) -> bool:
+    """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
+    A thickened spot on a line or a small dark mark has almost none, so it fails."""
+    core = ndimage.distance_transform_edt(comp) > CORE_R * w
+    return core.sum() >= MIN_CORE_W2 * w * w
+
+
 def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
     """Return (blobs, thin_mask). `thin_mask` is the stroke ink with blob
     interiors removed, ready to skeletonize; `blobs` are the filled regions.
@@ -130,6 +150,14 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
     ramp vs a compact blob -- is a later refinement; every fill is a `blob` here.)
     """
     wide = _wide_mask(ink)
+    # A blob must be solid at pen scale: opening shaves off thin protrusions (nubs
+    # where strokes attach) so only genuinely 2D regions remain. Do it hole-safely
+    # -- fill interior hollows first so the ring around a hole reads as solid and
+    # can't be eroded away, open, then re-punch the exact holes (§6.2 hollows must
+    # survive). Ink the opening removes returns to the stroke mask below.
+    filled = ndimage.binary_fill_holes(wide)
+    holes = filled & ~wide
+    wide = binary_opening(filled, disk(max(1, int(round(OPEN_R * ink.w))))) & ~holes
     lab, n = ndimage.label(wide, structure=np.ones((3, 3)))
     min_area = MIN_BLOB_AREA_W2 * ink.w * ink.w
 
@@ -139,6 +167,8 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
         comp = lab == i
         if comp.sum() < min_area:
             continue
+        if not _has_2d_core(comp, ink.w):
+            continue                                  # microblob: no 2D interior
         if _is_line(comp, ink.dist, ink.w):
             continue                                  # rescued: stays a stroke
         outer, holes = _boundaries(comp, ink.w, ink.scale)
