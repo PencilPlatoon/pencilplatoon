@@ -57,7 +57,20 @@ CORE_R = 1.0            # a "2D core" pixel lies more than this many w from any 
 MIN_CORE_W2 = 3.0       # a blob must own at least this many w^2 of such core
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
-POLY_TOL_W = 0.5        # boundary decimation tolerance, in units of w  (MIN_HOLE_W2: ink.py)
+POLY_TOL_W = 0.1        # boundary decimation, in units of w. A stroke keeps every traced
+                        # pixel, so it follows the drawn wobble; the blob boundary is the
+                        # same kind of traced polyline and should track its own rough edge
+                        # the same way. Kept just coarse enough to drop the marching-squares
+                        # staircase, NOT to abstract the shape into a polygon (that faceting
+                        # is not idealization -- real smoothing/arc-fitting is M7, uniform for
+                        # strokes and blobs alike).  (MIN_HOLE_W2: ink.py)
+
+# Where the rough ink edge bulges out past grow-to-edge's reach, a thin sliver of ink is
+# left just outside the blob. Isolated and touching the blob, it survives skeletonizing as
+# a crumb and renders as a pen-width dot on the rim. Fold any such small speck back into the
+# blob it abuts (completing the fill to the true edge). A real stroke is a LARGE component,
+# so it is never reclaimed and stays connected -- the targeted opposite of a blanket absorb.
+RIM_CRUMB_W2 = 1.0      # an isolated sub-(pen-square) speck touching a blob is a rim sliver
 
 
 @dataclass
@@ -133,6 +146,26 @@ def _boundaries(comp: np.ndarray, w: float):
     return _xy(outer), holes
 
 
+def _reclaim_rim_crumbs(wide: np.ndarray, ink: Ink) -> np.ndarray:
+    """Fold rim slivers back into the blob they touch (see RIM_CRUMB_W2).
+
+    `outside` is the ink not in a blob. Its LARGE components are real strokes (the line-work
+    running up to the blob) and are left alone; its small components that abut the blob are
+    the slivers grow-to-edge just failed to reach, so they are reclaimed. Keying on
+    *isolated & small*, not on dilation, is what keeps the strokes connected."""
+    outside = ink.mask & ~wide
+    lab, n = ndimage.label(outside, structure=np.ones((3, 3)))
+    if not n:
+        return wide
+    touching = np.unique(lab[ndimage.binary_dilation(wide) & outside])
+    touching = touching[touching > 0]
+    if not touching.size:
+        return wide
+    areas = ndimage.sum(np.ones_like(lab), lab, index=touching)
+    crumbs = touching[areas < RIM_CRUMB_W2 * ink.w * ink.w]
+    return wide | np.isin(lab, crumbs) if crumbs.size else wide
+
+
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
     """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
     A thickened spot on a line or a small dark mark has almost none, so it fails."""
@@ -148,6 +181,7 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
     ramp vs a compact blob -- is a later refinement; every fill is a `blob` here.)
     """
     wide = _wide_mask(ink)                            # solid ink, grown to the true edge
+    wide = _reclaim_rim_crumbs(wide, ink)             # fold isolated rim slivers back in
     lab, n = ndimage.label(wide, structure=np.ones((3, 3)))
     min_area = MIN_BLOB_AREA_W2 * ink.w * ink.w
 
