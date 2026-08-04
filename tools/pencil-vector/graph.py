@@ -220,6 +220,58 @@ def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
     return g
 
 
+DEFORK_LEAF = 1.2       # a fork prong is a leaf shorter than this many w ...
+DEFORK_SPAN = 2.0       # ... whose tip lies within this many w of its sibling's tip
+
+
+def defork(g: Graph, w: float) -> Graph:
+    """Collapse a blunt-end Y (§6.2). Skeletonizing a stroke that ends in a blunt
+    or concave cap -- e.g. where a continuous stroke is cut against a solid region
+    -- does not terminate in a point: the medial axis splits toward the cap's two
+    corners, one prong each. So a junction whose only branches besides the
+    through-stroke are two SHORT SIBLING LEAVES with tips within DEFORK_SPAN*w is
+    not a real fork, it is a single termination. Replace the pair with one endpoint
+    at their midpoint -- which is where the centerline meets the cap, i.e. a single
+    stroke->solid contact rather than two prongs."""
+    from model import BLOB, ENDPOINT
+
+    changed = True
+    while changed:
+        changed = False
+        deg: dict = {}
+        for e in g.edges.values():
+            deg[e.a] = deg.get(e.a, 0) + 1
+            deg[e.b] = deg.get(e.b, 0) + 1
+        for jid, nd in list(g.nodes.items()):
+            if nd.kind == BLOB or deg.get(jid, 0) != 3:
+                continue
+            inc = [e for e in g.edges.values() if e.a == jid or e.b == jid]
+            leaves = [(e, e.b if e.a == jid else e.a) for e in inc]
+            leaves = [(e, o) for e, o in leaves
+                      if deg.get(o, 0) == 1 and g.nodes[o].kind != BLOB and e.length < DEFORK_LEAF * w]
+            if len(leaves) != 2:
+                continue
+            (e1, c1), (e2, c2) = leaves
+            p1 = np.array(g.nodes[c1].pos, float)
+            p2 = np.array(g.nodes[c2].pos, float)
+            if float(np.hypot(*(p1 - p2))) > DEFORK_SPAN * w:
+                continue
+            mid = (p1 + p2) / 2.0
+            through = [e for e in inc if e is not e1 and e is not e2]
+            del g.edges[e1.id]
+            del g.edges[e2.id]
+            del g.nodes[c1]
+            del g.nodes[c2]
+            nd.pos = (float(mid[0]), float(mid[1]))     # J becomes the single stroke end
+            nd.kind = ENDPOINT
+            if through:                                 # extend the through-stroke to the cap
+                th = through[0]
+                th.pts[0 if th.a == jid else -1] = mid
+            changed = True
+            break
+    return g
+
+
 def prune_spurs(g: Graph, max_len: float, blob_masks=()) -> Graph:
     """Remove short twigs that thinning manufactures from boundary noise on wide
     strokes (§6.4). Connectivity is the invariant (§2.1): a leaf is a real twig

@@ -70,22 +70,26 @@ def _poly_area(p):
     return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
 
 
-def test_supersample_recovers_small_receiver_holes():
-    # Regression (§5): at native resolution the two small holes in the SMG receiver
-    # fall under the hole noise floor and vanish; dynamic supersampling must resolve
-    # them. Assert the gun blob keeps a sub-pen-scale hole in that region, which a
-    # pen-relative floor at native scale would have dropped.
-    ink = ingest(_iso("soldier"))
-    assert ink.scale > 1, "dynamic supersample did not fire"
-    blobs, _ = segment(ink)
-    gun = max(blobs, key=lambda b: b.mask.sum())
-    s, wn = ink.scale, ink.w / ink.scale
-    receiver = [h for h in gun.holes
-                if 118 <= h[:, 0].mean() / s <= 148 and 100 <= h[:, 1].mean() / s <= 124]
-    assert receiver, f"no holes recovered in the receiver region (total={len(gun.holes)})"
-    # at least one is genuinely small -- below w^2, i.e. it only survives via resolution
-    assert any(_poly_area(h) / (s * s) < wn * wn for h in receiver), \
-        "recovered holes are all large; the sub-pen-scale hole was still lost"
+def test_pen_width_hole_floor():
+    # A hole smaller than the pen width can't be carved by the pen, so it is dropped; a
+    # hole at least a pen width across is kept (§6.2). Solid disc with one sub-pen hole
+    # and one >= pen-width hole -> only the larger survives.
+    from scipy import ndimage
+    from ink import Ink
+    w = 16.0
+    H = Wd = int(16 * w)
+    yy, xx = np.mgrid[0:H, 0:Wd]
+    cx = cy = H // 2
+    disc = (xx - cx) ** 2 + (yy - cy) ** 2 <= (6 * w) ** 2
+    small = (xx - (cx + int(2.5 * w))) ** 2 + (yy - cy) ** 2 <= (0.3 * w) ** 2   # sub-pen -> drop
+    big = (xx - (cx - int(2.5 * w))) ** 2 + (yy - cy) ** 2 <= (1.0 * w) ** 2      # >= pen -> keep
+    mask = disc & ~small & ~big
+    dist = ndimage.distance_transform_edt(mask)
+    blobs, _ = segment(Ink(mask=mask, dist=dist, w=w, scale=1))
+    assert len(blobs) == 1
+    holes = blobs[0].holes
+    assert len(holes) == 1, f"expected only the >=pen-width hole, got {len(holes)}"
+    assert holes[0][:, 0].mean() < cx, "the sub-pen hole survived instead of the large one"
 
 
 def test_no_microblobs_on_cannon_wheel():
@@ -101,6 +105,25 @@ def test_no_microblobs_on_cannon_wheel():
         cx, cy = b.centroid[0] / s, b.centroid[1] / s
         assert not (195 <= cx <= 232 and 165 <= cy <= 214), \
             f"a blob sits on the wheel at native ({cx:.0f},{cy:.0f}) -- microblob"
+
+
+def test_no_shell_of_rim_crumbs():
+    # Regression (§6.3): the old detector left the blob a pen-width inside the ink edge,
+    # so a whole SHELL of ink survived around it and skeletonized into a chain of crumbs.
+    # Grow-to-edge lands the boundary on the true edge, so at most a few sparse rough-edge
+    # crumbs remain (strokes stay connected -- no absorb) -- not a ring of them.
+    from scipy import ndimage
+    ink = ingest(_iso("cannon"))
+    blobs, _ = segment(ink)
+    union = np.zeros_like(ink.mask)
+    for b in blobs:
+        union |= b.mask
+    edt = ndimage.distance_transform_edt(~union) / ink.scale     # native px to a blob
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=2)
+    on_rim = [e for e in g.edges.values()
+              if float(np.hypot(*np.diff(e.pts, axis=0).T).sum()) / ink.scale < 2.0
+              and edt[int(e.pts[len(e.pts) // 2][1]), int(e.pts[len(e.pts) // 2][0])] < 2.5]
+    assert len(on_rim) <= 6, f"{len(on_rim)} rim crumbs -- a shell, not sparse roughness"
 
 
 def test_dump_emits_fills_and_strokes():

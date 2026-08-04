@@ -25,6 +25,10 @@ GRAIN_AREA = 4          # native px; drop connected components at or below this
 SAUVOLA_WINDOW = 25     # px; local-threshold neighborhood for uneven pencil
 DARK_ABS = 0.4          # any pixel this dark is ink regardless of local contrast: Sauvola
                         # otherwise carves false holes out of a large uniform-dark fill
+MIN_HOLE_W2 = 0.79      # keep an interior hole only if at least ~a pen width across (0.79
+                        # w^2 = area of a disc of diameter w); the pen can't carve a smaller
+                        # one, so it is imaging noise. Filled at ingest (so a fill isn't left
+                        # notched around it) and re-checked when holes are traced.
 
 # Dynamic resolution (§5): a scan is drawn at whatever DPI it was drawn at, so the
 # native pen width `w` varies. We supersample (LANCZOS) so the pipeline always runs
@@ -105,4 +109,17 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
 
     dist = ndimage.distance_transform_edt(mask)
     w = _modal_pen_width(mask, dist)
+
+    # Fill enclosed hollows smaller than a pen width across: the pen can't carve them, so
+    # they are imaging noise, not real holes. Doing it here (not only dropping them when
+    # holes are traced) also reconnects the thin ink around such a hollow to the solid --
+    # otherwise a fill is left with a notch where the sub-pen hole sat.
+    holes = ndimage.binary_fill_holes(mask) & ~mask
+    if holes.any():
+        hl, hn = ndimage.label(holes, structure=np.ones((3, 3)))
+        area = ndimage.sum(np.ones_like(hl), hl, index=np.arange(1, hn + 1))
+        tiny = np.isin(hl, 1 + np.where(area < MIN_HOLE_W2 * w * w)[0])
+        if tiny.any():
+            mask = mask | tiny
+            dist = ndimage.distance_transform_edt(mask)
     return Ink(mask=mask, dist=dist, w=w, scale=scale)

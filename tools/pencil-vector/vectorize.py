@@ -15,7 +15,8 @@ import numpy as np
 from PIL import Image
 
 from embedding import containment, rotational_order
-from graph import attach_edges_to_blobs, build, prune_spurs, resolve_continuity
+from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
+                   resolve_continuity)
 from ink import ingest
 from model import BLOB, Node
 from stableid import assign
@@ -44,6 +45,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
 
     blobs, thin = segment(ink)              # Stage 1
     g = build(ink, mask=thin)               # strokes only
+    defork(g, ink.w)                        # blunt-end Y where a stroke is cut at a solid -> one end
     nid = (max(g.nodes) + 1) if g.nodes else 0
     blob_masks = {}
     for b in blobs:                         # blobs are first-class nodes (§6.3)

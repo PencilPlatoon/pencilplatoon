@@ -31,8 +31,9 @@ def _e(i, a, b, pts):
 
 
 def test_blobs_get_interior_holes():
-    # the SMG's solid has real hollows -- they must be traced, not swallowed
-    g = vectorize(_iso("soldier"), milestone=6)
+    # the flag's field has real hollows at least a pen wide (the emblem) -- they must be
+    # traced, not swallowed. (Sub-pen-width hollows are dropped by the pen-width floor.)
+    g = vectorize(_iso("flag"), milestone=6)
     blobs = [nd for nd in g.nodes.values() if nd.kind == BLOB]
     assert any(nd.ann.get("holes") for nd in blobs)
 

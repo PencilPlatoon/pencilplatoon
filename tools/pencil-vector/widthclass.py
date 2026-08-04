@@ -8,11 +8,13 @@ each to the right representation:
     blob      r >> w, low aspect ratio        -> boundary polygon + fill
     variable  r ramps monotonically           -> filled outline (a taper)
 
-A region is solid where ink is locally dense (from thick strokes or crosshatch);
-its raw outer boundary is traced as-is. Boundary idealization (smoothing,
-straightening, arc-fitting) is a later, uniform step (M7) applied to line-work
-and blob outlines alike, and interior holes (§6.2) are left in place for later
-tracing -- neither is done here, where the job is only classification.
+A region is solid where the ink is 2D-thick -- a pen-diameter disc fits inside it, so
+its medial radius exceeds the pen. A stroke, ~one pen wide, never reaches that; a fill's
+interior does, however thin the fill. (The distance transform is the "density" test:
+thick over an area vs thin along a line. Genuine crosshatch -- thin strokes with white
+gaps -- is left as line-work, being indistinguishable from a stroke crossing.) The raw
+outer boundary is traced as-is; boundary idealization (smoothing, straightening,
+arc-fitting) is a later, uniform step (M7), and interior holes (§6.2) are left in place.
 
 A long thick *line* (a deliberately heavy outline stroke, e.g. a flag pole) is
 rescued back to `stroke`: high length-to-width aspect with near-constant width
@@ -25,19 +27,19 @@ from dataclasses import dataclass, field
 import numpy as np
 from scipy import ndimage
 from skimage.measure import approximate_polygon, find_contours
-from skimage.morphology import binary_opening, disk, skeletonize
+from skimage.morphology import skeletonize
 
-from ink import Ink
+from ink import Ink, MIN_HOLE_W2
 from model import BLOB
 
-# A region is solid where ink is locally DENSE -- from thick strokes OR from
-# crosshatch/scribble whose individual strokes are thin. Thickness alone misses
-# the scribbled kind and leaves the blob with concave gaps and internal strokes.
-WIDE_ENTER = 1.15       # SEED a blob only at a genuine thick core, r > 1.15w
-                        # (a junction of thin lines has no such core, so it can't seed)
-WIDE_EXIT = 0.75        # GROW through still-thick ink, r > 0.75w ...
-DENS_WIN = 2.5          # ... or through locally dense ink: fraction of ink in a
-DENS_GROW = 0.5         # window this wide (in w) above this -> part of the solid
+# A region is solid where the ink is 2D-thick: a pen-diameter disc fits inside it (its
+# medial radius exceeds WIDE_EXIT*w). A stroke, ~one pen wide, never reaches that; a
+# fill's interior does, however thin the fill. (Genuine crosshatch -- thin strokes with
+# white gaps -- is deliberately NOT captured: no local measure separates it from a stroke
+# crossing, so it is left as line-work.)
+WIDE_EXIT = 0.75        # ink is a 2D FILL where a pen-diameter disc fits: r > 0.75w
+WIDE_ENTER = 0.90       # SEED slightly deeper so a stroke *crossing* (a thin, shallow
+                        # overlap) can't seed a fill; the band is grown back out to the edge
 
 # Thick-line rescue (plan §6.1.2): a heavy *outline stroke* is very elongated and
 # never much wider than a stroke -- keep it a centerline, not a fill. A filled
@@ -47,25 +49,15 @@ DENS_GROW = 0.5         # window this wide (in w) above this -> part of the soli
 LINE_ASPECT = 60.0      # length/width above which a component may be a line
 LINE_MAX_W = 3.0        # ...but only if it never exceeds this width (in w) anywhere
 
-# A blob is a genuinely 2D solid (plan §6.1: r >> w, low aspect) -- NOT merely a
-# region with enough total ink. Two things masquerade as blobs under a total-area
-# test and must be rejected on 2D grounds instead:
-#   * nubs -- thin protrusions where strokes attach to a fill (the density-grow
-#     crawls a little way down the stroke). Removed by OPENING the fill by ~a pen
-#     radius: a protrusion narrower than the pen cannot survive it. (Opening does
-#     not fill interior holes, so recovered hollows are safe.)
-#   * microblobs -- a thickened spot on line-art (a doubled stroke) or a small dark
-#     mark (a hub dot). These have almost no 2D INTERIOR, so require a deep core.
-OPEN_R = 0.9            # open the fill by this many pen radii to shave nubs/slivers
+# A blob must own a genuine 2D INTERIOR, not merely enough total ink (plan §6.1). This
+# rejects the two things that masquerade as fills: a thin RING (walls one pen wide -- a
+# stroke loop with no interior) and a small dark MARK (a doubled-stroke spot or a hub
+# dot). Both have almost no deep core, so a blob is required to own one.
 CORE_R = 1.0            # a "2D core" pixel lies more than this many w from any edge
 MIN_CORE_W2 = 3.0       # a blob must own at least this many w^2 of such core
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
-MIN_HOLE_PX = 6.0       # keep interior holes bigger than this many *native* px; smaller =
-                        # paper speckle. Absolute, not pen-relative: a real hole's size is
-                        # set by the drawing, not the pen, so a small hole can be far under
-                        # w^2 (§6.2). Supersampling then resolves it -- scaled by scale^2.
-POLY_TOL_W = 0.5        # boundary decimation tolerance, in units of w
+POLY_TOL_W = 0.5        # boundary decimation tolerance, in units of w  (MIN_HOLE_W2: ink.py)
 
 
 @dataclass
@@ -78,19 +70,25 @@ class Blob:
 
 
 def _wide_mask(ink: Ink) -> np.ndarray:
-    """Solid regions: seed on a genuine thick core, then grow through ink that is
-    either still thick OR locally dense (so crosshatch is pulled in). Interior
-    holes are left in place -- §6.2 keeps them, and filling them here would
-    swallow real hollows; tracing them is later work."""
+    """Solid regions are 2D-thick ink -- where a pen-diameter disc fits (d > WIDE_EXIT*w)
+    the ink is a fill, not a stroke. Hysteresis seeds on a slightly deeper core so a
+    stroke *crossing* (a thin, shallow overlap) cannot seed a spurious fill, keeps the
+    band component each seed touches, then grows that core back out to the true ink edge
+    so the blob matches the drawing and strokes meet it cleanly (no inner shell, hence no
+    rim stubs).
+
+    The distance transform IS the 2D-"density" test: thick over an *area* vs thin along a
+    *line*. A local ink-fraction window cannot tell a thin fill from a stroke crossing
+    (both read ~0.7), but the medial radius can. Interior holes are left in place (§6.2)."""
     d, m, w = ink.dist, ink.mask, ink.w
     seed = m & (d > WIDE_ENTER * w)
     if not seed.any():
         return np.zeros_like(m)
-    dens = ndimage.uniform_filter(m.astype(float), size=max(3, int(round(DENS_WIN * w))))
-    grow = m & ((d > WIDE_EXIT * w) | (dens > DENS_GROW))
-    lab, _ = ndimage.label(grow, structure=np.ones((3, 3)))
+    band = m & (d > WIDE_EXIT * w)
+    lab, _ = ndimage.label(band, structure=np.ones((3, 3)))
     keep = np.unique(lab[seed])
-    return np.isin(lab, keep[keep > 0])
+    core = np.isin(lab, keep[keep > 0])
+    return m & (ndimage.distance_transform_edt(~core) <= WIDE_EXIT * w + 1.0)
 
 
 def _is_line(comp: np.ndarray, dist: np.ndarray, w: float) -> bool:
@@ -114,9 +112,9 @@ def _xy(poly: np.ndarray) -> np.ndarray:
     return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
 
 
-def _boundaries(comp: np.ndarray, w: float, scale: int = 1):
+def _boundaries(comp: np.ndarray, w: float):
     """Trace the outer boundary AND any interior holes (§6.2), each decimated.
-    Holes below an absolute (native-px) noise floor are dropped as speckle."""
+    Holes below a pen-width floor are dropped (smaller than the pen can carve)."""
     cs = find_contours(comp.astype(float), 0.5)
     if not cs:
         return None, []
@@ -124,7 +122,7 @@ def _boundaries(comp: np.ndarray, w: float, scale: int = 1):
     outer = approximate_polygon(cs[0], tolerance=POLY_TOL_W * w)
     if len(outer) < 3:
         return None, []
-    hole_floor = MIN_HOLE_PX * scale * scale
+    hole_floor = MIN_HOLE_W2 * w * w
     holes = []
     for c in cs[1:]:
         if _poly_area(c) < hole_floor:
@@ -149,15 +147,7 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
     (Taper/`variable` detection -- splitting an elongated fill into a monotone
     ramp vs a compact blob -- is a later refinement; every fill is a `blob` here.)
     """
-    wide = _wide_mask(ink)
-    # A blob must be solid at pen scale: opening shaves off thin protrusions (nubs
-    # where strokes attach) so only genuinely 2D regions remain. Do it hole-safely
-    # -- fill interior hollows first so the ring around a hole reads as solid and
-    # can't be eroded away, open, then re-punch the exact holes (§6.2 hollows must
-    # survive). Ink the opening removes returns to the stroke mask below.
-    filled = ndimage.binary_fill_holes(wide)
-    holes = filled & ~wide
-    wide = binary_opening(filled, disk(max(1, int(round(OPEN_R * ink.w))))) & ~holes
+    wide = _wide_mask(ink)                            # solid ink, grown to the true edge
     lab, n = ndimage.label(wide, structure=np.ones((3, 3)))
     min_area = MIN_BLOB_AREA_W2 * ink.w * ink.w
 
@@ -168,10 +158,10 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
         if comp.sum() < min_area:
             continue
         if not _has_2d_core(comp, ink.w):
-            continue                                  # microblob: no 2D interior
+            continue                                  # ring / dot: no 2D core -> stays strokes
         if _is_line(comp, ink.dist, ink.w):
-            continue                                  # rescued: stays a stroke
-        outer, holes = _boundaries(comp, ink.w, ink.scale)
+            continue                                  # heavy outline stroke -> centerline
+        outer, holes = _boundaries(comp, ink.w)
         if outer is None:
             continue
         ys, xs = np.where(comp)
@@ -179,5 +169,8 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
                           centroid=(float(xs.mean()), float(ys.mean()))))
         blob_union |= comp
 
+    # The blob reaches the true ink edge (grow-to-edge in `_wide_mask`), so ink not in a
+    # blob is stroke ink and each stroke runs right up to the blob it meets -- no absorb,
+    # so nothing is trimmed back and strokes stay connected.
     thin = ink.mask & ~blob_union
     return blobs, thin
