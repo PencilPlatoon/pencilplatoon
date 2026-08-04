@@ -15,6 +15,7 @@ import numpy as np
 from PIL import Image
 
 from embedding import containment, rotational_order
+from fit import fit_graph
 from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
                    resolve_continuity)
 from ink import ingest
@@ -23,7 +24,7 @@ from stableid import assign
 from svgdump import dump
 from widthclass import segment
 
-LATEST = 6                      # highest implemented milestone
+LATEST = 7                      # highest implemented milestone
 SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not length, decides
                                 # which short leaves are twigs vs. real connectors/continuations
 
@@ -64,6 +65,8 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     if milestone >= 6:                      # M6: planar embedding (§8)
         rotational_order(g)
         containment(g)
+    if milestone >= 7:                      # M7: geometry fitting (§9) -- annotations only
+        fit_graph(g, ink.w)
     return g
 
 

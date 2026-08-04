@@ -13,9 +13,12 @@ stable id (M3) for reference.
 """
 from __future__ import annotations
 
+from fit import reconstruct
 from model import BLOB, Graph
 
 STROKE = "#111"
+CHARM = 0.0             # fraction of the fitted residual to reapply as wobble (§9/§11):
+                        # 0 = crisp idealized geometry, 1 = the original hand. M7 render is crisp.
 HIT_W = 2.8             # wide invisible hit stroke, in units of w
 NODE_FILL = {"endpoint": "#2a7", "junction": "#e8402f", "blob": "#39f"}
 
@@ -30,7 +33,19 @@ def _sid(el) -> str:
     return ' data-sid="%s"' % el.sid if el.sid else ""
 
 
-def dump(g: Graph, show_nodes: bool = False) -> str:
+def _blob_outline(nd, charm):
+    """Boundary + holes as (x,y) polylines -- the fitted, idealized geometry when a
+    geometry fit (M7) is present, otherwise the raw traced outline (M6)."""
+    if "fit" in nd.ann:
+        outer = reconstruct(nd.ann["fit"], charm)
+        holes = [reconstruct(h, charm) for h in nd.ann.get("fit_holes", [])]
+    else:
+        outer = nd.boundary
+        holes = [h for h in nd.ann.get("holes", []) if len(h) >= 3]
+    return outer, holes
+
+
+def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM) -> str:
     w_img, h = g.size
     sw = max(1.0, g.w)
     hitw = HIT_W * sw
@@ -40,15 +55,17 @@ def dump(g: Graph, show_nodes: bool = False) -> str:
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            d = _d(nd.boundary, close=True)
-            for hole in nd.ann.get("holes", []):
+            outer, holes = _blob_outline(nd, charm)
+            d = _d(outer, close=True)
+            for hole in holes:
                 if len(hole) >= 3:
                     d += " " + _d(hole, close=True)
             vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, STROKE)
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))
     for e in g.edges.values():
-        d = _d(e.pts)
+        pts = reconstruct(e.ann["fit"], charm) if "fit" in e.ann else e.pts
+        d = _d(pts)
         vis = ('<path data-edge="%d"%s d="%s" fill="none" stroke="%s" stroke-width="%.2f" '
                'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, STROKE, sw))
         hit = ('<path class="hit" d="%s" fill="none" stroke="transparent" '
