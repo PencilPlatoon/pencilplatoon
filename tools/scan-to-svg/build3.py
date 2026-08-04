@@ -75,15 +75,37 @@ ZOOM_ICON=('<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="
            'stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/>'
            '<path d="M20 20l-4.7-4.7"/></svg>')
 def tile(kind,label,inner,meta):
-    i="z%d"%_id[0]; _id[0]+=1
-    return ('<figure class="tile" id="%s">'
+    # zoom is handled by a small JS lightbox (see LIGHTBOX): the button clones the
+    # cell's visible SVG into a fixed overlay -- no #hash, no scroll side effects.
+    return ('<figure class="tile">'
             '<div class="art %s">%s</div>'
-            '<a class="zoombtn" href="#%s" aria-label="Zoom">%s</a>'
+            '<button type="button" class="zoombtn" aria-label="Zoom">%s</button>'
             '<figcaption><span class="k">%s</span><span class="m">%s</span></figcaption>'
-            '<a class="zclose" href="#closez" aria-label="Close zoom"></a>'
-            '</figure>')%(i,kind,inner,i,ZOOM_ICON,label,meta)
+            '</figure>')%(kind,inner,ZOOM_ICON,label,meta)
 
 def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64(f))
+
+# JS lightbox: clone the cell's currently-visible SVG/img into a fixed overlay.
+# No #hash and no scroll changes, so opening a zoom never moves the page behind it.
+LIGHTBOX='''<div id="lb"><div id="lbframe"></div></div>
+<script>
+(function(){
+  var lb=document.getElementById('lb'), fr=document.getElementById('lbframe');
+  function close(){ lb.classList.remove('on'); fr.textContent=''; }
+  document.addEventListener('click', function(e){
+    var btn=e.target.closest('.zoombtn');
+    if(btn){
+      var art=btn.parentNode.querySelector('.art');
+      var el=[].slice.call(art.querySelectorAll('svg,img')).filter(function(x){
+        return x.getBoundingClientRect().width>0; })[0];   // the visible milestone/panel
+      if(el){ fr.textContent=''; fr.appendChild(el.cloneNode(true)); lb.classList.add('on'); }
+      return;
+    }
+    if(e.target===lb) close();               // click the backdrop (not the drawing) to close
+  });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+</script>'''
 
 rows=""
 for key,name,note in comps:
@@ -106,6 +128,7 @@ body=(link_css()
  +rows+'</section>'
  '<footer class="foot"><p><strong>Where this lands:</strong> <em>hybrid</em> stays the batch default &mdash; subject-only, 12&ndash;21&#8202;KB, clean flat colour. <em>Auto-trace</em> when you want pencil texture; <em>redraw</em> for props you rig or recolour at runtime.</p>'
  '<p>Next: the <strong>Auto-detect + isolate</strong> button in <code>level-image-saver.html</code>, wrapping exactly this pipeline with draggable boxes and an eraser for the leftovers.</p></footer>'
- '</div>')
+ '</div>'
+ +LIGHTBOX)
 open("body3.html","w").write(body)
 print("wrote body3.html","%.0f KB"%(os.path.getsize("body3.html")/1024))
