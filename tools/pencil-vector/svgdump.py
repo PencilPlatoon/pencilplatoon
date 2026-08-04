@@ -62,13 +62,12 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            d = _curve_d(nd.ann, nd.boundary, True, charm, primitives)
-            for h_ann in nd.ann.get("fit_holes", []):            # M7+: fitted holes
-                d += " " + path_d(h_ann) if (primitives and charm == 0.0) else " " + _d(reconstruct(h_ann, charm), close=True)
-            if "fit" not in nd.ann:                              # M6: raw holes
-                for hole in nd.ann.get("holes", []):
-                    if len(hole) >= 3:
-                        d += " " + _d(hole, close=True)
+            # a fill follows its (min-width-enforced) traced edge; it is NOT arc-fit, because
+            # fitting an elongated fill collapses a blunt pen-wide tip back to a point (§6.1).
+            d = _d(nd.boundary, close=True)
+            for hole in nd.ann.get("holes", []):
+                if len(hole) >= 3:
+                    d += " " + _d(hole, close=True)
             vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, _color(nd, g))
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))

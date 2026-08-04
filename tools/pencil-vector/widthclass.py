@@ -57,6 +57,8 @@ CORE_R = 1.0            # a "2D core" pixel lies more than this many w from any 
 MIN_CORE_W2 = 3.0       # a blob must own at least this many w^2 of such core
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
+MIN_WIDTH_R = 0.65      # a fill is >= a pen wide everywhere: floor the medial radius here (a
+                        # touch over w/2 so it still clears a pen after boundary decimation)
 POLY_TOL_W = 0.1        # boundary decimation, in units of w. A stroke keeps every traced
                         # pixel, so it follows the drawn wobble; the blob boundary is the
                         # same kind of traced polyline and should track its own rough edge
@@ -166,6 +168,20 @@ def _reclaim_rim_crumbs(wide: np.ndarray, ink: Ink) -> np.ndarray:
     return wide | np.isin(lab, crumbs) if crumbs.size else wide
 
 
+def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:
+    """A pen mark is at least a pen wide EVERYWHERE -- a sub-pen taper or spike is unphysical
+    (the pen can't draw thinner). Reconstruct the region from its skeleton with the medial
+    radius floored at w/2, so a thin tip blunts to a pen-wide rounded cap -- fixing the pinch-
+    offs that disconnect a tapering blob -- while the thick body is kept exactly (union)."""
+    skel = skeletonize(comp)
+    if not skel.any():
+        return comp
+    dist = ndimage.distance_transform_edt(comp)
+    d2s, idx = ndimage.distance_transform_edt(~skel, return_distances=True, return_indices=True)
+    radius = dist[idx[0], idx[1]]                     # medial radius of the nearest skeleton point
+    return comp | (d2s <= np.maximum(radius, MIN_WIDTH_R * w))
+
+
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
     """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
     A thickened spot on a line or a small dark mark has almost none, so it fails."""
@@ -195,6 +211,7 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
             continue                                  # ring / dot: no 2D core -> stays strokes
         if _is_line(comp, ink.dist, ink.w):
             continue                                  # heavy outline stroke -> centerline
+        comp = _enforce_min_width(comp, ink.w)        # a fill is >= a pen wide everywhere (§6.1)
         outer, holes = _boundaries(comp, ink.w)
         if outer is None:
             continue
