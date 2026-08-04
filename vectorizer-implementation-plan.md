@@ -430,7 +430,23 @@ Get end-to-end early; depth later.
    post-fit assertion.
 7. **M7 — Geometry fitting.** TV denoising, primitive segmentation,
    annotations.
-8. **M8 — Constraints, LOD, colliders, export roles.**
+8. **M8 — Cash-in primitives.** Emit the M7 annotations as real SVG elements
+   (`<circle>` / `<ellipse>` / `<line>` / `A` arcs over Béziers), round
+   coordinates to one decimal, role-aware blob-boundary decimation (§11
+   "complexity wins"). Direct payoff from M7 — the biggest size reduction,
+   depends on nothing else.
+9. **M9 — Relational constraints.** Infer the page-up axis and the child's
+   systematic angular bias *globally*, then snap near-parallel / perpendicular /
+   right-angle / concentric *within each asset* (tier 5, §11). The "snap into
+   place," and the other half of the wobble/charm dial.
+10. **M10 — Export roles, colliders, asset metadata.** The same annotated edge
+    exported three ways — static `<circle>` / rigged extra-nodes / collision
+    convex-hull — with path-merging gated on role, plus anchor transform,
+    canonical orientation, pivot candidates, and fill semantics per asset (§11).
+    Leans on the M4 cleanup tool actually cutting assets out.
+11. **M11 — LOD.** Several geometric levels of detail derived from the one
+    frozen tier 1–3 model; the one place on-screen size may legitimately
+    override "size ≠ salience" (§11).
 
 Measure **clicks per extracted asset** from M4 onward. It's the only metric
 that tracks whether the automatic work is paying for itself.
