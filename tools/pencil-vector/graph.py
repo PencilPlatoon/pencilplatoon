@@ -110,7 +110,7 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
                     eid += 1
 
     h, w_img = skel.shape
-    return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h))
+    return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h), scale=ink.scale)
 
 
 CONT_ANGLE = 44.0       # deg: a leaf within this of a junction partner is a continuation

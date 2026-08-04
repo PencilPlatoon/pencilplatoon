@@ -27,14 +27,18 @@ SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not l
                                 # which short leaves are twigs vs. real connectors/continuations
 
 
-def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
+def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
+              scale: int | None = None):
     """Run the pipeline up to `milestone` -- each milestone adds the features up
     to it, so a given milestone's output is what the approach produced at that
     stage. M1 naive skeleton; M2 width classes; M3 stable IDs + freeze; M4/M5 add
     connectivity (no render change); M6 interior holes + embedding. Only render-
-    changing milestones differ visually (M1, M2, M3, M6)."""
+    changing milestones differ visually (M1, M2, M3, M6).
+
+    `scale` supersamples the scan (§5); None picks it dynamically from the native
+    pen width so small holes / thin walls resolve instead of pinching shut."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
-    ink = ingest(rgb, thresh_bias=thresh_bias)
+    ink = ingest(rgb, thresh_bias=thresh_bias, scale=scale)
     if milestone <= 1:
         return build(ink)
 
@@ -64,21 +68,24 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0):
 def main(argv):
     show_nodes = "--nodes" in argv           # debug overlay of node kinds
     milestone = LATEST
+    scale = None                             # dynamic by default
     for a in argv:
         if a.startswith("--milestone="):
             milestone = int(a.split("=", 1)[1])
+        if a.startswith("--scale="):
+            scale = int(a.split("=", 1)[1])
     pos = [a for a in argv if not a.startswith("--")]
     if not pos:
         print(__doc__)
         return 2
     in_path = pos[0]
     out_path = pos[1] if len(pos) > 1 else "%s_m%d.svg" % (os.path.splitext(in_path)[0], milestone)
-    g = vectorize(in_path, milestone)
+    g = vectorize(in_path, milestone, scale=scale)
     with open(out_path, "w") as f:
         f.write(dump(g, show_nodes=show_nodes))
     blobs = sum(1 for nd in g.nodes.values() if nd.kind == BLOB)
-    print("m%d  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
-          % (milestone, g.w, len(g.nodes), len(g.edges), blobs, out_path))
+    print("m%d  scale=%dx  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
+          % (milestone, g.scale, g.w, len(g.nodes), len(g.edges), blobs, out_path))
     return 0
 
 

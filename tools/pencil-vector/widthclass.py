@@ -48,7 +48,10 @@ LINE_ASPECT = 60.0      # length/width above which a component may be a line
 LINE_MAX_W = 3.0        # ...but only if it never exceeds this width (in w) anywhere
 
 MIN_BLOB_AREA_W2 = 3.0  # ignore wide specks smaller than this many w^2
-MIN_HOLE_W2 = 1.5       # keep interior holes bigger than this many w^2; smaller = noise
+MIN_HOLE_PX = 6.0       # keep interior holes bigger than this many *native* px; smaller =
+                        # paper speckle. Absolute, not pen-relative: a real hole's size is
+                        # set by the drawing, not the pen, so a small hole can be far under
+                        # w^2 (§6.2). Supersampling then resolves it -- scaled by scale^2.
 POLY_TOL_W = 0.5        # boundary decimation tolerance, in units of w
 
 
@@ -98,9 +101,9 @@ def _xy(poly: np.ndarray) -> np.ndarray:
     return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
 
 
-def _boundaries(comp: np.ndarray, w: float):
+def _boundaries(comp: np.ndarray, w: float, scale: int = 1):
     """Trace the outer boundary AND any interior holes (§6.2), each decimated.
-    Holes below a noise floor are dropped (speckle, not a real hollow)."""
+    Holes below an absolute (native-px) noise floor are dropped as speckle."""
     cs = find_contours(comp.astype(float), 0.5)
     if not cs:
         return None, []
@@ -108,9 +111,10 @@ def _boundaries(comp: np.ndarray, w: float):
     outer = approximate_polygon(cs[0], tolerance=POLY_TOL_W * w)
     if len(outer) < 3:
         return None, []
+    hole_floor = MIN_HOLE_PX * scale * scale
     holes = []
     for c in cs[1:]:
-        if _poly_area(c) < MIN_HOLE_W2 * w * w:
+        if _poly_area(c) < hole_floor:
             continue
         h = approximate_polygon(c, tolerance=POLY_TOL_W * w)
         if len(h) >= 3:
@@ -137,7 +141,7 @@ def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:
             continue
         if _is_line(comp, ink.dist, ink.w):
             continue                                  # rescued: stays a stroke
-        outer, holes = _boundaries(comp, ink.w)
+        outer, holes = _boundaries(comp, ink.w, ink.scale)
         if outer is None:
             continue
         ys, xs = np.where(comp)

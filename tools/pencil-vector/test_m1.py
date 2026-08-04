@@ -36,9 +36,11 @@ def _graph(name):
 @pytest.mark.parametrize("name", LINE_ART)
 def test_pen_width_is_sane(name):
     # hand-measured line-art stroke on these scans is ~4px; accept a wide band
-    # but reject degenerate (<=1) or fill-dominated (>8) results.
+    # but reject degenerate (<=1) or fill-dominated (>8) results. `w` is at the
+    # supersampled working scale (§5), so compare the native-equivalent w/scale.
     g = _graph(name)
-    assert 2.0 <= g.w <= 8.0, f"{name} w={g.w}"
+    w_native = g.w / g.scale
+    assert 2.0 <= w_native <= 8.0, f"{name} w={g.w} scale={g.scale} native={w_native:.2f}"
 
 
 @pytest.mark.parametrize("name", LINE_ART)

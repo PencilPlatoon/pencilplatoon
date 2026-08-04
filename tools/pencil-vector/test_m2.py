@@ -65,6 +65,29 @@ def test_thin_mask_excludes_blob_pixels():
         assert not (thin & b.mask).any(), "blob pixels leaked into the thin mask"
 
 
+def _poly_area(p):
+    x, y = p[:, 0], p[:, 1]
+    return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
+
+
+def test_supersample_recovers_small_receiver_holes():
+    # Regression (§5): at native resolution the two small holes in the SMG receiver
+    # fall under the hole noise floor and vanish; dynamic supersampling must resolve
+    # them. Assert the gun blob keeps a sub-pen-scale hole in that region, which a
+    # pen-relative floor at native scale would have dropped.
+    ink = ingest(_iso("soldier"))
+    assert ink.scale > 1, "dynamic supersample did not fire"
+    blobs, _ = segment(ink)
+    gun = max(blobs, key=lambda b: b.mask.sum())
+    s, wn = ink.scale, ink.w / ink.scale
+    receiver = [h for h in gun.holes
+                if 118 <= h[:, 0].mean() / s <= 148 and 100 <= h[:, 1].mean() / s <= 124]
+    assert receiver, f"no holes recovered in the receiver region (total={len(gun.holes)})"
+    # at least one is genuinely small -- below w^2, i.e. it only survives via resolution
+    assert any(_poly_area(h) / (s * s) < wn * wn for h in receiver), \
+        "recovered holes are all large; the sub-pen-scale hole was still lost"
+
+
 def test_dump_emits_fills_and_strokes():
     g = vectorize(os.path.join(ISO, "soldier_iso.png"), milestone=2)
     svg = dump(g)

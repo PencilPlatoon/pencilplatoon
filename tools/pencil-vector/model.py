@@ -59,6 +59,7 @@ class Graph:
     edges: dict[int, Edge]
     w: float                              # modal pen width, the unit of scale
     size: tuple[int, int]                 # (width, height) of the source raster
+    scale: int = 1                        # supersample factor applied at ingest (§5)
     frozen: bool = False                  # set once stable IDs are assigned (M3)
 
     def neighbors(self, node_id: int) -> list[Edge]:
