@@ -90,15 +90,29 @@ def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64
 LIGHTBOX='''<div id="lb"><div id="lbframe"></div></div>
 <script>
 (function(){
-  var lb=document.getElementById('lb'), fr=document.getElementById('lbframe');
+  var lb=document.getElementById('lb'), fr=document.getElementById('lbframe'), n=0;
   function close(){ lb.classList.remove('on'); fr.textContent=''; }
   document.addEventListener('click', function(e){
     var btn=e.target.closest('.zoombtn');
     if(btn){
       var art=btn.parentNode.querySelector('.art');
-      var el=[].slice.call(art.querySelectorAll('svg,img')).filter(function(x){
-        return x.getBoundingClientRect().width>0; })[0];   // the visible milestone/panel
-      if(el){ fr.textContent=''; fr.appendChild(el.cloneNode(true)); lb.classList.add('on'); }
+      fr.textContent='';
+      if(art.classList.contains('pv')){
+        // clone the whole Pencil Vector cell so the milestone tabs come with the zoom;
+        // remap the radio group to a fresh name/id so it drives the clone, not the page.
+        var clone=art.cloneNode(true), uid='lbpv'+(++n);
+        clone.querySelectorAll('.pvr').forEach(function(r){
+          var old=r.id; r.name=uid; r.id=uid+'-'+old;
+          var l=clone.querySelector('label[for="'+old+'"]');
+          if(l) l.setAttribute('for', uid+'-'+old);
+        });
+        fr.appendChild(clone);
+      } else {
+        var el=[].slice.call(art.querySelectorAll('svg,img')).filter(function(x){
+          return x.getBoundingClientRect().width>0; })[0];
+        if(el) fr.appendChild(el.cloneNode(true));
+      }
+      lb.classList.add('on');
       return;
     }
     if(e.target===lb) close();               // click the backdrop (not the drawing) to close
@@ -109,25 +123,22 @@ LIGHTBOX='''<div id="lb"><div id="lbframe"></div></div>
 
 rows=""
 for key,name,note in comps:
-    C=vec(key)
-    cells=(tile("overlay",name+" · scan",scan_overlay(key),"hover the hybrid &rarr;")
-         + tile("vec",name+" · hybrid (old)",C,kb(f"out/{key}_C.svg")+" · "+paths(C)+"p")
-         + tile("pv",name+" · Pencil Vector",pv_cell(key),pv_meta(key)))
+    cells=(tile("scan",name+" &middot; scan",img(f"out/{key}_iso.png",name+" scan"),"the drawing")
+         + tile("pv",name+" &middot; Pencil Vector",pv_cell(key),pv_meta(key)))
     rows+=('<div class="row"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
            '<div class="cells">%s</div></div>')%(name,note,cells)
 
-body=(link_css()
- +'<input id="shownums" type="checkbox">'
+body=('<input id="shownums" type="checkbox">'
  '<label class="numtoggle" for="shownums"><span class="dot"></span>Element numbers</label>'
  '<div class="wrap">'
- '<header class="masthead"><p class="eyebrow">Scan &rarr; SVG &middot; fidelity study v8</p>'
- '<h1>Size-aware fitting, at the right resolution</h1>'
- '<p class="dek">Two principled upgrades. Fitting tolerance is now <strong>relative to each feature&rsquo;s size</strong> &mdash; a big squiggle straightens while a tiny sharp shape is preserved (<em>salience isn&rsquo;t size</em>). And the pipeline <strong>skeletonises at higher resolution</strong>, so strokes that fused at the scan&rsquo;s pixel scale (like the little box at the cannon&rsquo;s tip) resolve into their true shapes. On top of that, still: pen-width snapping (round caps), line / arc / circle fitting, and wheels that sit on the frame.</p></header>'
- '<section class="matrix"><h2>Old approach vs. new, every candidate</h2>'
- '<p class="sub">Three panels per row: original <em>scan</em> &rarr; <em>hybrid (old)</em>, the shipping <code>scan-to-svg</code> tool that fits lines / arcs / circles and keeps solid areas solid &rarr; <em>Pencil&nbsp;Vector</em>, the ground-up model-based vectorizer being built to the implementation plan. Its cell carries a <strong>tab per visually-distinct milestone</strong> &mdash; M1&ndash;M3, then M6, then M7 (M4&ndash;M5 add the cleanup tool and continuity pairing, which don&rsquo;t change the picture). Flip through to watch the approach evolve; each render is kept. M1 is raw skeleton&rarr;graph (one centerline path per edge, no width classes yet), so it looks rougher on purpose; M6 adds interior holes so hollow shapes stay hollow; <strong>M7 fits each stroke and boundary to lines, arcs and clothoids in the turning function</strong> &mdash; wobble gone, corners kept &mdash; recorded as annotations, so the render is crisp while the raw ink is never discarded; <strong>M8 cashes those annotations in as real geometry</strong> (one <code>A</code> arc command where M7 sampled a whole polyline), same picture at roughly half the bytes.</p>'
+ '<header class="masthead"><p class="eyebrow">Pencil Vector &middot; milestone study</p>'
+ '<h1>A drawing, vectorized to a model</h1>'
+ '<p class="dek"><em>Pencil&nbsp;Vector</em> is a ground-up, model-based vectorizer built to the implementation plan: it recovers a drawing&rsquo;s <strong>topology</strong> first (a frozen graph of strokes and filled regions), then hangs geometry off it as annotations. Each cell carries a <strong>tab per milestone</strong> so you can watch the same drawing sharpen &mdash; raw skeleton &rarr; width classes &rarr; holes &rarr; fitted lines / arcs / clothoids &rarr; real primitives. Zoom any cell (the tabs come with it) and flip <em>Element&nbsp;numbers</em> to inspect the graph.</p></header>'
+ '<section class="matrix"><h2>Every subject, every milestone</h2>'
+ '<p class="sub">Two panels per row: the original <em>scan</em> and <em>Pencil&nbsp;Vector</em>, one milestone at a time. Each render is kept, so the tabs let you watch the approach evolve. M1 is raw skeleton&rarr;graph (one centerline path per edge, no width classes yet), so it looks rougher on purpose; M2 splits width classes (fills become filled shapes); M3 freezes stable IDs; M6 adds interior holes so hollow shapes stay hollow; <strong>M7 fits each stroke and boundary to lines, arcs and clothoids in the turning function</strong> &mdash; wobble gone, corners kept &mdash; recorded as annotations, so the raw ink is never discarded; <strong>M8 cashes those annotations in as real geometry</strong> (one <code>A</code> arc command where M7 sampled a whole polyline), the same picture at roughly half the bytes. (M4&ndash;M5 add the cleanup tool and continuity pairing, which don&rsquo;t change the picture.)</p>'
  +rows+'</section>'
- '<footer class="foot"><p><strong>Where this lands:</strong> <em>hybrid</em> stays the batch default &mdash; subject-only, 12&ndash;21&#8202;KB, clean flat colour. <em>Auto-trace</em> when you want pencil texture; <em>redraw</em> for props you rig or recolour at runtime.</p>'
- '<p>Next: the <strong>Auto-detect + isolate</strong> button in <code>level-image-saver.html</code>, wrapping exactly this pipeline with draggable boxes and an eraser for the leftovers.</p></footer>'
+ '<footer class="foot"><p><strong>Where this is going:</strong> M1&ndash;M8 are done &mdash; scan to a frozen topological model with fitted, cashed-in geometry. Next: <em>M9</em> relational constraints (snap parallels, right-angles, concentric circles), <em>M10</em> role-specific export + colliders + asset metadata, <em>M11</em> level-of-detail from the one model.</p>'
+ '<p>The M4 cleanup tool is where assets actually get cut out; the automatic pipeline exists to make that step cheap, not to replace it.</p></footer>'
  '</div>'
  +LIGHTBOX)
 open("body3.html","w").write(body)

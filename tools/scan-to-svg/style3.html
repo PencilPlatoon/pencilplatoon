@@ -81,7 +81,7 @@
   .row{display:grid;grid-template-columns:190px 1fr;gap:24px;padding:22px 0;border-top:1px solid var(--hair)}
   .rowhead h3{font-family:var(--serif);font-weight:600;font-size:20px;margin:0}
   .rowhead p{color:var(--muted);font-size:13px;margin:6px 0 0}
-  .row .cells{grid-template-columns:repeat(3,1fr)}
+  .row .cells{grid-template-columns:repeat(2,1fr)}
 
   /* Pencil Vector cell: a milestone tab-strip (M1, M2, …) over one cell; shows one render at a
      time. The panels use display:contents so the shown SVG becomes a direct child of .art and
@@ -129,7 +129,14 @@
   /* fixed box so it always fills; the viewBox fits the drawing inside (preserveAspectRatio) */
   #lbframe svg{width:84vw;height:76vh;display:block}
   #lbframe img{max-width:84vw;max-height:76vh;image-rendering:pixelated;display:block}
-  /* numbers stay off in zoom -- inspect the geometry cleanly (toggle still works) */
+  /* a cloned Pencil Vector cell in the zoom: keep its milestone tab-strip, drop the panel
+     chrome and let the shown SVG fill the frame */
+  #lbframe .art.pv{width:86vw;height:auto;max-height:84vh;background:transparent;box-shadow:none;
+    padding:0;cursor:default;display:flex;flex-direction:column;align-items:center;gap:14px}
+  #lbframe .art.pv .pvtabs{position:static;flex-wrap:wrap}
+  #lbframe .art.pv svg{width:82vw;height:70vh}
+  /* the element-number toggle reaches the zoom too (inspect the graph up close) */
+  #shownums:checked ~ #lb .nums{display:inline}
 
   @media(max-width:820px){
     .feat-cells,.row .cells{grid-template-columns:1fr;max-width:420px}

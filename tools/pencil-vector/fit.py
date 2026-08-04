@@ -314,12 +314,13 @@ def path_d(fit: Fit) -> str:
     arc command for an arc (large-arc/sweep read off the swept angle), sampled `L`s for a
     clothoid. One arc command replaces a whole sampled polyline -- the biggest size win
     after centerline strokes. Crisp geometry only; the charm layer samples instead."""
-    cl = fit.samples - fit.resid
+    S = fit.samples                                            # the endpoints sit on the graph
+    cl = S - fit.resid                                         # nodes -- anchor the render to them
     M = len(cl)
-    out = ["M%.1f %.1f" % (cl[0, 0], cl[0, 1])]
+    out = ["M%.1f %.1f" % (S[0, 0], S[0, 1])]                  # start at the true endpoint (node)
     for k, p in enumerate(fit.prims):
         last = k == len(fit.prims) - 1
-        end = cl[0] if (fit.closed and last) else cl[min(p.j - 1, M - 1)]
+        end = (S[0] if fit.closed else S[-1]) if last else cl[min(p.j - 1, M - 1)]
         if p.kind == "line":
             out.append("L%.1f %.1f" % (end[0], end[1]))
         elif p.kind == "arc":
@@ -329,11 +330,10 @@ def path_d(fit: Fit) -> str:
             delta = ang[-1] - ang[0]
             out.append("A%.1f %.1f 0 %d %d %.1f %.1f"
                        % (r, r, 1 if abs(delta) > np.pi else 0, 1 if delta > 0 else 0, end[0], end[1]))
-        else:                                                  # clothoid: sample its points
-            for q in cl[p.i + 1:p.j]:
+        else:                                                  # clothoid: sample, end anchored
+            for q in cl[p.i + 1:p.j - 1]:
                 out.append("L%.1f %.1f" % (q[0], q[1]))
-            if fit.closed and last:
-                out.append("L%.1f %.1f" % (cl[0, 0], cl[0, 1]))
+            out.append("L%.1f %.1f" % (end[0], end[1]))
     if fit.closed:
         out.append("Z")
     return "".join(out)
@@ -342,8 +342,9 @@ def path_d(fit: Fit) -> str:
 def reconstruct(fit: Fit, alpha: float = 0.0) -> np.ndarray:
     """Idealized polyline = cleaned primitives + a tunable fraction `alpha` of the residual
     (0 = crisp, 1 = the original hand). Closed curves return with the wrap point repeated."""
-    cleaned = fit.samples - fit.resid
-    out = cleaned + alpha * fit.resid
+    out = fit.samples - (1.0 - alpha) * fit.resid
+    if not fit.closed:                                         # anchor endpoints on the graph nodes
+        out[0], out[-1] = fit.samples[0], fit.samples[-1]      # so adjacent strokes still meet
     return np.vstack([out, out[:1]]) if fit.closed else out
 
 
