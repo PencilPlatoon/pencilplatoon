@@ -13,7 +13,7 @@ stable id (M3) for reference.
 """
 from __future__ import annotations
 
-from fit import reconstruct
+from fit import path_d, reconstruct
 from model import BLOB, Graph
 
 STROKE = "#111"
@@ -33,19 +33,19 @@ def _sid(el) -> str:
     return ' data-sid="%s"' % el.sid if el.sid else ""
 
 
-def _blob_outline(nd, charm):
-    """Boundary + holes as (x,y) polylines -- the fitted, idealized geometry when a
-    geometry fit (M7) is present, otherwise the raw traced outline (M6)."""
-    if "fit" in nd.ann:
-        outer = reconstruct(nd.ann["fit"], charm)
-        holes = [reconstruct(h, charm) for h in nd.ann.get("fit_holes", [])]
-    else:
-        outer = nd.boundary
-        holes = [h for h in nd.ann.get("holes", []) if len(h) >= 3]
-    return outer, holes
+def _curve_d(ann, raw, closed, charm, primitives):
+    """The `d` for one fitted curve. With a geometry fit and `primitives` on (M8), cash the
+    primitives in as real `A`/`L` commands; at M7 sample the fit; below M7 trace the raw
+    polyline. `charm` > 0 forces sampling (a perturbed arc is no longer an arc)."""
+    fit = ann.get("fit")
+    if fit is not None:
+        if primitives and charm == 0.0:
+            return path_d(fit)
+        return _d(reconstruct(fit, charm), close=closed)
+    return _d(raw, close=closed) if raw is not None and len(raw) >= (3 if closed else 2) else None
 
 
-def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM) -> str:
+def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: bool = False) -> str:
     w_img, h = g.size
     sw = max(1.0, g.w)
     hitw = HIT_W * sw
@@ -55,17 +55,18 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM) -> str:
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            outer, holes = _blob_outline(nd, charm)
-            d = _d(outer, close=True)
-            for hole in holes:
-                if len(hole) >= 3:
-                    d += " " + _d(hole, close=True)
+            d = _curve_d(nd.ann, nd.boundary, True, charm, primitives)
+            for h_ann in nd.ann.get("fit_holes", []):            # M7+: fitted holes
+                d += " " + path_d(h_ann) if (primitives and charm == 0.0) else " " + _d(reconstruct(h_ann, charm), close=True)
+            if "fit" not in nd.ann:                              # M6: raw holes
+                for hole in nd.ann.get("holes", []):
+                    if len(hole) >= 3:
+                        d += " " + _d(hole, close=True)
             vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, STROKE)
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))
     for e in g.edges.values():
-        pts = reconstruct(e.ann["fit"], charm) if "fit" in e.ann else e.pts
-        d = _d(pts)
+        d = _curve_d(e.ann, e.pts, False, charm, primitives)
         vis = ('<path data-edge="%d"%s d="%s" fill="none" stroke="%s" stroke-width="%.2f" '
                'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, STROKE, sw))
         hit = ('<path class="hit" d="%s" fill="none" stroke="transparent" '

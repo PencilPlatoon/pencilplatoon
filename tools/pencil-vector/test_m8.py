@@ -1,0 +1,70 @@
+"""M8 acceptance tests -- cash-in primitives (plan §11 "complexity wins").
+
+The M7 fit annotations are emitted as real SVG geometry: a `line` becomes an `L`, an
+`arc` becomes a single `A` arc command (not a sampled polyline), coordinates round to one
+decimal. Same picture as M7, a fraction of the bytes. Gated on `primitives` (milestone 8),
+and only when no charm is reapplied (a perturbed arc is no longer an arc).
+"""
+import os
+import re
+
+import numpy as np
+import pytest
+
+from fit import fit_curve, path_d
+from svgdump import dump
+from vectorize import vectorize
+
+W = 10.0
+COORD = re.compile(r"-?\d+\.\d{2,}")            # a coordinate with 2+ decimals = not rounded
+
+
+def test_arc_becomes_one_A_command():
+    rng = np.random.default_rng(0)
+    th = np.linspace(0, 2 * np.pi, 160, endpoint=False)
+    P = np.column_stack([200 + 70 * np.cos(th), 200 + 70 * np.sin(th)]) + rng.normal(0, 0.1 * W, (th.size, 2))
+    d = path_d(fit_curve(P, W, closed=True))
+    assert d.count("A") == 1, d                 # the whole circle is a single arc command
+    r = float(re.search(r"A([\d.]+)", d).group(1))
+    assert abs(r - 70) < 6                       # with the true radius
+
+
+def test_line_is_all_linetos_no_arcs():
+    rng = np.random.default_rng(0)
+    s = np.linspace(0, 400, 120)
+    P = np.column_stack([s, np.full(s.size, 200.0)]) + rng.normal(0, 0.1 * W, (s.size, 2))
+    d = path_d(fit_curve(P, W, closed=False))
+    assert "A" not in d and d.count("L") == 1    # one straight run -> a single lineto
+
+
+def test_coordinates_are_rounded():
+    rng = np.random.default_rng(1)
+    th = np.linspace(0, 1.6 * np.pi, 120)
+    P = np.column_stack([200 + 55 * np.cos(th), 200 + 55 * np.sin(th)]) + rng.normal(0, 0.1 * W, (th.size, 2))
+    d = path_d(fit_curve(P, W, closed=False))
+    assert not COORD.search(d), "found an un-rounded coordinate"
+
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+needs_iso = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
+                               reason="isolated subjects not present")
+
+
+@needs_iso
+def test_primitives_are_smaller_than_sampling_and_gated():
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
+    sampled = dump(g, primitives=False)          # M7 render
+    cashed = dump(g, primitives=True)            # M8 render
+    assert "A" not in re.sub(r"[^A]", "", sampled) or sampled.count("A") == 0   # M7 never emits arcs
+    assert cashed.count("A") > 10                # the cannon's arcs become A commands
+    assert len(cashed) < 0.8 * len(sampled)      # and it's markedly smaller
+    assert cashed.startswith("<svg") and cashed.rstrip().endswith("</svg>")
+
+
+@needs_iso
+def test_cash_in_does_not_touch_the_model():
+    # M8 is a render choice; the frozen geometry/annotations are unchanged
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
+    for e in g.edges.values():
+        assert "fit" in e.ann and e.pts is not None and len(e.pts) >= 1

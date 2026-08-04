@@ -24,7 +24,7 @@ from stableid import assign
 from svgdump import dump
 from widthclass import segment
 
-LATEST = 7                      # highest implemented milestone
+LATEST = 8                      # highest implemented milestone
 SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not length, decides
                                 # which short leaves are twigs vs. real connectors/continuations
 
@@ -87,7 +87,7 @@ def main(argv):
     out_path = pos[1] if len(pos) > 1 else "%s_m%d.svg" % (os.path.splitext(in_path)[0], milestone)
     g = vectorize(in_path, milestone, scale=scale)
     with open(out_path, "w") as f:
-        f.write(dump(g, show_nodes=show_nodes))
+        f.write(dump(g, show_nodes=show_nodes, primitives=milestone >= 8))   # M8 cashes in arcs
     blobs = sum(1 for nd in g.nodes.values() if nd.kind == BLOB)
     print("m%d  scale=%dx  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
           % (milestone, g.scale, g.w, len(g.nodes), len(g.edges), blobs, out_path))

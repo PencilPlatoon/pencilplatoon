@@ -309,6 +309,36 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
     return Fit(closed=closed, samples=S, prims=prims, resid=S - cleaned, width=width)
 
 
+def path_d(fit: Fit) -> str:
+    """Cash the fitted primitives in as a real SVG path (M8, §11): `L` for a line, an `A`
+    arc command for an arc (large-arc/sweep read off the swept angle), sampled `L`s for a
+    clothoid. One arc command replaces a whole sampled polyline -- the biggest size win
+    after centerline strokes. Crisp geometry only; the charm layer samples instead."""
+    cl = fit.samples - fit.resid
+    M = len(cl)
+    out = ["M%.1f %.1f" % (cl[0, 0], cl[0, 1])]
+    for k, p in enumerate(fit.prims):
+        last = k == len(fit.prims) - 1
+        end = cl[0] if (fit.closed and last) else cl[min(p.j - 1, M - 1)]
+        if p.kind == "line":
+            out.append("L%.1f %.1f" % (end[0], end[1]))
+        elif p.kind == "arc":
+            c, r = p.params["center"], p.params["radius"]
+            seg = cl[p.i:p.j]
+            ang = np.unwrap(np.arctan2(seg[:, 1] - c[1], seg[:, 0] - c[0]))
+            delta = ang[-1] - ang[0]
+            out.append("A%.1f %.1f 0 %d %d %.1f %.1f"
+                       % (r, r, 1 if abs(delta) > np.pi else 0, 1 if delta > 0 else 0, end[0], end[1]))
+        else:                                                  # clothoid: sample its points
+            for q in cl[p.i + 1:p.j]:
+                out.append("L%.1f %.1f" % (q[0], q[1]))
+            if fit.closed and last:
+                out.append("L%.1f %.1f" % (cl[0, 0], cl[0, 1]))
+    if fit.closed:
+        out.append("Z")
+    return "".join(out)
+
+
 def reconstruct(fit: Fit, alpha: float = 0.0) -> np.ndarray:
     """Idealized polyline = cleaned primitives + a tunable fraction `alpha` of the residual
     (0 = crisp, 1 = the original hand). Closed curves return with the wrap point repeated."""
