@@ -14,12 +14,14 @@ import sys
 import numpy as np
 from PIL import Image
 
+from scipy import ndimage
+
 from embedding import containment, rotational_order
 from fit import fit_graph
 from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
                    resolve_continuity)
-from ink import ingest
-from model import BLOB, Node
+from ink import Ink, ingest
+from model import BLOB, Graph, Node
 from stableid import assign
 from svgdump import dump
 from widthclass import segment
@@ -41,25 +43,39 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     pen width so small holes / thin walls resolve instead of pinching shut."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
     ink = ingest(rgb, thresh_bias=thresh_bias, scale=scale)
-    if milestone <= 1:
-        return build(ink)
 
-    blobs, thin = segment(ink)              # Stage 1
-    g = build(ink, mask=thin)               # strokes only
-    defork(g, ink.w)                        # blunt-end Y where a stroke is cut at a solid -> one end
-    nid = (max(g.nodes) + 1) if g.nodes else 0
+    # Stage 1 runs PER COLOUR LAYER (§5, revised M1): each colour's ink is skeletonized and
+    # width-classed on its own, so a black line abutting a red fill is measured on the black
+    # layer alone -- it stays a thin stroke instead of fusing with the fill into one blob. The
+    # layers' subgraphs merge into one graph; cross-colour contiguity is then restored below
+    # by attaching each stroke to whatever blob it meets, of any colour.
+    g = Graph(nodes={}, edges={}, w=ink.w, size=(ink.mask.shape[1], ink.mask.shape[0]),
+              scale=ink.scale, palette=ink.palette)
+    nc, ec = [0], [0]                       # global node / edge id counters across layers
     blob_masks = {}
-    for b in blobs:                         # blobs are first-class nodes (§6.3)
-        g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
-                            ann={"width_class": b.width_class,
-                                 "holes": b.holes if milestone >= 6 else []})   # holes are M6
-        blob_masks[nid] = b.mask
-        nid += 1
+    for c, cmask in _color_masks(ink):
+        ink_c = Ink(mask=cmask, dist=ndimage.distance_transform_edt(cmask), w=ink.w, scale=ink.scale)
+        if milestone <= 1:                  # M1: raw skeleton per colour, no width classes
+            _merge(g, build(ink_c), c, nc, ec)
+            continue
+        blobs, thin = segment(ink_c)
+        sub = build(ink_c, mask=thin)       # strokes only
+        defork(sub, ink.w)                  # blunt-end Y where a stroke is cut at a solid -> one end
+        _merge(g, sub, c, nc, ec)
+        for b in blobs:                     # blobs are first-class nodes (§6.3), tagged by colour
+            nid = nc[0]; nc[0] += 1
+            g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
+                                ann={"color": c, "width_class": b.width_class,
+                                     "holes": b.holes if milestone >= 6 else []})   # holes are M6
+            blob_masks[nid] = b.mask
+    if milestone <= 1:
+        return g                            # M1 is a skeleton -- no fills, so no contiguity base
+    g.labels = ink.labels                   # M2+: carry the colour map for the render's fill base
 
     if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
         prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
         assign(g)
-        attach_edges_to_blobs(g, blob_masks)
+        attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
     if milestone >= 5:                      # M5: junction resolution for continuity flood (§6.4)
         resolve_continuity(g)
     if milestone >= 6:                      # M6: planar embedding (§8)
@@ -68,6 +84,30 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     if milestone >= 7:                      # M7: geometry fitting (§9) -- annotations only
         fit_graph(g, ink.w)
     return g
+
+
+def _color_masks(ink: Ink):
+    """(colour id, boolean mask) per colour present; a single black layer if uncoloured."""
+    if ink.labels is None:
+        return [(0, ink.mask)]
+    return [(c, ink.labels == c) for c in range(len(ink.palette)) if (ink.labels == c).any()]
+
+
+def _merge(g: Graph, sub: Graph, color: int, nc: list, ec: list) -> None:
+    """Fold a layer's subgraph into the merged graph, remapping ids and tagging the colour."""
+    idmap = {}
+    for oid, nd in sub.nodes.items():
+        nid = nc[0]; nc[0] += 1
+        idmap[oid] = nid
+        nd.id = nid
+        nd.ann["color"] = color
+        g.nodes[nid] = nd
+    for e in sub.edges.values():
+        eid = ec[0]; ec[0] += 1
+        e.id = eid
+        e.a, e.b = idmap[e.a], idmap[e.b]
+        e.ann["color"] = color
+        g.edges[eid] = e
 
 
 def main(argv):

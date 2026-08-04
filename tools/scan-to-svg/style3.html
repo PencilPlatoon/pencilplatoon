@@ -49,6 +49,11 @@
   .art{background:var(--paper);border-radius:6px;height:330px;display:grid;place-items:center;
     padding:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;position:relative;z-index:2;cursor:crosshair}
   .art svg,.art img{max-height:100%;max-width:100%;width:auto;height:auto;display:block}
+  /* a scan <img> is a direct grid child, and the grid track doesn't give it a definite
+     height to resolve max-height:100% against -- so a tall drawing (the flag) overflows and
+     crops. Flex the scan cell, where max-height:100% resolves. (The PV panels stay grid;
+     inline SVGs collapse to 0 in flex.) */
+  .art.scan{display:flex;align-items:center;justify-content:center}
   /* pure-CSS hover-to-identify: wide invisible hit-areas drive the highlight + corner number */
   .seg .vis,.seg .corner{pointer-events:none}
   .hit{pointer-events:all}

@@ -33,6 +33,13 @@ def _sid(el) -> str:
     return ' data-sid="%s"' % el.sid if el.sid else ""
 
 
+def _color(el, g) -> str:
+    """The element's idealized palette colour (§5), or pencil-black if uncoloured."""
+    c = el.ann.get("color", 0)
+    rgb = g.palette[c] if c < len(g.palette) else (17, 17, 17)
+    return "#%02x%02x%02x" % (int(rgb[0]), int(rgb[1]), int(rgb[2]))
+
+
 def _curve_d(ann, raw, closed, charm, primitives):
     """The `d` for one fitted curve. With a geometry fit and `primitives` on (M8), cash the
     primitives in as real `A`/`L` commands; at M7 sample the fit; below M7 trace the raw
@@ -62,13 +69,13 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
                 for hole in nd.ann.get("holes", []):
                     if len(hole) >= 3:
                         d += " " + _d(hole, close=True)
-            vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, STROKE)
+            vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, _color(nd, g))
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))
     for e in g.edges.values():
         d = _curve_d(e.ann, e.pts, False, charm, primitives)
         vis = ('<path data-edge="%d"%s d="%s" fill="none" stroke="%s" stroke-width="%.2f" '
-               'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, STROKE, sw))
+               'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, _color(e, g), sw))
         hit = ('<path class="hit" d="%s" fill="none" stroke="transparent" '
                'stroke-width="%.1f" stroke-linecap="round"/>' % (d, hitw))
         cx = float(e.pts[:, 0].mean())
