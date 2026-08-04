@@ -124,11 +124,13 @@
   .tile:target .zclose{display:block;position:fixed;inset:0;z-index:1;cursor:zoom-out}
   .tile:target .art{position:relative;z-index:2;height:auto;max-height:84vh;max-width:92vw;width:auto;
     padding:min(5vw,48px);border-radius:12px;box-shadow:0 30px 80px -20px #000}
-  .tile:target .art svg,.tile:target .art img{max-height:76vh;max-width:88vw}
-  .tile:target .art img{image-rendering:pixelated}
+  /* scale up to fill (height leads, width follows the ratio, capped) so a small
+     native-size SVG fills the zoom the same as a large-intrinsic one */
+  .tile:target .art svg{width:auto;height:76vh;max-width:88vw}
+  .tile:target .art img{max-height:76vh;max-width:88vw;image-rendering:pixelated}
   .tile:target .zoombtn{display:none}
   .tile:target figcaption{position:fixed;bottom:3vh;left:0;right:0;z-index:2;justify-content:center;font-family:var(--mono);color:var(--ink)}
-  .tile:target .nums{display:inline}   /* numbers always visible in zoom */
+  /* numbers stay off in zoom -- inspect the geometry cleanly (toggle still works) */
 
   @media(max-width:820px){
     .feat-cells,.row .cells{grid-template-columns:1fr;max-width:420px}
