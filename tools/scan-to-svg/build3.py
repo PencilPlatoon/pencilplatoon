@@ -85,11 +85,6 @@ def tile(kind,label,inner,meta):
 
 def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64(f))
 
-# featured flag: original / hybrid / redraw
-featured=(tile("raster","Flag · original",img("out/flag_crop.png","flag original"),"raster source")
-        + tile("vec","Flag · hybrid (auto)",vec("flag"),kb("out/flag_C.svg")+" · auto")
-        + tile("vec","Flag · clean redraw",read(flagB),kb(flagB)+" · by hand"))
-
 rows=""
 for key,name,note in comps:
     C=vec(key)
@@ -106,9 +101,6 @@ body=(link_css()
  '<header class="masthead"><p class="eyebrow">Scan &rarr; SVG &middot; fidelity study v8</p>'
  '<h1>Size-aware fitting, at the right resolution</h1>'
  '<p class="dek">Two principled upgrades. Fitting tolerance is now <strong>relative to each feature&rsquo;s size</strong> &mdash; a big squiggle straightens while a tiny sharp shape is preserved (<em>salience isn&rsquo;t size</em>). And the pipeline <strong>skeletonises at higher resolution</strong>, so strokes that fused at the scan&rsquo;s pixel scale (like the little box at the cannon&rsquo;s tip) resolve into their true shapes. On top of that, still: pen-width snapping (round caps), line / arc / circle fitting, and wheels that sit on the frame.</p></header>'
- '<section class="featured"><div class="feat-head"><h2>The flag, three ways</h2>'
- '<p>Click the redraw and zoom in to check the emblem and pole — it scales without blurring, unlike the raster original beside it.</p></div>'
- '<div class="cells feat-cells">'+featured+'</div></section>'
  '<section class="matrix"><h2>Old approach vs. new, every candidate</h2>'
  '<p class="sub">Three panels per row: original <em>scan</em> &rarr; <em>hybrid (old)</em>, the shipping <code>scan-to-svg</code> tool that fits lines / arcs / circles and keeps solid areas solid &rarr; <em>Pencil&nbsp;Vector</em>, the ground-up model-based vectorizer being built to the implementation plan. Its cell carries a <strong>tab per visually-distinct milestone</strong> &mdash; M1&ndash;M3, then M6 (M4&ndash;M5 add the cleanup tool and continuity pairing, which don&rsquo;t change the picture, so the tabs jump straight to M6). Flip through to watch the approach evolve; each render is kept. M1 is raw skeleton&rarr;graph (one centerline path per edge, no width classes yet), so it looks rougher on purpose; M6 adds interior holes so hollow shapes stay hollow.</p>'
  +rows+'</section>'

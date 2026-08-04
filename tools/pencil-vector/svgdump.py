@@ -57,7 +57,10 @@ def dump(g: Graph, show_nodes: bool = False) -> str:
         cy = float(e.pts[:, 1].mean())
         comps.append((cx, cy, vis, hit))
 
-    out = ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 %d %d">' % (w_img, h)]
+    # width/height give the SVG an intrinsic size, so it still sizes when a
+    # container has no fixed height (e.g. the comparison page's zoom view).
+    out = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">'
+           % (w_img, h, w_img, h)]
 
     cr = sw * 2.6                           # corner number bubble (fixed top-left, on hover)
     cx0 = cy0 = cr + sw
