@@ -17,8 +17,9 @@ from PIL import Image, ImageDraw
 from scipy import ndimage
 from skimage.measure import approximate_polygon, find_contours
 
+import raster
 from embedding import containment, rotational_order
-from fit import fit_graph, reconstruct
+from fit import fit_graph, path_d, reconstruct
 from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
                    resolve_continuity)
 from ink import Ink, ingest
@@ -85,7 +86,31 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     if milestone >= 7:                      # M7: geometry fitting (§9)
         fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
         _idealize_blob_boundaries(g, ink.w)  # fills render from the fitted edge, pen-width re-asserted
+        _guard_arc_connectivity(g, ink)     # ...and drop arc emission that splits the drawing (M8)
     return g
+
+
+def _guard_arc_connectivity(g: Graph, ink: Ink) -> None:
+    """Emit a fill's arcs (M8) only if they don't reduce connectivity. An arc boundary can
+    smooth inward, away from the strokes attached to the fill, splitting the drawing -- and the
+    per-fill intactness check can't see that (§12: verify connectivity before calling it good).
+    For each fill flagged fit_ok, if turning its arcs off RECONNECTS its colour, keep it a
+    polygon; connectivity is measured on the actual rendered raster, arcs and all."""
+    from model import BLOB
+
+    def pieces(color):
+        r = raster.render_mask(g, primitives=True, color=color)
+        return ndimage.label(r, structure=np.ones((3, 3)))[1]
+
+    for nd in g.nodes.values():
+        if nd.kind != BLOB or not nd.ann.get("fit_ok"):
+            continue
+        c = nd.ann.get("color", 0)
+        before = pieces(c)
+        nd.ann["fit_ok"] = False            # try this fill as a polygon
+        if pieces(c) < before:
+            continue                        # arcs were splitting the render -> keep the polygon
+        nd.ann["fit_ok"] = True             # arcs are connectivity-safe -> restore them
 
 
 def _poly_area(p: np.ndarray) -> float:
@@ -123,7 +148,10 @@ def _idealize_blob_boundaries(g: Graph, w: float) -> None:
         if ideal is not None and _poly_area(ideal) >= 0.9 * _poly_area(nd.boundary):
             nd.boundary = ideal                       # fit is clean -> idealized boundary
             nd.ann["holes"] = [reconstruct(h, 0.0) for h in nd.ann.get("fit_holes", [])]
-            nd.ann["fit_ok"] = True                   # ...and safe to cash as arcs at M8
+            # emit as arcs at M8 only if the ACTUAL arc commands render intact -- one connected
+            # piece, full area (a wrong sweep/large-arc flag self-intersects the fill, §12).
+            if raster.is_intact(path_d(nd.ann["fit"]), _poly_area(ideal)):
+                nd.ann["fit_ok"] = True
 
 
 def _color_masks(ink: Ink):
@@ -167,7 +195,7 @@ def main(argv):
     out_path = pos[1] if len(pos) > 1 else "%s_m%d.svg" % (os.path.splitext(in_path)[0], milestone)
     g = vectorize(in_path, milestone, scale=scale)
     with open(out_path, "w") as f:
-        f.write(dump(g, show_nodes=show_nodes, primitives=milestone >= 8))   # M8 cashes in arcs
+        f.write(dump(g, show_nodes=show_nodes, primitives=milestone >= 8))   # M8 emits real arcs
     blobs = sum(1 for nd in g.nodes.values() if nd.kind == BLOB)
     print("m%d  scale=%dx  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
           % (milestone, g.scale, g.w, len(g.nodes), len(g.edges), blobs, out_path))

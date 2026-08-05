@@ -41,7 +41,7 @@ def _color(el, g) -> str:
 
 
 def _curve_d(ann, raw, closed, charm, primitives):
-    """The `d` for one fitted curve. With a geometry fit and `primitives` on (M8), cash the
+    """The `d` for one fitted curve. With a geometry fit and `primitives` on (M8), emit the
     primitives in as real `A`/`L` commands; at M7 sample the fit; below M7 trace the raw
     polyline. `charm` > 0 forces sampling (a perturbed arc is no longer an arc)."""
     fit = ann.get("fit")
@@ -50,6 +50,20 @@ def _curve_d(ann, raw, closed, charm, primitives):
             return path_d(fit)
         return _d(reconstruct(fit, charm), close=closed)
     return _d(raw, close=closed) if raw is not None and len(raw) >= (3 if closed else 2) else None
+
+
+def blob_d(nd, charm: float, primitives: bool) -> str:
+    """The `d` for a fill: real arc/line commands at M8 (fit_ok), else the idealized/traced polygon."""
+    if primitives and charm == 0.0 and nd.ann.get("fit_ok"):
+        d = path_d(nd.ann["fit"])
+        for hf in nd.ann.get("fit_holes", []):
+            d += " " + path_d(hf)
+        return d
+    d = _d(nd.boundary, close=True)
+    for hole in nd.ann.get("holes", []):
+        if len(hole) >= 3:
+            d += " " + _d(hole, close=True)
+    return d
 
 
 def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: bool = False) -> str:
@@ -63,7 +77,7 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
             if primitives and charm == 0.0 and nd.ann.get("fit_ok"):
-                d = path_d(nd.ann["fit"])                    # M8: cash the fill's edge in as arcs/lines
+                d = path_d(nd.ann["fit"])                    # M8: emit the fill's edge as real arc/line commands
                 for hf in nd.ann.get("fit_holes", []):
                     d += " " + path_d(hf)
             else:                                            # M7 / fallback: idealized polygon
