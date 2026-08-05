@@ -62,12 +62,15 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            # a fill follows its (min-width-enforced) traced edge; it is NOT arc-fit, because
-            # fitting an elongated fill collapses a blunt pen-wide tip back to a point (§6.1).
-            d = _d(nd.boundary, close=True)
-            for hole in nd.ann.get("holes", []):
-                if len(hole) >= 3:
-                    d += " " + _d(hole, close=True)
+            if primitives and charm == 0.0 and nd.ann.get("fit_ok"):
+                d = path_d(nd.ann["fit"])                    # M8: cash the fill's edge in as arcs/lines
+                for hf in nd.ann.get("fit_holes", []):
+                    d += " " + path_d(hf)
+            else:                                            # M7 / fallback: idealized polygon
+                d = _d(nd.boundary, close=True)
+                for hole in nd.ann.get("holes", []):
+                    if len(hole) >= 3:
+                        d += " " + _d(hole, close=True)
             vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, _color(nd, g))
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))

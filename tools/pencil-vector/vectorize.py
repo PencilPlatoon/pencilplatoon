@@ -123,6 +123,7 @@ def _idealize_blob_boundaries(g: Graph, w: float) -> None:
         if ideal is not None and _poly_area(ideal) >= 0.9 * _poly_area(nd.boundary):
             nd.boundary = ideal                       # fit is clean -> idealized boundary
             nd.ann["holes"] = [reconstruct(h, 0.0) for h in nd.ann.get("fit_holes", [])]
+            nd.ann["fit_ok"] = True                   # ...and safe to cash as arcs at M8
 
 
 def _color_masks(ink: Ink):
