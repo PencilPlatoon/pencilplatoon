@@ -12,12 +12,13 @@ import os
 import sys
 
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 
 from scipy import ndimage
+from skimage.measure import approximate_polygon, find_contours
 
 from embedding import containment, rotational_order
-from fit import fit_graph
+from fit import fit_graph, reconstruct
 from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
                    resolve_continuity)
 from ink import Ink, ingest
@@ -81,9 +82,47 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     if milestone >= 6:                      # M6: planar embedding (§8)
         rotational_order(g)
         containment(g)
-    if milestone >= 7:                      # M7: geometry fitting (§9) -- annotations only
-        fit_graph(g, ink.w)
+    if milestone >= 7:                      # M7: geometry fitting (§9)
+        fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
+        _idealize_blob_boundaries(g, ink.w)  # fills render from the fitted edge, pen-width re-asserted
     return g
+
+
+def _poly_area(p: np.ndarray) -> float:
+    x, y = p[:, 0], p[:, 1]
+    return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
+
+
+def _fill_polygon(poly: np.ndarray, w: float):
+    """Rasterize a (possibly self-intersecting) fitted boundary and re-trace its solid outer
+    outline -- raster is a scratch step, the result is a vector polygon. This does NOT re-assert
+    the pen-width minimum: the fill mask was already made >= a pen wide upstream (§6.1), and
+    re-enforcing here dilates skeleton spurs into spurious tabs at every little boundary bump.
+    Returns None if the fit self-intersected into pieces (caller falls back)."""
+    x0, y0 = int(poly[:, 0].min()) - 4, int(poly[:, 1].min()) - 4
+    im = Image.new("L", (int(poly[:, 0].max()) - x0 + 4, int(poly[:, 1].max()) - y0 + 4), 0)
+    ImageDraw.Draw(im).polygon([(x - x0, y - y0) for x, y in poly], fill=255)
+    mask = ndimage.binary_fill_holes(np.asarray(im) > 0)
+    cs = find_contours(mask.astype(float), 0.5)
+    if not cs:
+        return None
+    outer = max(cs, key=lambda c: _poly_area(c[:, ::-1]))
+    p = approximate_polygon(outer, 0.1 * w)
+    return np.column_stack([p[:, 1] + x0, p[:, 0] + y0]) if len(p) >= 3 else None
+
+
+def _idealize_blob_boundaries(g: Graph, w: float) -> None:
+    """Give fills the stroke's M7 treatment: render each fill from its FITTED (idealized) edge
+    -- straight edges, arcs -- with the pen-width minimum re-asserted so the fit can't pinch a
+    tip to a point. But the closed-boundary fit can split an elongated fill into pieces; if the
+    idealized shape loses area, keep the working blunt traced edge instead (no chunk dropped)."""
+    for nd in g.nodes.values():
+        if nd.kind != BLOB or "fit" not in nd.ann:
+            continue
+        ideal = _fill_polygon(reconstruct(nd.ann["fit"], 0.0), w)
+        if ideal is not None and _poly_area(ideal) >= 0.9 * _poly_area(nd.boundary):
+            nd.boundary = ideal                       # fit is clean -> idealized boundary
+            nd.ann["holes"] = [reconstruct(h, 0.0) for h in nd.ann.get("fit_holes", [])]
 
 
 def _color_masks(ink: Ink):
