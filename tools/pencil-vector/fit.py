@@ -310,7 +310,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
 
 
 def path_d(fit: Fit) -> str:
-    """Cash the fitted primitives in as a real SVG path (M8, §11): `L` for a line, an `A`
+    """Emit the fitted primitives as a real SVG path (M8, §11): `L` for a line, an `A`
     arc command for an arc (large-arc/sweep read off the swept angle), sampled `L`s for a
     clothoid. One arc command replaces a whole sampled polyline -- the biggest size win
     after centerline strokes. Crisp geometry only; the charm layer samples instead."""

@@ -4,7 +4,7 @@ Per the plan (§2.2, §9): the model is a graph of nodes and edges plus a layer
 of *annotations*. Stages below the topology tiers record facts about an edge
 ("this run fits an arc, center c, radius r, residual sigma") rather than
 rewriting its geometry. The sampled polyline is ground truth; export decides
-which annotations to cash in. Nothing here substitutes geometry.
+which annotations to emit as geometry. Nothing here substitutes geometry.
 
 `w` -- the modal pen width -- rides on the graph because every downstream
 tolerance is expressed in multiples of it (§2.3).

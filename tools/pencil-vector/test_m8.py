@@ -1,4 +1,4 @@
-"""M8 acceptance tests -- cash-in primitives (plan §11 "complexity wins").
+"""M8 acceptance tests -- emit real primitives (plan §11 "complexity wins").
 
 The M7 fit annotations are emitted as real SVG geometry: a `line` becomes an `L`, an
 `arc` becomes a single `A` arc command (not a sampled polyline), coordinates round to one
@@ -55,15 +55,15 @@ needs_iso = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.
 def test_primitives_are_smaller_than_sampling_and_gated():
     g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
     sampled = dump(g, primitives=False)          # M7 render
-    cashed = dump(g, primitives=True)            # M8 render
+    emitted = dump(g, primitives=True)            # M8 render
     assert "A" not in re.sub(r"[^A]", "", sampled) or sampled.count("A") == 0   # M7 never emits arcs
-    assert cashed.count("A") > 10                # the cannon's arcs become A commands
-    assert len(cashed) < 0.8 * len(sampled)      # and it's markedly smaller
-    assert cashed.startswith("<svg") and cashed.rstrip().endswith("</svg>")
+    assert emitted.count("A") > 10                # the cannon's arcs become A commands
+    assert len(emitted) < 0.8 * len(sampled)      # and it's markedly smaller
+    assert emitted.startswith("<svg") and emitted.rstrip().endswith("</svg>")
 
 
 @needs_iso
-def test_cash_in_does_not_touch_the_model():
+def test_emit_does_not_touch_the_model():
     # M8 is a render choice; the frozen geometry/annotations are unchanged
     g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
     for e in g.edges.values():

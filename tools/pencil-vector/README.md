@@ -8,7 +8,7 @@ The two differ fundamentally. `scan-to-svg` *substitutes* geometry as it goes
 (a run of points becomes a circle). This one is **model-based and
 annotation-first**: connectivity is frozen ground truth, every geometric fit is
 recorded *about* an edge rather than replacing it, and export decides which
-annotations to cash in. See the plan's core principles (§2) and invariant
+annotations to emit as geometry. See the plan's core principles (§2) and invariant
 hierarchy (§3).
 
 ## Build order
