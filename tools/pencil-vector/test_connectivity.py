@@ -37,6 +37,17 @@ def test_render_preserves_connectivity(name, milestone):
 
 
 @pytest.mark.parametrize("name", SUBJECTS)
+@pytest.mark.parametrize("milestone", [7, 8])
+def test_idealization_breaks_no_attachment(name, milestone):
+    # the detour-masked class piece-counting can't see: idealizing/emitting a fill must not pull
+    # a stroke the ink held against a blob out of contact, even if the drawing stays one piece the
+    # long way round (how cannon 2/26 slipped through). Checked on the actual render, per attachment.
+    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), milestone=milestone)
+    broken = raster.broken_attachments(g, primitives=milestone >= 8)
+    assert not broken, f"{name} M{milestone} idealization broke attachments (blob, edge, gap): {broken}"
+
+
+@pytest.mark.parametrize("name", SUBJECTS)
 def test_render_covers_the_ink(name):
     # idealization trims edges, but the render must still cover the bulk of each colour's ink
     ink = ingest(np.asarray(Image.open(os.path.join(ISO, f"{name}_iso.png")).convert("RGB")))

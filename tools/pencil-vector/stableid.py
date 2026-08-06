@@ -28,7 +28,10 @@ from collections import defaultdict
 from model import Graph
 
 NODE_GRID_W = 1.5       # node quantization cell size, in units of w
-EDGE_GRID_W = 2.0       # edge-midpoint quantization cell size, in units of w
+EDGE_GRID_W = 3.0       # edge-midpoint quantization cell size, in units of w. Coarse enough that a
+                        # midpoint sitting near a cell boundary doesn't flip cells on a ~1px threshold
+                        # jitter (2.0 was marginal -- one soldier edge tipped a cliff); ties still
+                        # split by length so a coarser cell doesn't collide distinct edges.
 
 
 def _h(prefix: str, *parts) -> str:

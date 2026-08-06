@@ -89,6 +89,14 @@ def is_intact(d: str, want_area: float, min_frac: float = 0.9) -> bool:
     return ndimage.label(m)[1] == 1 and m.sum() >= min_frac * want_area
 
 
+def full_fill_mask(d: str, w_img: int, h: int):
+    """Fill a path into a full-size (h, w_img) mask -- for measuring against absolute coords."""
+    m, x0, y0 = fill_mask(d)
+    full = np.zeros((h, w_img), bool)
+    _blit(full, m, x0, y0)
+    return full
+
+
 def _blit(full, m, x0, y0):
     h_f, w_f = full.shape
     h_m, w_m = m.shape
@@ -96,6 +104,46 @@ def _blit(full, m, x0, y0):
     a1, b1 = min(w_f, x0 + w_m), min(h_f, y0 + h_m)
     if a1 > a0 and b1 > b0:
         full[b0:b1, a0:a1] |= m[b0 - y0:b1 - y0, a0 - x0:a1 - x0]
+
+
+def broken_attachments(g, primitives: bool = True):
+    """Verify no edge<->blob attachment recorded from the ink (graph.py §6.3) was BROKEN by
+    idealization/emission. Piece-counting is blind to a local gap when the two elements stay
+    connected the long way round (a detour) -- exactly how cannon 2/26 slipped through: the
+    idealized boundary receded off edge 26, but the drawing stayed one piece via the barrel.
+
+    An absolute 'is the stroke near the fill' test is the wrong bar: the ink itself draws some
+    strokes ending a pen or more from a blob, and both the stroke and the boundary idealize at
+    M8, so the two shift together. What matters is the REGRESSION the idealization introduced.
+    So compare same-milestone: for each blob, measure each attached stroke's gap to the fill it
+    ACTUALLY renders vs the gap to its stashed traced edge (`ann['traced']`, the ink-faithful
+    boundary). A contact the traced edge held within a half-pen but the rendered edge does not
+    is a break. Contact is probed with the stroke's frozen centerline `pts` (never idealized), so
+    the measure is identical at M7 and M8 -- only the boundary moves. Returns a list of
+    (blob_id, edge_sid, gap_px)."""
+    from model import BLOB
+    from svgdump import _d, blob_d
+    w_img, h = g.size
+    reach = 0.5 * g.w
+    esid = {e.sid: e for e in g.edges.values()}
+    broken = []
+    for nd in g.nodes.values():
+        if nd.kind != BLOB or nd.boundary is None or len(nd.boundary) < 3:
+            continue
+        traced = nd.ann.get("traced")
+        if traced is None:                            # never idealized -> nothing could have broken
+            continue
+        dt_cur = ndimage.distance_transform_edt(~full_fill_mask(blob_d(nd, 0.0, primitives), w_img, h))
+        dt_tr = ndimage.distance_transform_edt(~full_fill_mask(_d(traced, close=True), w_img, h))
+        for sid in nd.ann.get("edges", []):
+            e = esid.get(sid)
+            if e is None or e.pts is None or len(e.pts) == 0:
+                continue
+            yi = np.clip(e.pts[:, 1].astype(int), 0, h - 1)
+            xi = np.clip(e.pts[:, 0].astype(int), 0, w_img - 1)
+            if float(dt_cur[yi, xi].min()) > reach >= float(dt_tr[yi, xi].min()):
+                broken.append((nd.id, sid, round(float(dt_cur[yi, xi].min()), 1)))
+    return broken
 
 
 def render_mask(g, primitives: bool = True, charm: float = 0.0, color=None):

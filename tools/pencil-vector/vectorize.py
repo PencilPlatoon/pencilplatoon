@@ -20,7 +20,8 @@ from skimage.measure import approximate_polygon, find_contours
 import raster
 from embedding import containment, rotational_order
 from fit import fit_graph, path_d, reconstruct
-from graph import (attach_edges_to_blobs, build, defork, prune_spurs,
+from graph import (absorb_rim_stubs, attach_edges_to_blobs, build,
+                   contact_skeleton, merge_close_junctions, prune_spurs,
                    resolve_continuity)
 from ink import Ink, ingest
 from model import BLOB, Graph, Node
@@ -60,9 +61,16 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         if milestone <= 1:                  # M1: raw skeleton per colour, no width classes
             _merge(g, build(ink_c), c, nc, ec)
             continue
-        blobs, thin = segment(ink_c)
-        sub = build(ink_c, mask=thin)       # strokes only
-        defork(sub, ink.w)                  # blunt-end Y where a stroke is cut at a solid -> one end
+        blobs, _thin = segment(ink_c)
+        blob_union = np.zeros_like(ink_c.mask)
+        for b in blobs:
+            blob_union |= b.mask
+        # Contact-aware skeleton: axis runs THROUGH each stroke->fill contact, with the whole w/2
+        # endpoint discipline (free ends retracted + de-forked, sub-pen stubs dropped, fill contacts
+        # extended w/2 into the solid) done at the source -- so no blunt-Y defork or sub-pen prune after.
+        skel = contact_skeleton(ink_c.mask, blob_union, ink.w)
+        sub = build(ink_c, mask=skel)
+        merge_close_junctions(sub, ink.w)   # collapse the skeletonizer's split junctions at a fill
         _merge(g, sub, c, nc, ec)
         for b in blobs:                     # blobs are first-class nodes (§6.3), tagged by colour
             nid = nc[0]; nc[0] += 1
@@ -73,6 +81,9 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     if milestone <= 1:
         return g                            # M1 is a skeleton -- no fills, so no contiguity base
     g.labels = ink.labels                   # M2+: carry the colour map for the render's fill base
+    absorb_rim_stubs(g, blob_masks, ink.mask, ink.w)   # M2: fold rim fray into the fill it bumps off
+                                            # -- a width-class cleanup, so it belongs with M2's blobs
+                                            # and must run before the M3 topology freeze either way
 
     if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
         prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
@@ -85,32 +96,8 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         containment(g)
     if milestone >= 7:                      # M7: geometry fitting (§9)
         fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
-        _idealize_blob_boundaries(g, ink.w)  # fills render from the fitted edge, pen-width re-asserted
-        _guard_arc_connectivity(g, ink)     # ...and drop arc emission that splits the drawing (M8)
+        _idealize_blob_boundaries(g, ink)    # idealize/emit only where it keeps strokes in contact
     return g
-
-
-def _guard_arc_connectivity(g: Graph, ink: Ink) -> None:
-    """Emit a fill's arcs (M8) only if they don't reduce connectivity. An arc boundary can
-    smooth inward, away from the strokes attached to the fill, splitting the drawing -- and the
-    per-fill intactness check can't see that (§12: verify connectivity before calling it good).
-    For each fill flagged fit_ok, if turning its arcs off RECONNECTS its colour, keep it a
-    polygon; connectivity is measured on the actual rendered raster, arcs and all."""
-    from model import BLOB
-
-    def pieces(color):
-        r = raster.render_mask(g, primitives=True, color=color)
-        return ndimage.label(r, structure=np.ones((3, 3)))[1]
-
-    for nd in g.nodes.values():
-        if nd.kind != BLOB or not nd.ann.get("fit_ok"):
-            continue
-        c = nd.ann.get("color", 0)
-        before = pieces(c)
-        nd.ann["fit_ok"] = False            # try this fill as a polygon
-        if pieces(c) < before:
-            continue                        # arcs were splitting the render -> keep the polygon
-        nd.ann["fit_ok"] = True             # arcs are connectivity-safe -> restore them
 
 
 def _poly_area(p: np.ndarray) -> float:
@@ -136,22 +123,66 @@ def _fill_polygon(poly: np.ndarray, w: float):
     return np.column_stack([p[:, 1] + x0, p[:, 0] + y0]) if len(p) >= 3 else None
 
 
-def _idealize_blob_boundaries(g: Graph, w: float) -> None:
+def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
     """Give fills the stroke's M7 treatment: render each fill from its FITTED (idealized) edge
-    -- straight edges, arcs -- with the pen-width minimum re-asserted so the fit can't pinch a
-    tip to a point. But the closed-boundary fit can split an elongated fill into pieces; if the
-    idealized shape loses area, keep the working blunt traced edge instead (no chunk dropped)."""
+    -- straight edges, arcs -- with the pen-width minimum re-asserted. But idealizing can smooth
+    the boundary INWARD, off a stroke that reached the traced edge, opening a gap -- and the
+    drawing may stay connected the long way round, so a piece-count check misses it (how cannon
+    2/26 slipped through, §12). So guard each attachment the blob RECORDED from the ink (§6.3)
+    one at a time: idealize a fill only if no attached stroke ends up more than a half-pen from
+    the new edge when it wasn't before (an aggregate contact count is fooled -- pulling off one
+    stroke while gaining another nets zero). Emit arcs at M8 under the same per-attachment guard;
+    otherwise keep the traced edge -- connected, if not as clean. This is the guard side of the
+    invariant `raster.broken_attachments` checks after the fact.
+
+    Contact is probed with each stroke's frozen centerline `pts`, NOT its rendered stroke: the raw
+    geometry never idealizes (M7 fits only annotations), so the same probe measures identically at
+    M7 and M8 -- the boundary is the only thing that moves."""
+    from svgdump import _d
+    h, w_img = ink.mask.shape
+    reach = 0.5 * ink.w                               # a stroke within a half-pen of the edge touches
+    esid = {e.sid: e for e in g.edges.values()}
+    probe: dict = {}                                  # attached stroke -> its centerline pixel coords
+
+    def pts(sid):
+        if sid not in probe:
+            e = esid.get(sid)
+            if e is None or e.pts is None or len(e.pts) == 0:
+                probe[sid] = None
+            else:
+                probe[sid] = (np.clip(e.pts[:, 1].astype(int), 0, h - 1),
+                              np.clip(e.pts[:, 0].astype(int), 0, w_img - 1))
+        return probe[sid]
+
+    def gaps(dstr, edges):
+        dt = ndimage.distance_transform_edt(~raster.full_fill_mask(dstr, w_img, h))
+        out = {}
+        for sid in edges:
+            p = pts(sid)
+            if p is not None:
+                out[sid] = float(dt[p].min())
+        return out
+
+    def opens(cand, edges, ref):
+        g2 = gaps(cand, edges)                        # would a contact the traced edge held within
+        return any(v > reach and ref.get(sid, 1e9) <= reach for sid, v in g2.items())  # reach fall out?
+
     for nd in g.nodes.values():
         if nd.kind != BLOB or "fit" not in nd.ann:
             continue
-        ideal = _fill_polygon(reconstruct(nd.ann["fit"], 0.0), w)
-        if ideal is not None and _poly_area(ideal) >= 0.9 * _poly_area(nd.boundary):
-            nd.boundary = ideal                       # fit is clean -> idealized boundary
-            nd.ann["holes"] = [reconstruct(h, 0.0) for h in nd.ann.get("fit_holes", [])]
-            # emit as arcs at M8 only if the ACTUAL arc commands render intact -- one connected
-            # piece, full area (a wrong sweep/large-arc flag self-intersects the fill, §12).
-            if raster.is_intact(path_d(nd.ann["fit"]), _poly_area(ideal)):
-                nd.ann["fit_ok"] = True
+        nd.ann["traced"] = nd.boundary                # keep the ink-faithful edge for the verifier
+        ideal = _fill_polygon(reconstruct(nd.ann["fit"], 0.0), ink.w)
+        if ideal is None or _poly_area(ideal) < 0.9 * _poly_area(nd.boundary):
+            continue                                  # fit pinched / lost area -> keep traced edge
+        edges = nd.ann.get("edges", [])
+        traced = gaps(_d(nd.boundary, close=True), edges)  # attachment gaps on the traced edge
+        if opens(_d(ideal, close=True), edges, traced):
+            continue                                  # idealizing drops a real contact -> keep traced
+        nd.boundary = ideal
+        nd.ann["holes"] = [reconstruct(hh, 0.0) for hh in nd.ann.get("fit_holes", [])]
+        arc = path_d(nd.ann["fit"])
+        if raster.is_intact(arc, _poly_area(ideal)) and not opens(arc, edges, traced):
+            nd.ann["fit_ok"] = True                   # arcs render intact AND keep every attachment
 
 
 def _color_masks(ink: Ink):

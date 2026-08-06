@@ -113,7 +113,152 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
     return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h), scale=ink.scale)
 
 
+# ---- Contact-aware skeleton + the w/2 endpoint discipline (§6.2, revised) --------------------------
+# The old M2 skeleton was skeletonize(ink - blobs): it treats a stroke->fill contact as a WALL, so the
+# medial axis HOOKS where a stroke is cut against a solid, and forks at every rounded end. Instead
+# skeletonize the FULL ink and drop only the fill interiors, so the axis runs THROUGH each contact;
+# then apply one w/2 endpoint rule, symmetric about a half pen, entirely here (not as later cleanups).
+
+EDGE_TOL = 0.75         # px: discretization slack on the w/2 edge margin
+MERGE_THR = 1.4         # w: collapse a junction-junction stub shorter than this (the skeletonizer 'H')
+
+
+def _neigh(sk: np.ndarray) -> np.ndarray:
+    """8-neighbour count per pixel (self excluded)."""
+    return ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
+
+
+def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarray) -> np.ndarray:
+    """Retract the skeleton from its FREE endpoints while they sit closer than `thr` to the ink edge:
+    eat degree<=1 tips one pixel per pass, stopping at the first pixel with dt >= thr. Free-end caps
+    and fork prongs (which run toward the edge) are trimmed; a mid-stroke thin spot (never an endpoint)
+    is preserved, so a stroke is never severed. Tips inside `protect` (the fill contact band) are a
+    contact, not a free end -- they are left, so a stroke that meets a fill keeps its contact."""
+    sk = skel.copy()
+    erodable = (dt < thr) & ~protect
+    while True:
+        rm = sk & (_neigh(sk) <= 1) & erodable
+        if not rm.any():
+            return sk
+        sk &= ~rm
+
+
+def _drop_short_free_branches(skel: np.ndarray, protect: np.ndarray, minlen: float) -> np.ndarray:
+    """Drop a leaf branch (free endpoint to its junction) shorter than `minlen` -- a leftover fork
+    stub, below pen resolution, never emitted as a stroke. Branches touching `protect` (a fill) are
+    kept regardless of length. Iterated: dropping one stub can expose the next."""
+    sk = skel.copy()
+    changed = True
+    while changed:
+        changed = False
+        nb = _neigh(sk)
+        endpt = sk & (nb == 1)
+        branches = sk & ~(sk & (nb >= 3))               # split at junctions into simple paths
+        lbl, n = ndimage.label(branches, structure=_N8)
+        for i in range(1, n + 1):
+            comp = lbl == i
+            if (comp & endpt).any() and not (comp & protect).any() and int(comp.sum()) < minlen:
+                sk &= ~comp
+                changed = True
+    return sk
+
+
+def _skel_back(sk: np.ndarray, y: int, x: int, span: int):
+    """Walk `span` pixels back along the skeleton from endpoint (y,x) for a stable outgoing direction."""
+    prev, cur = (y, x), (y, x)
+    for _ in range(span):
+        nxt = None
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy == 0 and dx == 0:
+                    continue
+                ny, nx = cur[0] + dy, cur[1] + dx
+                if 0 <= ny < sk.shape[0] and 0 <= nx < sk.shape[1] and sk[ny, nx] and (ny, nx) != prev:
+                    nxt = (ny, nx)
+                    break
+            if nxt:
+                break
+        if nxt is None:
+            break
+        prev, cur = cur, nxt
+    return cur
+
+
+def _extend_contacts(skel: np.ndarray, blob_union: np.ndarray, w: float) -> np.ndarray:
+    """The inverse of the free-end retraction, at the same stage: a skeleton end that runs into a fill
+    along its own axis is drawn on to w/2 PAST where it enters -- so the rear of its round pen cap
+    clears the fill boundary (a free end was pulled BACK w/2; a contact end is pushed FORWARD w/2)."""
+    sk = skel.copy()
+    band = ndimage.binary_dilation(blob_union, iterations=max(1, int(round(w / 2.0))))
+    H, Wd = sk.shape
+    for y, x in np.argwhere(sk & (_neigh(sk) <= 1) & band):
+        by, bx = _skel_back(sk, int(y), int(x), 4)
+        dy, dx = y - by, x - bx
+        nrm = float(np.hypot(dy, dx))
+        if nrm == 0:
+            continue
+        dy, dx = dy / nrm, dx / nrm
+        entry = next((t for t in np.arange(0.0, 1.5 * w, 0.5)
+                      if 0 <= int(round(y + dy * t)) < H and 0 <= int(round(x + dx * t)) < Wd
+                      and blob_union[int(round(y + dy * t)), int(round(x + dx * t))]), None)
+        if entry is None:                               # axis doesn't run into a fill -> a real free end
+            continue
+        for t in np.arange(0.5, entry + w / 2.0 + 0.01, 0.5):
+            yy, xx = int(round(y + dy * t)), int(round(x + dx * t))
+            if 0 <= yy < H and 0 <= xx < Wd:
+                sk[yy, xx] = True
+    return sk
+
+
+def contact_skeleton(mask: np.ndarray, blob_union: np.ndarray, w: float) -> np.ndarray:
+    """The M2+ stroke skeleton: contact-aware, with the whole w/2 endpoint discipline baked in.
+    Skeletonize the FULL ink and drop the fill interiors (axis runs through contacts, no hooks); then,
+    about a half pen: prune free ends back w/2 and eat their fork prongs, drop sub-pen leaf stubs, and
+    extend fill contacts w/2 into the fill. The w/2 band around each fill is protected from the prune
+    and the drop, so a stroke's neck into a fill is never severed."""
+    band = ndimage.binary_dilation(blob_union, iterations=max(1, int(round(w / 2.0))))
+    dt = ndimage.distance_transform_edt(mask)
+    skel = skeletonize(mask) & ~blob_union
+    skel = _edge_prune(skel, dt, w / 2.0 - EDGE_TOL, band)
+    skel = _drop_short_free_branches(skel, band, w)
+    skel = _extend_contacts(skel, blob_union, w)
+    return skel
+
+
+def merge_close_junctions(g: Graph, w: float) -> Graph:
+    """Collapse the skeletonizer's 'H': two deg>=3 nodes joined by a sub-MERGE_THR stub become one node
+    at their midpoint (stub deleted, its neighbours re-pointed). This is the only junction cleanup the
+    contact-aware skeleton needs -- the blunt-end forks the old skeleton made at fills are gone."""
+    from model import BLOB
+    changed = True
+    while changed:
+        changed = False
+        deg: dict = {}
+        for e in g.edges.values():
+            deg[e.a] = deg.get(e.a, 0) + 1
+            deg[e.b] = deg.get(e.b, 0) + 1
+        for eid, e in list(g.edges.items()):
+            if (e.a != e.b and e.length < MERGE_THR * w and deg.get(e.a, 0) >= 3 and deg.get(e.b, 0) >= 3
+                    and e.a in g.nodes and e.b in g.nodes
+                    and g.nodes[e.a].kind != BLOB and g.nodes[e.b].kind != BLOB):
+                a, b = e.a, e.b
+                mid = ((g.nodes[a].pos[0] + g.nodes[b].pos[0]) / 2.0,
+                       (g.nodes[a].pos[1] + g.nodes[b].pos[1]) / 2.0)
+                g.nodes[a].pos = mid
+                del g.edges[eid]
+                for e2 in g.edges.values():
+                    if e2.a == b:
+                        e2.a = a; e2.pts[0] = np.array(mid, float)
+                    if e2.b == b:
+                        e2.b = a; e2.pts[-1] = np.array(mid, float)
+                g.nodes.pop(b, None)
+                changed = True
+                break
+    return g
+
+
 CONT_ANGLE = 44.0       # deg: a leaf within this of a junction partner is a continuation
+SUBPEN_LEAF = 0.6       # a leaf shorter than this many w is below pen resolution -> skeleton noise
 
 
 def _dir_from(e: Edge, jpos: np.ndarray, span: int = 6) -> np.ndarray:
@@ -220,21 +365,76 @@ def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
     return g
 
 
-DEFORK_LEAF = 1.2       # a fork prong is a leaf shorter than this many w ...
-DEFORK_SPAN = 2.0       # ... whose tip lies within this many w of its sibling's tip
+STUB_LEN = 3.0          # w: only a SHORT edge is rim fray -- a long tangent stroke is not a stub
+STUB_NEAR = 1.5         # w: "near the rim" band, dilated out from the blob
+STUB_HUG = 0.6          # a stub HUGS the rim if this fraction of it lies within the near band (so it
+                        # runs ALONG the edge); a radial stroke has only its tip near -> kept
 
 
-def defork(g: Graph, w: float) -> Graph:
-    """Collapse a blunt-end Y (§6.2). Skeletonizing a stroke that ends in a blunt
-    or concave cap -- e.g. where a continuous stroke is cut against a solid region
-    -- does not terminate in a point: the medial axis splits toward the cap's two
-    corners, one prong each. So a junction whose only branches besides the
-    through-stroke are two SHORT SIBLING LEAVES with tips within DEFORK_SPAN*w is
-    not a real fork, it is a single termination. Replace the pair with one endpoint
-    at their midpoint -- which is where the centerline meets the cap, i.e. a single
-    stroke->solid contact rather than two prongs."""
-    from model import BLOB, ENDPOINT
+def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
+    """Fold rim stubs into the blob they fray off of (§6.3, the bumpy-rim artifact).
 
+    A blob's boundary is re-traced from its ink, but the skeleton often leaves a few SHORT edges
+    running ALONG the rim just outside the fill -- fragments of the blob's own edge that width
+    detection and ring-removal didn't reach. Rendered at pen width, each stub's round-capped end
+    bulges past the smooth ink edge, so a fill that should read as one clean outline comes out with
+    a rim of bumps. The stub's ink IS the blob's edge, so absorb it: grow the blob to swallow the
+    stub's ink (clamped to the real ink, so nothing overshoots the drawn edge), re-trace the OUTER
+    boundary (interior holes are untouched -- they're not on the rim), and drop the edge.
+
+    A stub is short AND rim-hugging (most of its length within STUB_NEAR*w of the blob). That keeps
+    a radial stroke *ending* at the blob (only its tip is near) and a long stroke running tangent to
+    it (length gate) as strokes. Same-colour only, so a coloured detail over a black fill isn't lost."""
+    from PIL import Image, ImageDraw
+
+    from model import BLOB
+    from widthclass import _boundaries
+
+    sw = max(1, int(round(w)))
+    removed: set = set()
+    for nid, mask in list(blob_masks.items()):
+        bcol = g.nodes[nid].ann.get("color", 0)
+        near = ndimage.binary_dilation(mask, iterations=max(1, int(round(STUB_NEAR * w))))
+        stubs = []
+        for e in g.edges.values():
+            if e.id in removed or e.length > STUB_LEN * w or e.ann.get("color", 0) != bcol:
+                continue
+            xi = np.clip(e.pts[:, 0].astype(int), 0, near.shape[1] - 1)
+            yi = np.clip(e.pts[:, 1].astype(int), 0, near.shape[0] - 1)
+            if float(near[yi, xi].mean()) >= STUB_HUG:
+                stubs.append(e)
+        if not stubs:
+            continue
+        im = Image.new("L", (mask.shape[1], mask.shape[0]), 0)
+        d = ImageDraw.Draw(im)
+        for e in stubs:                                   # reconstruct each stub's ink at pen width
+            pts = [(float(x), float(y)) for x, y in e.pts]
+            if len(pts) >= 2:
+                d.line(pts, fill=255, width=sw, joint="curve")
+            for q in (pts[0], pts[-1]):
+                d.ellipse([q[0] - sw / 2, q[1] - sw / 2, q[0] + sw / 2, q[1] + sw / 2], fill=255)
+        grown = ndimage.binary_closing(mask | ((np.asarray(im) > 0) & ink_mask), iterations=1)
+        outer, _ = _boundaries(grown, w)                  # holes are interior -> left as they were
+        if outer is None:
+            continue
+        g.nodes[nid].boundary = outer
+        blob_masks[nid] = grown
+        removed.update(e.id for e in stubs)
+
+    for eid in removed:
+        g.edges.pop(eid, None)
+    used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
+    for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
+        del g.nodes[nid]
+    return g
+
+
+def prune_subpen_leaves(g: Graph, w: float) -> Graph:
+    """Drop a leaf shorter than a pen is wide (SUBPEN_LEAF*w) hanging off ANY connected node --
+    it is below pen resolution, so it is skeleton noise, not a stroke, even where it grazes a
+    blob or dangles from a deg-2 waypoint. Standalone marks (both ends free) are spared. Called
+    from prune_spurs at M3 (the contact-aware skeleton already drops sub-pen stubs at the source)."""
+    from model import BLOB
     changed = True
     while changed:
         changed = False
@@ -242,33 +442,14 @@ def defork(g: Graph, w: float) -> Graph:
         for e in g.edges.values():
             deg[e.a] = deg.get(e.a, 0) + 1
             deg[e.b] = deg.get(e.b, 0) + 1
-        for jid, nd in list(g.nodes.items()):
-            if nd.kind == BLOB or deg.get(jid, 0) != 3:
-                continue
-            inc = [e for e in g.edges.values() if e.a == jid or e.b == jid]
-            leaves = [(e, e.b if e.a == jid else e.a) for e in inc]
-            leaves = [(e, o) for e, o in leaves
-                      if deg.get(o, 0) == 1 and g.nodes[o].kind != BLOB and e.length < DEFORK_LEAF * w]
-            if len(leaves) != 2:
-                continue
-            (e1, c1), (e2, c2) = leaves
-            p1 = np.array(g.nodes[c1].pos, float)
-            p2 = np.array(g.nodes[c2].pos, float)
-            if float(np.hypot(*(p1 - p2))) > DEFORK_SPAN * w:
-                continue
-            mid = (p1 + p2) / 2.0
-            through = [e for e in inc if e is not e1 and e is not e2]
-            del g.edges[e1.id]
-            del g.edges[e2.id]
-            del g.nodes[c1]
-            del g.nodes[c2]
-            nd.pos = (float(mid[0]), float(mid[1]))     # J becomes the single stroke end
-            nd.kind = ENDPOINT
-            if through:                                 # extend the through-stroke to the cap
-                th = through[0]
-                th.pts[0 if th.a == jid else -1] = mid
-            changed = True
-            break
+        for eid, e in list(g.edges.items()):
+            da, db = deg.get(e.a, 0), deg.get(e.b, 0)
+            if min(da, db) == 1 and max(da, db) >= 2 and e.length < SUBPEN_LEAF * w:
+                del g.edges[eid]
+                changed = True
+    used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
+    for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
+        del g.nodes[nid]
     return g
 
 
@@ -300,6 +481,7 @@ def prune_spurs(g: Graph, max_len: float, blob_masks=()) -> Graph:
                     if o.id != e.id and (o.a == junc or o.b == junc)), default=999.0)
         return best <= CONT_ANGLE           # continues a stroke -> connected
 
+    prune_subpen_leaves(g, g.w)              # sub-pen noise again, in case a merge exposed more
     changed = True
     while changed:
         changed = False
