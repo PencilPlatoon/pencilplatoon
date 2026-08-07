@@ -257,10 +257,6 @@ def merge_close_junctions(g: Graph, w: float) -> Graph:
     return g
 
 
-CONT_ANGLE = 44.0       # deg: a leaf within this of a junction partner is a continuation
-SUBPEN_LEAF = 0.6       # a leaf shorter than this many w is below pen resolution -> skeleton noise
-
-
 def _dir_from(e: Edge, jpos: np.ndarray, span: int = 6) -> np.ndarray:
     """Unit direction of edge `e` leaving the endpoint nearest `jpos`, averaged
     over ~`span` px so a couple of noisy pixels don't swing the angle."""
@@ -426,88 +422,4 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
     for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
         del g.nodes[nid]
-    return g
-
-
-def prune_subpen_leaves(g: Graph, w: float) -> Graph:
-    """Drop a leaf shorter than a pen is wide (SUBPEN_LEAF*w) hanging off ANY connected node --
-    it is below pen resolution, so it is skeleton noise, not a stroke, even where it grazes a
-    blob or dangles from a deg-2 waypoint. Standalone marks (both ends free) are spared. Called
-    from prune_spurs at M3 (the contact-aware skeleton already drops sub-pen stubs at the source)."""
-    from model import BLOB
-    changed = True
-    while changed:
-        changed = False
-        deg: dict = {}
-        for e in g.edges.values():
-            deg[e.a] = deg.get(e.a, 0) + 1
-            deg[e.b] = deg.get(e.b, 0) + 1
-        for eid, e in list(g.edges.items()):
-            da, db = deg.get(e.a, 0), deg.get(e.b, 0)
-            if min(da, db) == 1 and max(da, db) >= 2 and e.length < SUBPEN_LEAF * w:
-                del g.edges[eid]
-                changed = True
-    used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
-    for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
-        del g.nodes[nid]
-    return g
-
-
-def prune_spurs(g: Graph, max_len: float, blob_masks=()) -> Graph:
-    """Remove short twigs that thinning manufactures from boundary noise on wide
-    strokes (§6.4). Connectivity is the invariant (§2.1): a leaf is a real twig
-    only if its free end connects to *nothing*. Keep it if it connects to
-    something --
-
-      - it **attaches to a blob** (running into it, not poking an empty notch), or
-      - it runs **collinear** with a junction partner (a continuation of that
-        stroke, fragmented by the skeleton; full merge is junction resolution, M5).
-
-    Only a short leaf that neither attaches nor continues is a thinning twig.
-    Length is just the twig-size ceiling, not the discriminator. A standalone
-    short mark (both ends free) is always kept."""
-    from model import BLOB, ENDPOINT, JUNCTION
-
-    def keeps_connectivity(e, leaf, junc):
-        jpos = np.array(g.nodes[junc].pos, float)
-        fe = np.array(e.pts[0] if leaf == e.a else e.pts[-1], float)
-        out = fe - jpos
-        out = out / (float(np.hypot(*out)) or 1.0)
-        if _runs_into_blob(fe, out, blob_masks, g.w):
-            return True                     # attaches to a blob -> connected
-        myd = _dir_from(e, jpos)
-        best = min((math.degrees(math.acos(float(np.clip(np.dot(-myd, _dir_from(o, jpos)), -1, 1))))
-                    for o in g.edges.values()
-                    if o.id != e.id and (o.a == junc or o.b == junc)), default=999.0)
-        return best <= CONT_ANGLE           # continues a stroke -> connected
-
-    prune_subpen_leaves(g, g.w)              # sub-pen noise again, in case a merge exposed more
-    changed = True
-    while changed:
-        changed = False
-        deg: dict = {}
-        for e in g.edges.values():
-            deg[e.a] = deg.get(e.a, 0) + 1
-            deg[e.b] = deg.get(e.b, 0) + 1
-        for eid, e in list(g.edges.items()):
-            da, db = deg.get(e.a, 0), deg.get(e.b, 0)
-            if min(da, db) == 1 and max(da, db) >= 3 and e.length < max_len:
-                leaf = e.a if da == 1 else e.b
-                junc = e.b if da == 1 else e.a
-                if not keeps_connectivity(e, leaf, junc):
-                    del g.edges[eid]
-                    changed = True
-
-    used = {e.a for e in g.edges.values()} | {e.b for e in g.edges.values()}
-    for nid in [n for n, nd in g.nodes.items() if n not in used and nd.kind != BLOB]:
-        del g.nodes[nid]
-    # a junction that lost branches down to two may now be a through-point; leave
-    # that merge to junction resolution (M5). Refresh endpoint/junction labels.
-    deg = {}
-    for e in g.edges.values():
-        deg[e.a] = deg.get(e.a, 0) + 1
-        deg[e.b] = deg.get(e.b, 0) + 1
-    for nid, nd in g.nodes.items():
-        if nd.kind in (ENDPOINT, JUNCTION):
-            nd.kind = ENDPOINT if deg.get(nid, 0) <= 1 else JUNCTION
     return g

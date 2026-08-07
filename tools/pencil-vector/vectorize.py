@@ -21,8 +21,7 @@ import raster
 from embedding import containment, rotational_order
 from fit import fit_graph, path_d, reconstruct
 from graph import (absorb_rim_stubs, attach_edges_to_blobs, build,
-                   contact_skeleton, merge_close_junctions, prune_spurs,
-                   resolve_continuity)
+                   contact_skeleton, merge_close_junctions, resolve_continuity)
 from ink import Ink, ingest
 from model import BLOB, Graph, Node
 from stableid import assign
@@ -30,8 +29,6 @@ from svgdump import dump
 from widthclass import segment
 
 LATEST = 8                      # highest implemented milestone
-SPUR_W = 1.5                    # twig-size ceiling (§6.4); connectivity, not length, decides
-                                # which short leaves are twigs vs. real connectors/continuations
 
 
 def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
@@ -86,7 +83,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
                                             # and must run before the M3 topology freeze either way
 
     if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
-        prune_spurs(g, SPUR_W * ink.w, blob_masks=list(blob_masks.values()))
+        # (no spur-prune: the contact-aware skeleton already drops sub-pen twigs at the source, §6.2)
         assign(g)
         attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
     if milestone >= 5:                      # M5: junction resolution for continuity flood (§6.4)
