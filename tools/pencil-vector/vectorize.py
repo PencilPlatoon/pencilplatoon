@@ -17,16 +17,16 @@ from PIL import Image, ImageDraw
 from scipy import ndimage
 from skimage.measure import approximate_polygon, find_contours
 
+import growth
 import raster
 from embedding import containment, rotational_order
 from fit import fit_graph, path_d, reconstruct
 from graph import (absorb_rim_stubs, attach_edges_to_blobs, build,
-                   contact_skeleton, merge_close_junctions, resolve_continuity)
+                   merge_close_junctions, resolve_continuity)
 from ink import Ink, ingest
 from model import BLOB, Graph, Node
 from stableid import assign
 from svgdump import dump
-from widthclass import segment
 
 LATEST = 8                      # highest implemented milestone
 
@@ -58,23 +58,20 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         if milestone <= 1:                  # M1: raw skeleton per colour, no width classes
             _merge(g, build(ink_c), c, nc, ec)
             continue
-        blobs, _thin = segment(ink_c)
-        blob_union = np.zeros_like(ink_c.mask)
-        for b in blobs:
-            blob_union |= b.mask
-        # Contact-aware skeleton: axis runs THROUGH each stroke->fill contact, with the whole w/2
-        # endpoint discipline (free ends retracted + de-forked, sub-pen stubs dropped, fill contacts
-        # extended w/2 into the solid) done at the source -- so no blunt-Y defork or sub-pen prune after.
-        skel = contact_skeleton(ink_c.mask, blob_union, ink.w)
-        sub = build(ink_c, mask=skel)
+        # Growth-based blob resolution (§6.4): grow the ambiguous 2D regions into segment networks by
+        # the stroke contacts that touch them, and keep only those with a leftover fill-lobe as blobs
+        # (a clear 2D-core fill is always a blob). The returned skeleton already has each junction
+        # network and every blob-to-blob bridge folded in, ready to build like any stroke skeleton.
+        net, fills = growth.resolve(ink_c)
+        sub = build(ink_c, mask=net)
         merge_close_junctions(sub, ink.w)   # collapse the skeletonizer's split junctions at a fill
         _merge(g, sub, c, nc, ec)
-        for b in blobs:                     # blobs are first-class nodes (§6.3), tagged by colour
+        for mask, boundary, holes, centroid in fills:   # fills are first-class blob nodes (§6.3)
             nid = nc[0]; nc[0] += 1
-            g.nodes[nid] = Node(id=nid, kind=BLOB, pos=b.centroid, boundary=b.boundary,
-                                ann={"color": c, "width_class": b.width_class,
-                                     "holes": b.holes if milestone >= 6 else []})   # holes are M6
-            blob_masks[nid] = b.mask
+            g.nodes[nid] = Node(id=nid, kind=BLOB, pos=centroid, boundary=boundary,
+                                ann={"color": c, "width_class": "blob",
+                                     "holes": holes if milestone >= 6 else []})   # holes are M6
+            blob_masks[nid] = mask
     if milestone <= 1:
         return g                            # M1 is a skeleton -- no fills, so no contiguity base
     g.labels = ink.labels                   # M2+: carry the colour map for the render's fill base
