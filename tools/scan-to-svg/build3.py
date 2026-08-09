@@ -85,6 +85,24 @@ def tile(kind,label,inner,meta):
 
 def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64(f))
 
+def subj_wh(name):
+    # the drawing's pixel size, read off a milestone SVG's viewBox -- the scan overlay shares it
+    for m in (8,1,2):
+        p=f"../pencil-vector/out/{name}_m{m}.svg"
+        if os.path.exists(p):
+            mm=re.search(r'viewBox="0 0 (\d+) (\d+)"',read(p))
+            if mm: return mm.group(1),mm.group(2)
+    return "1000","1000"
+
+def scan_cell(name):
+    # the scan as an SVG (image + an empty .scanov group) in the SAME coordinate system as the
+    # Pencil Vector panel, so hovering a PV segment can mirror its exact geometry onto the ink.
+    W,H=subj_wh(name)
+    href="data:image/png;base64,"+b64(f"out/{name}_iso.png")
+    return ('<svg class="scansvg" viewBox="0 0 %s %s" preserveAspectRatio="xMidYMid meet">'
+            '<image x="0" y="0" width="%s" height="%s" preserveAspectRatio="none" href="%s"/>'
+            '<g class="scanov"></g></svg>')%(W,H,W,H,href)
+
 # JS lightbox: clone the cell's currently-visible SVG/img into a fixed overlay.
 # No #hash and no scroll changes, so opening a zoom never moves the page behind it.
 LIGHTBOX='''<div id="lb"><div id="lbframe"></div></div>
@@ -121,9 +139,81 @@ LIGHTBOX='''<div id="lb"><div id="lbframe"></div></div>
 })();
 </script>'''
 
+# Nearest-to-cursor identify: highlight whichever segment's rendered geometry is closest to the
+# pointer, so you never have to land on a thin stroke. Distance is measured in the SVG's own user
+# units -- each .hit path is sampled once (cached), plus isPointInFill so hovering inside a blob
+# picks that blob. Runs for the visible SVG under the pointer, matrix cell or zoom clone alike.
+NEAREST='''<script>
+(function(){
+  function build(svg){
+    if(svg.__segs) return svg.__segs;
+    var out=[];
+    svg.querySelectorAll('.seg').forEach(function(seg){
+      var hit=seg.querySelector('.hit'); if(!hit) return;
+      var f=hit.getAttribute('fill'), isFill=!!f && f!=='none', pts=[], L=0;
+      try{ L=hit.getTotalLength(); }catch(e){}
+      var n=Math.max(2, Math.min(48, Math.round(L/6)));
+      for(var i=0;i<=n;i++){ try{ var p=hit.getPointAtLength(L*i/n); pts.push(p.x,p.y); }catch(e){} }
+      out.push({seg:seg, hit:hit, isFill:isFill, pts:pts});
+    });
+    svg.__segs=out; return out;
+  }
+  var cur=null, raf=0, last=null;
+  // SVG paint order is DOM order, so a highlighted segment is still covered by whatever is drawn
+  // after it. Move it to the end of its parent (top of the stack) while active, and put it back
+  // exactly where it was when it stops being nearest.
+  function raise(el){ el.__next=el.nextSibling; el.__parent=el.parentNode; el.parentNode.appendChild(el); }
+  function restore(el){ if(el.__parent){ el.__parent.insertBefore(el, el.__next); el.__parent=null; el.__next=null; } }
+  // mirror the highlighted PV segment's geometry onto its row's scan, in the shared coordinate
+  // system, so you see the idealized element drawn over the ink it came from
+  var mir=null;
+  function mirror(t){
+    if(mir){ mir.innerHTML=''; mir=null; }
+    if(!t) return;
+    var art=t.closest('.art'); if(!art||!art.classList.contains('pv')) return;
+    var row=t.closest('.row'); if(!row) return;             // no row in the zoom clone -> skip
+    var ov=row.querySelector('.scanov'), vis=t.querySelector('.vis');
+    if(ov&&vis){ ov.innerHTML=vis.innerHTML; mir=ov; }
+  }
+  function clear(){ if(cur){ cur.classList.remove('near'); restore(cur); cur=null; } mirror(null); }
+  function visibleSvg(art){
+    var s=art.querySelectorAll('svg');
+    for(var i=0;i<s.length;i++){ var r=s[i].getBoundingClientRect(); if(r.width>0&&r.height>0) return s[i]; }
+    return null;
+  }
+  function run(){
+    raf=0; if(!last) return; var e=last;
+    var art=e.target.closest ? e.target.closest('.art') : null;
+    var svg=art ? visibleSvg(art) : null;
+    if(!svg){ clear(); return; }
+    var ctm=svg.getScreenCTM(); if(!ctm){ clear(); return; }
+    // match 3px up-and-left of the hotspot -- the cursor covers whatever is directly under it,
+    // so testing under the arrow makes the highlighted segment hard to see
+    var pt=svg.createSVGPoint(); pt.x=e.clientX-3; pt.y=e.clientY-3;
+    var loc=pt.matrixTransform(ctm.inverse());
+    var segs=build(svg), best=null, bd=Infinity;
+    for(var i=0;i<segs.length;i++){
+      var s=segs[i], d=Infinity;
+      if(s.isFill){ try{ if(s.hit.isPointInFill(loc)){ best=s; bd=0; break; } }catch(e2){} }
+      var p=s.pts;
+      for(var k=0;k<p.length;k+=2){ var dx=p[k]-loc.x, dy=p[k+1]-loc.y, dd=dx*dx+dy*dy; if(dd<d) d=dd; }
+      if(d<bd){ bd=d; best=s; }
+    }
+    var t=best?best.seg:null;
+    if(cur!==t){
+      if(cur){ cur.classList.remove('near'); restore(cur); }
+      cur=t; if(t){ t.classList.add('near'); raise(t); }
+      mirror(t);
+    }
+  }
+  document.addEventListener('pointermove', function(e){ last=e; if(!raf) raf=requestAnimationFrame(run); });
+  document.addEventListener('pointerdown', function(e){ last=e; if(!raf) raf=requestAnimationFrame(run); });
+})();
+</script>'''
+
 rows=""
 for key,name,note in comps:
-    cells=(tile("scan",name+" &middot; scan",img(f"out/{key}_iso.png",name+" scan"),"the drawing")
+    cells=(tile("scan",name+" &middot; scan",scan_cell(key),"the drawing")
          + tile("pv",name+" &middot; Pencil Vector",pv_cell(key),pv_meta(key)))
     rows+=('<div class="row"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
            '<div class="cells">%s</div></div>')%(name,note,cells)
@@ -140,6 +230,6 @@ body=('<input id="shownums" type="checkbox">'
  '<footer class="foot"><p><strong>Where this is going:</strong> M1&ndash;M8 are done &mdash; scan to a frozen topological model with fitted, emitted geometry. Next: <em>M9</em> relational constraints (snap parallels, right-angles, concentric circles), <em>M10</em> role-specific export + colliders + asset metadata, <em>M11</em> level-of-detail from the one model.</p>'
  '<p>The M4 cleanup tool is where assets actually get cut out; the automatic pipeline exists to make that step cheap, not to replace it.</p></footer>'
  '</div>'
- +LIGHTBOX)
+ +LIGHTBOX+NEAREST)
 open("body3.html","w").write(body)
 print("wrote body3.html","%.0f KB"%(os.path.getsize("body3.html")/1024))

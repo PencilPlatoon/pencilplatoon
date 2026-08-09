@@ -49,23 +49,28 @@
   .art{background:var(--paper);border-radius:6px;height:330px;display:grid;place-items:center;
     padding:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;position:relative;z-index:2;cursor:crosshair}
   .art svg,.art img{max-height:100%;max-width:100%;width:auto;height:auto;display:block}
-  /* a scan <img> is a direct grid child, and the grid track doesn't give it a definite
-     height to resolve max-height:100% against -- so a tall drawing (the flag) overflows and
-     crops. Flex the scan cell, where max-height:100% resolves. (The PV panels stay grid;
-     inline SVGs collapse to 0 in flex.) */
-  .art.scan{display:flex;align-items:center;justify-content:center}
-  /* pure-CSS hover-to-identify: wide invisible hit-areas drive the highlight + corner number */
+  /* the scan is now an inline SVG (image + a .scanov overlay in the PV coordinate system), so it
+     sizes in grid like the PV panels -- max-height:100% resolves against .art's fixed height. */
+  .art.scan{display:grid;place-items:center}
+  .scanov{pointer-events:none}
+  .scanov path{stroke:#e8402f}
+  .scanov path[fill]:not([fill="none"]){fill:#e8402f}
+  .scanov circle{stroke:#e8402f}
+  .scanov circle[fill]:not([fill="none"]){fill:#e8402f}
+  /* nearest-to-cursor identify: JS adds `.near` to whichever segment's rendered geometry is
+     closest to the pointer (see the script in body3.html), so you never have to land on a thin
+     stroke. The `.hit` areas remain, sampled for the distance test and for isPointInFill. */
   .seg .vis,.seg .corner{pointer-events:none}
-  .hit{pointer-events:all}
+  .hit{pointer-events:none}
   .corner{display:none}
-  .seg:hover .corner{display:inline}
+  .seg.near .corner{display:inline}
   /* the corner number is small in the shrunk-to-fit cell; enlarge it there only.
      The zoom (a clone under #lbframe) already renders it big, so leave that alone. */
-  .art .seg:hover .corner{transform:scale(2);transform-box:fill-box;transform-origin:center}
-  .seg:hover .vis path{stroke:#e8402f}
-  .seg:hover .vis path[fill]:not([fill="none"]){fill:#e8402f}
-  .seg:hover .vis circle{stroke:#e8402f}
-  .seg:hover .vis circle[fill]:not([fill="none"]){fill:#e8402f}
+  .art .seg.near .corner{transform:scale(2);transform-box:fill-box;transform-origin:center}
+  .seg.near .vis path{stroke:#e8402f}
+  .seg.near .vis path[fill]:not([fill="none"]){fill:#e8402f}
+  .seg.near .vis circle{stroke:#e8402f}
+  .seg.near .vis circle[fill]:not([fill="none"]){fill:#e8402f}
   /* left "overlay" panel: the aligned scan with the vector hidden on top of it. The right
      (clean) panel drives the hover; the matching segment then draws red here on the scan.
      Per-segment link rules are generated in build3.py. */
