@@ -19,11 +19,14 @@ ahead to reach. Everything is measured in the pen width `w`.
 from __future__ import annotations
 
 import numpy as np
+from PIL import Image, ImageDraw
 from scipy import ndimage
+from skimage.measure import approximate_polygon, find_contours
 from skimage.morphology import skeletonize
 
 import graph as GR
 import widthclass as WC
+from ink import MIN_HOLE_W2
 
 # --- growth-sim weights / tolerances (all in px or w) ---
 K_MOM, K_CEN, K_GRAV = 2.0, 0.25, 0.5          # momentum / centering / gravity
@@ -337,9 +340,30 @@ def rasterize_network(paths, shape):
     return m
 
 
-def fill_boundary(mask, w):
-    """A region kept as a blob: floor it to a pen wide everywhere, then trace its outer edge + holes."""
-    return WC._boundaries(WC._enforce_min_width(mask, w), w)
+def fill_boundary(mask, w, holes_mask=None):
+    """A region kept as a blob: floor it to a pen wide everywhere, then trace its outer edge + holes.
+    A hole the pen actually left open (`holes_mask`) must survive even when the min-width floor or the
+    outline decimation spans its narrow mouth: so after tracing, add every real hole the OUTER polygon
+    encloses as its own even-odd contour (re-tracing a carved mask loses a hole with a thin channel)."""
+    outer, holes = WC._boundaries(WC._enforce_min_width(mask, w), w)
+    if outer is None or holes_mask is None or not holes_mask.any():
+        return outer, holes
+    H, W = mask.shape
+    im = Image.new("1", (W, H), 0)
+    ImageDraw.Draw(im).polygon([(float(x), float(y)) for x, y in outer], fill=1)
+    enclosed = holes_mask & np.asarray(im, bool)          # real holes the fill polygon covers
+    lab, n = ndimage.label(enclosed)
+    for k in range(1, n + 1):
+        comp = lab == k
+        if comp.sum() < MIN_HOLE_W2 * w * w:
+            continue
+        cs = find_contours(comp.astype(float), 0.5)
+        if not cs:
+            continue
+        hpoly = approximate_polygon(max(cs, key=len), WC.POLY_TOL_W * w)
+        if len(hpoly) >= 3:
+            holes.append(np.column_stack([hpoly[:, 1], hpoly[:, 0]]))   # (row,col) -> (x,y)
+    return outer, holes
 
 
 # ----------------------------------------------------------------------------- fill-vs-junction
@@ -369,6 +393,7 @@ def resolve(ink):
       fills    -- [(mask, boundary, holes, centroid)] for every region kept as a solid blob."""
     w = ink.w
     grown, skel, candidates, kept, snapped = classify(ink)
+    ink_holes = ndimage.binary_fill_holes(ink.mask) & ~ink.mask   # holes the pen left open in the drawing
     lab, _ = ndimage.label(grown, structure=np.ones((3, 3)))
     owned = {}; bynear = {}
     for near, edge, dv, L in blob_contacts(skel, grown, w):
@@ -379,7 +404,7 @@ def resolve(ink):
     fills = []
 
     def add_fill(mask):
-        outer, holes = fill_boundary(mask, w)
+        outer, holes = fill_boundary(mask, w, ink_holes)
         if outer is not None:
             ys, xs = np.where(mask)
             fills.append((mask, outer, holes, (float(xs.mean()), float(ys.mean()))))
@@ -404,4 +429,9 @@ def resolve(ink):
             for n2 in range(m + 1, len(pts)):
                 if pts[m][1] != pts[n2][1]:
                     _draw_polyline(net, [pts[m][0], pts[n2][0]])
+    kept_union = np.zeros_like(grown)                      # push stroke ends w/2 INTO the kept fills so the
+    for mask, *_ in fills:                                 # round-cap rear clears the blob edge (a clean join,
+        kept_union |= mask                                 # the inverse of the free-end retraction)
+    if kept_union.any():
+        net = GR._extend_contacts(net, kept_union, w)
     return net, fills

@@ -167,7 +167,11 @@ def render_mask(g, primitives: bool = True, charm: float = 0.0, color=None):
             if len(s) < 2:
                 continue
             im = Image.new("L", (w_img, h), 0)
-            ImageDraw.Draw(im).line([(float(x), float(y)) for x, y in s], fill=255, width=sw, joint="curve")
+            dr = ImageDraw.Draw(im)
+            dr.line([(float(x), float(y)) for x, y in s], fill=255, width=sw, joint="curve")
+            r = sw / 2.0                                    # round pen caps: svgdump emits stroke-linecap=round,
+            for qx, qy in (s[0], s[-1]):                    # so the ends are disks, not the butt caps PIL draws
+                dr.ellipse([qx - r, qy - r, qx + r, qy + r], fill=255)
             full |= np.asarray(im) > 0
     return full
 
