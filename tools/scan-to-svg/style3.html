@@ -3,7 +3,7 @@
   :root{
     --desk:#17181c; --panel:#212229; --panel-2:#191a1f;
     --paper:#f6f1e6; --ink:#e8e5dd; --muted:#9b988d; --hair:#33343c;
-    --blue:#4763d0; --blood:#c23423;
+    --blue:#4763d0; --blood:#c23423; --identify:#e8402f;
     --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
     --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
     --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
@@ -53,13 +53,11 @@
      sizes in grid like the PV panels -- max-height:100% resolves against .art's fixed height. */
   .art.scan{display:grid;place-items:center}
   .scanov{pointer-events:none}
-  .scanov path{stroke:#e8402f}
-  .scanov path[fill]:not([fill="none"]){fill:#e8402f}
-  .scanov circle{stroke:#e8402f}
-  .scanov circle[fill]:not([fill="none"]){fill:#e8402f}
   /* nearest-to-cursor identify: JS adds `.near` to whichever segment's rendered geometry is
      closest to the pointer (see the script in body3.html), so you never have to land on a thin
-     stroke. The `.hit` areas remain, sampled for the distance test and for isPointInFill. */
+     stroke. The `.hit` areas remain, sampled for the distance test and for isPointInFill. The
+     highlight (the near segment in the PV panel, and its mirror in the scan's .scanov) draws in
+     the same identify red -- one selector group keeps the two in step. */
   .seg .vis,.seg .corner{pointer-events:none}
   .hit{pointer-events:none}
   .corner{display:none}
@@ -67,16 +65,10 @@
   /* the corner number is small in the shrunk-to-fit cell; enlarge it there only.
      The zoom (a clone under #lbframe) already renders it big, so leave that alone. */
   .art .seg.near .corner{transform:scale(2);transform-box:fill-box;transform-origin:center}
-  .seg.near .vis path{stroke:#e8402f}
-  .seg.near .vis path[fill]:not([fill="none"]){fill:#e8402f}
-  .seg.near .vis circle{stroke:#e8402f}
-  .seg.near .vis circle[fill]:not([fill="none"]){fill:#e8402f}
-  /* left "overlay" panel: the aligned scan with the vector hidden on top of it. The right
-     (clean) panel drives the hover; the matching segment then draws red here on the scan.
-     Per-segment link rules are generated in build3.py. */
-  .art.overlay .vis path{stroke:transparent;fill:transparent}
-  .art.overlay .vis circle{stroke:transparent;fill:transparent}
-  .art.overlay .hit{pointer-events:none}
+  :is(.scanov,.seg.near .vis) path{stroke:var(--identify)}
+  :is(.scanov,.seg.near .vis) path[fill]:not([fill="none"]){fill:var(--identify)}
+  :is(.scanov,.seg.near .vis) circle{stroke:var(--identify)}
+  :is(.scanov,.seg.near .vis) circle[fill]:not([fill="none"]){fill:var(--identify)}
   .zoombtn{position:absolute;top:15px;right:15px;z-index:6;width:34px;height:34px;border-radius:50%;padding:0;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink);display:grid;place-items:center;
     cursor:zoom-in}

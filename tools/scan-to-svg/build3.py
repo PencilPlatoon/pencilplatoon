@@ -4,8 +4,7 @@ def read(f): return open(f).read()
 def kb(f): return "%.1f&#8202;KB"%(os.path.getsize(f)/1024)
 def paths(s): return str(s.count("<path"))
 
-def vec(name):
-    return read(f"out/{name}_C.svg")
+def datauri(f): return "data:image/png;base64,"+b64(f)
 
 def pv_milestones(name):
     # Every retained Pencil Vector render for this subject, oldest milestone first.
@@ -34,33 +33,6 @@ def pv_meta(name):
     p=ms[-1]; n=re.search(r"_m(\d+)\.svg$",p).group(1)
     return "M%s · "%n+kb(p)+" · "+str(read(p).count("data-edge"))+"e"
 
-def scan_overlay(name):
-    # Left panel: the aligned scan (the iso the vector was traced from) with a hidden copy of
-    # the vector segments on top. CSS keeps the vector invisible until its twin is hovered in
-    # the clean panel, at which point that one segment draws red on the scan — for comparing
-    # how the idealised segment diverges from the original ink at the same coordinates.
-    svg=read(f"out/{name}_C.svg")
-    m=re.search(r'viewBox="0 0 (\d+) (\d+)"',svg); W,H=m.group(1),m.group(2)
-    scan=('<image x="0" y="0" width="%s" height="%s" preserveAspectRatio="none" '
-          'href="data:image/png;base64,%s"/>')%(W,H,b64(f"out/{name}_iso.png"))
-    svg=re.sub(r'<g class="nums".*?</g></svg>','</svg>',svg,flags=re.S)   # no number bubbles here
-    return re.sub(r'(<svg[^>]*>)', lambda mm: mm.group(1)+scan, svg, count=1)
-
-def link_css():
-    # Generate the per-segment link: hovering segment N in a row's clean (.vec) panel draws
-    # segment N red in that same row's scan (.overlay) panel. `.cells:has(...)` scopes it to
-    # the hovered row, so one rule set covers every row.
-    maxn=max((int(n) for f in os.listdir("out") if f.endswith("_C.svg")
-              for n in re.findall(r'data-num="(\d+)"', read(f"out/{f}"))), default=0)
-    r=[]
-    for n in range(1,maxn+1):
-        s='.cells:has(.vec .seg[data-num="%d"]:hover) .overlay .seg[data-num="%d"] .vis'%(n,n)
-        r.append('%s path{stroke:#e8402f}'%s)
-        r.append('%s path[fill]:not([fill="none"]){fill:#e8402f}'%s)
-        r.append('%s circle{stroke:#e8402f}'%s)
-        r.append('%s circle[fill]:not([fill="none"]){fill:#e8402f}'%s)
-    return "<style>"+"".join(r)+"</style>"
-
 comps=[
  ("flag","Capture flag","colour + fine emblem &mdash; the hard case"),
  ("cannon","Wheeled cannon","straight edges snapped to lines, both wheels to circles, solid top gun kept"),
@@ -83,25 +55,23 @@ def tile(kind,label,inner,meta):
             '<figcaption><span class="k">%s</span><span class="m">%s</span></figcaption>'
             '</figure>')%(kind,inner,ZOOM_ICON,label,meta)
 
-def img(f,alt): return '<img alt="%s" src="data:image/png;base64,%s"/>'%(alt,b64(f))
+def img(f,alt): return '<img alt="%s" src="%s"/>'%(alt,datauri(f))
 
 def subj_wh(name):
-    # the drawing's pixel size, read off a milestone SVG's viewBox -- the scan overlay shares it
-    for m in (8,1,2):
-        p=f"../pencil-vector/out/{name}_m{m}.svg"
-        if os.path.exists(p):
-            mm=re.search(r'viewBox="0 0 (\d+) (\d+)"',read(p))
-            if mm: return mm.group(1),mm.group(2)
-    return "1000","1000"
+    # the drawing's pixel size, read off a milestone SVG's viewBox -- the scan overlay shares
+    # this coordinate system with the PV panel. Every milestone renders the same drawing, so the
+    # latest one (already sorted last) is as good as any.
+    ms=pv_milestones(name)
+    mm=re.search(r'viewBox="0 0 (\d+) (\d+)"',read(ms[-1])) if ms else None
+    return (mm.group(1),mm.group(2)) if mm else ("1000","1000")
 
 def scan_cell(name):
     # the scan as an SVG (image + an empty .scanov group) in the SAME coordinate system as the
     # Pencil Vector panel, so hovering a PV segment can mirror its exact geometry onto the ink.
     W,H=subj_wh(name)
-    href="data:image/png;base64,"+b64(f"out/{name}_iso.png")
-    return ('<svg class="scansvg" viewBox="0 0 %s %s" preserveAspectRatio="xMidYMid meet">'
+    return ('<svg viewBox="0 0 %s %s" preserveAspectRatio="xMidYMid meet">'
             '<image x="0" y="0" width="%s" height="%s" preserveAspectRatio="none" href="%s"/>'
-            '<g class="scanov"></g></svg>')%(W,H,W,H,href)
+            '<g class="scanov"></g></svg>')%(W,H,W,H,datauri(f"out/{name}_iso.png"))
 
 # JS lightbox: clone the cell's currently-visible SVG/img into a fixed overlay.
 # No #hash and no scroll changes, so opening a zoom never moves the page behind it.
@@ -192,12 +162,16 @@ NEAREST='''<script>
     var pt=svg.createSVGPoint(); pt.x=e.clientX-3; pt.y=e.clientY-3;
     var loc=pt.matrixTransform(ctm.inverse());
     var segs=build(svg), best=null, bd=Infinity;
+    // a fill containing the point wins outright, so test all fills first -- when the pointer is
+    // inside a blob this skips the per-sample distance scan for every segment entirely
     for(var i=0;i<segs.length;i++){
-      var s=segs[i], d=Infinity;
+      var s=segs[i];
       if(s.isFill){ try{ if(s.hit.isPointInFill(loc)){ best=s; bd=0; break; } }catch(e2){} }
-      var p=s.pts;
+    }
+    if(bd!==0) for(var i=0;i<segs.length;i++){
+      var p=segs[i].pts, d=Infinity;
       for(var k=0;k<p.length;k+=2){ var dx=p[k]-loc.x, dy=p[k+1]-loc.y, dd=dx*dx+dy*dy; if(dd<d) d=dd; }
-      if(d<bd){ bd=d; best=s; }
+      if(d<bd){ bd=d; best=segs[i]; }
     }
     var t=best?best.seg:null;
     if(cur!==t){
