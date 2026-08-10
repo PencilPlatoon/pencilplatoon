@@ -22,7 +22,7 @@ def pv_cell(name):
         n=re.search(r"_m(\d+)\.svg$",p).group(1)
         rid=f"pv-{name}-m{n}"
         chk=" checked" if i==len(ms)-1 else ""          # default to the latest milestone
-        radios+='<input class="pvr" type="radio" name="pv-%s" id="%s"%s>'%(name,rid,chk)
+        radios+='<input class="pvr" type="radio" name="pv-%s" id="%s" data-m="%s"%s>'%(name,rid,n,chk)
         tabs+='<label for="%s">M%s</label>'%(rid,n)
         panels+='<div class="pvpanel">%s</div>'%read(p)
     return '%s<div class="pvtabs">%s</div><div class="pvpanels">%s</div>'%(radios,tabs,panels)
@@ -185,6 +185,19 @@ NEAREST='''<script>
 })();
 </script>'''
 
+# Stage sync: the milestone tabs are a per-cell radio group, but selecting a stage should move
+# the whole page to it. On any tab change, check the same `data-m` stage in every other matrix
+# cell (setting .checked doesn't re-fire change, so no loop). Scoped to .matrix, so the zoom
+# lightbox's cloned cell keeps its own independent radio group.
+STAGESYNC='''<script>
+document.addEventListener('change', function(e){
+  var r=e.target;
+  if(!r.classList||!r.classList.contains('pvr')||r.closest('#lb')) return;
+  var m=r.getAttribute('data-m'); if(m==null) return;
+  document.querySelectorAll('.matrix .pvr[data-m="'+m+'"]').forEach(function(o){ if(o!==r) o.checked=true; });
+});
+</script>'''
+
 rows=""
 for key,name,note in comps:
     cells=(tile("scan",name+" &middot; scan",scan_cell(key),"the drawing")
@@ -204,6 +217,6 @@ body=('<input id="shownums" type="checkbox">'
  '<footer class="foot"><p><strong>Where this is going:</strong> M1&ndash;M8 are done &mdash; scan to a frozen topological model with fitted, emitted geometry. Next: <em>M9</em> relational constraints (snap parallels, right-angles, concentric circles), <em>M10</em> role-specific export + colliders + asset metadata, <em>M11</em> level-of-detail from the one model.</p>'
  '<p>The M4 cleanup tool is where assets actually get cut out; the automatic pipeline exists to make that step cheap, not to replace it.</p></footer>'
  '</div>'
- +LIGHTBOX+NEAREST)
+ +LIGHTBOX+NEAREST+STAGESYNC)
 open("body3.html","w").write(body)
 print("wrote body3.html","%.0f KB"%(os.path.getsize("body3.html")/1024))
