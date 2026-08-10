@@ -244,21 +244,6 @@ def _extend_contacts(skel: np.ndarray, blob_union: np.ndarray, w: float) -> np.n
     return sk
 
 
-def contact_skeleton(mask: np.ndarray, blob_union: np.ndarray, w: float) -> np.ndarray:
-    """The M2+ stroke skeleton: contact-aware, with the whole w/2 endpoint discipline baked in.
-    Skeletonize the FULL ink and drop the fill interiors (axis runs through contacts, no hooks); then,
-    about a half pen: prune free ends back w/2 and eat their fork prongs, drop sub-pen leaf stubs, and
-    extend fill contacts w/2 into the fill. The w/2 band around each fill is protected from the prune
-    and the drop, so a stroke's neck into a fill is never severed."""
-    band = ndimage.binary_dilation(blob_union, iterations=max(1, int(round(w / 2.0))))
-    dt = ndimage.distance_transform_edt(mask)
-    skel = skeletonize(mask) & ~blob_union
-    skel = _edge_prune(skel, dt, w / 2.0 - EDGE_TOL, band, cap_len=round(EDGE_CAP_W * w))
-    skel = _drop_short_free_branches(skel, band, w)
-    skel = _extend_contacts(skel, blob_union, w)
-    return skel
-
-
 def merge_close_junctions(g: Graph, w: float) -> Graph:
     """Collapse the skeletonizer's 'H': two deg>=3 nodes joined by a sub-MERGE_THR stub become one node
     at their midpoint (stub deleted, its neighbours re-pointed). This is the only junction cleanup the
