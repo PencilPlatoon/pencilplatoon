@@ -185,8 +185,13 @@ def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
     """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
     A thickened spot on a line or a small dark mark has almost none, so it fails."""
-    core = ndimage.distance_transform_edt(comp) > CORE_R * w
-    return core.sum() >= MIN_CORE_W2 * w * w
+    ys, xs = np.where(comp)                               # crop to the component: the EDT is
+    if len(ys) == 0:                                      # identical on bbox+1 but far cheaper than
+        return False                                     # running it over the whole supersampled image
+    y0, y1 = max(0, ys.min() - 1), min(comp.shape[0], ys.max() + 2)
+    x0, x1 = max(0, xs.min() - 1), min(comp.shape[1], xs.max() + 2)
+    core = ndimage.distance_transform_edt(comp[y0:y1, x0:x1]) > CORE_R * w
+    return int(core.sum()) >= MIN_CORE_W2 * w * w
 
 
 def segment(ink: Ink) -> tuple[list[Blob], np.ndarray]:

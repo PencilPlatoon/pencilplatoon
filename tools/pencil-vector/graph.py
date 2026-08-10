@@ -70,9 +70,19 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
     node_at = np.full(skel.shape, -1, dtype=int)      # pixel -> node id (or -1)
     node_at[lab > 0] = lab[lab > 0] - 1
 
+    # group node pixels by label in ONE pass -- was np.where(lab == nid+1) per node, an O(image)
+    # scan repeated 2n times (once here, once in the edge trace); on the supersampled masks that
+    # scan dominated build. Node pixels (deg != 2) are few, so this pass is cheap.
+    npx_ys: list[list[int]] = [[] for _ in range(n)]
+    npx_xs: list[list[int]] = [[] for _ in range(n)]
+    nys, nxs = np.where(node_px)
+    for y, x in zip(nys.tolist(), nxs.tolist()):
+        L = int(lab[y, x]) - 1
+        npx_ys[L].append(y); npx_xs[L].append(x)
+
     nodes: dict[int, Node] = {}
     for nid in range(n):
-        ys, xs = np.where(lab == nid + 1)
+        ys, xs = np.asarray(npx_ys[nid]), np.asarray(npx_xs[nid])
         maxdeg = deg[ys, xs].max()
         kind = ENDPOINT if maxdeg == 1 else JUNCTION
         nodes[nid] = Node(id=nid, kind=kind, pos=(float(xs.mean()), float(ys.mean())))
@@ -82,8 +92,7 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
     seen: set = set()
     eid = 0
     for nid in range(n):
-        ys, xs = np.where(lab == nid + 1)
-        for y, x in zip(ys, xs):
+        for y, x in zip(npx_ys[nid], npx_xs[nid]):
             for dy in (-1, 0, 1):
                 for dx in (-1, 0, 1):
                     if dy == 0 and dx == 0:

@@ -388,6 +388,13 @@ def keep_as_blob(region_mask, paths, w):
     seg = rasterize_network(paths, region_mask.shape)
     if not seg.any():
         return True                                        # nothing grown at all -> it's a fill
+    # everything below is confined to the region; crop to bbox(region | seg)+1 so the EDTs run on a
+    # small window instead of the full (supersampled) image -- identical values, since every seg a
+    # region pixel could be nearest to is inside the window.
+    ys, xs = np.where(region_mask | seg)
+    y0, y1 = max(0, ys.min() - 1), min(seg.shape[0], ys.max() + 2)
+    x0, x1 = max(0, xs.min() - 1), min(seg.shape[1], xs.max() + 2)
+    region_mask, seg = region_mask[y0:y1, x0:x1], seg[y0:y1, x0:x1]
     dist_seg = ndimage.distance_transform_edt(~seg)
     leftover = region_mask & (dist_seg > w / 2.0)
     if not leftover.any():
