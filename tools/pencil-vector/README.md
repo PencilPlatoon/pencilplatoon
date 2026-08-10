@@ -57,6 +57,7 @@ graph edge is one centerline `<path>` at stroke-width `w`.
 | `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
 | `export_model.py` | serialize the frozen graph to `out/<subject>_model.json` (§13) |
 | `cleanup_template.html` + `build_cleanup.py` | the M4 cleanup tool → `cleanup.html` |
+| `build_compare.py` | comparison study page → `compare.html` (per subject: scan next to a stage tab-strip — skeleton · grow · absorb · fit · arcs; selecting a stage syncs every cell) |
 
 ## Cleanup tool (M4)
 

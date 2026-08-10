@@ -2,6 +2,7 @@
 out/
 cleanup.html
 cleanup_test.html
+compare.html
 .venv/
 venv/
 __pycache__/

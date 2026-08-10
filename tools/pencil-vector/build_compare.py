@@ -1,0 +1,442 @@
+"""Comparison artifact: per subject, the original SCAN next to a tab strip stepping through the
+pipeline stages that each visibly change the diagram -- skeleton, grow, absorb, fit, arcs (named for
+what they do, not by milestone number; see stage_graphs). Tabs are radio-driven (pure CSS) and clone
+into the zoom, so they work zoomed and non-zoomed (the pencil-vector study-page pattern).
+
+Each panel renders the stage as plain black on paper; the 'coverage vs scan' toggle recolours it
+against the ink (ORANGE where the render is bigger than the scan, GREY where smaller). Hover
+identifies an element (mirrors red onto the scan); the Skeleton toggle overlays the cyan centerlines.
+
+    python build_compare.py [out.html]       # default: compare.html next to this script"""
+import base64, io, os, re, sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import numpy as np
+from PIL import Image
+import raster
+import vectorize as V
+from vectorize import vectorize
+from ink import ingest
+from svgdump import dump
+
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "compare.html")
+ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
+PRIM = False        # default; stage_graphs sets primitives=True only for the 'arcs' stage
+
+PAPER = (246, 241, 230)
+GREY = (178, 170, 154)
+BLACK = (26, 25, 23)
+ORANGE = (201, 116, 43)
+
+SUBJECTS = [
+    ("flag",    "Capture flag",  "flag field + ragged pole; the pole is a stroke misread as a fill"),
+    ("cannon",  "Wheeled cannon","clean control — few fills, so little should change"),
+    ("soldier", "Gunner’s SMG",  "filled gun body — the clearest rim-fray case"),
+    ("mg",      "Mounted MG",    "gun + muzzle-flash; the flash is line-work, left alone"),
+    ("dying",   "Hit soldier",   "torso fill by the grip; the fingers stay strokes"),
+]
+
+
+def build_pre_absorb(key):
+    """The M2 graph the instant BEFORE absorb_rim_stubs runs -- growth blob-resolution and the
+    junction merge are done, but the rim fray isn't yet folded into the fills. Diffed against the
+    'absorb' tab (the finished M2), this isolates exactly what the rim-stub absorber changes."""
+    saved = V.absorb_rim_stubs
+    V.absorb_rim_stubs = (lambda *a, **k: None)
+    g = vectorize(ISO % key, milestone=2)
+    V.absorb_rim_stubs = saved
+    return g
+
+
+def _png_b64(arr):
+    bio = io.BytesIO()
+    Image.fromarray(arr).save(bio, format="PNG", optimize=True)
+    return base64.b64encode(bio.getvalue()).decode()
+
+
+def coverage_datauri(g, ink, prim=PRIM):
+    """Two layers: the stage's render as plain BLACK on paper (always shown), and a transparent
+    diff overlay marking where the render is BIGGER than the scan (orange) or SMALLER (grey) --
+    revealed only by the 'coverage vs scan' toggle."""
+    render = raster.render_mask(g, primitives=prim)
+    inkm = ink.mask
+    base = np.empty((*inkm.shape, 3), np.uint8)
+    base[:] = PAPER
+    base[render] = BLACK
+    diff = np.zeros((*inkm.shape, 4), np.uint8)            # transparent everywhere it matches
+    diff[inkm & ~render] = (*GREY, 255)                   # smaller than the scan (missed ink)
+    diff[render & ~inkm] = (*ORANGE, 255)                 # bigger than the scan (overshoot)
+    return _png_b64(base), _png_b64(diff), int((render & ~inkm).sum())
+
+
+def phase_svg(g, ink, clines=False, prim=PRIM):
+    """One stage's interactive coverage SVG: the black coverage raster (+ the toggleable diff overlay
+    and cyan centerlines) under the svgdump graph. The graph's own strokes are hidden but hoverable --
+    the hovered element, stroke or blob, highlights red; every segment of this stage is present."""
+    base_b64, diff_b64, over = coverage_datauri(g, ink, prim)
+    svg = dump(g, primitives=prim)
+    m = re.search(r'viewBox="0 0 (\d+) (\d+)"', svg)
+    w, h = int(m.group(1)), int(m.group(2))
+    # Raster pixel (i,j) is centred at (i+0.5, j+0.5); the vector graph is drawn at integer corners.
+    # Offset the images by -0.5 so pixel centres land on the integer coords -> raster and the red
+    # hover highlight line up exactly (no half-pixel fringe).
+    overlay = ('<image x="-0.5" y="-0.5" width="%d" height="%d" preserveAspectRatio="none" '
+               'href="data:image/png;base64,%s"/>') % (w, h, base_b64)
+    overlay += ('<image class="covdiff" x="-0.5" y="-0.5" width="%d" height="%d" preserveAspectRatio="none" '
+                'href="data:image/png;base64,%s"/>') % (w, h, diff_b64)
+    if clines:                                          # thin cyan centerlines so the kink/snap shows
+        pl = "".join('<polyline points="%s"/>' % " ".join("%.1f,%.1f" % (x, y) for x, y in e.pts)
+                     for e in g.edges.values())
+        overlay += '<g class="cline" stroke-width="%.1f">%s</g>' % (max(1.5, g.w * 0.32), pl)
+    svg = svg.replace("<svg ", '<svg class="covsvg" ', 1)
+    svg = re.sub(r"(<svg[^>]*>)", lambda mm: mm.group(1) + overlay, svg, count=1)
+    svg = re.sub(r'<g class="seg" data-num="\d+"><g class="vis"><path data-blob="\d+"[^>]*d="([^"]*)"[^>]*/></g>',
+                 lambda mm: mm.group(0) + '<path class="bhi" d="%s" fill="#e8402f" fill-rule="evenodd"/>' % mm.group(1),
+                 svg)
+    return svg, (w, h), over
+
+
+def pv_cell(subj, panels, default=-1):
+    """A milestone tab-strip (radio-driven, pure CSS) over one cell. `panels` = [(label, svg), ...];
+    `default` is the checked tab index. The lightbox clones the whole cell so tabs come with zoom."""
+    radios = tabs = pans = ""
+    d = default % len(panels)
+    for i, (lab, svg) in enumerate(panels):
+        rid = "pv-%s-%s" % (subj, lab)
+        chk = " checked" if i == d else ""
+        radios += '<input class="pvr" type="radio" name="pv-%s" id="%s" data-stage="%s"%s>' % (subj, rid, lab, chk)
+        tabs += '<label for="%s">%s</label>' % (rid, lab)
+        pans += '<div class="pvpanel">%s</div>' % svg
+    return '%s<div class="pvtabs">%s</div><div class="pvpanels">%s</div>' % (radios, tabs, pans)
+
+
+def scan_cell(key, w, h):
+    b = base64.b64encode(open(ISO % key, "rb").read()).decode()
+    return ('<svg class="scansvg" viewBox="0 0 %d %d" preserveAspectRatio="xMidYMid meet">'
+            '<image x="-0.5" y="-0.5" width="%d" height="%d" preserveAspectRatio="none" '
+            'href="data:image/png;base64,%s"/><g class="scanov"></g></svg>') % (w, h, w, h, b)
+
+
+ZOOM = ('<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" '
+        'stroke-width="2.2" stroke-linecap="round"><circle cx="10.5" cy="10.5" r="7"/>'
+        '<path d="M20 20l-4.7-4.7"/></svg>')
+
+
+def tile(kind, label, inner, meta):
+    return ('<figure class="tile"><div class="art %s">%s</div>'
+            '<button type="button" class="zoombtn" aria-label="Zoom">%s</button>'
+            '<figcaption><span class="k">%s</span><span class="m">%s</span></figcaption>'
+            '</figure>') % (kind, inner, ZOOM, label, meta)
+
+
+def stage_graphs(key):
+    """The pipeline checkpoints that each visibly change the diagram, named for what they DO rather
+    than by milestone number. Each was verified to differ from the one before by hundreds to tens of
+    thousands of rendered pixels on every scan (skeleton->grow is the big one -- 2D regions fill in).
+      skeleton  raw medial axis of the ink, no blob resolution (milestone 1)
+      grow      2D regions grown from their stroke contacts into networks + kept fills (pre-absorb)
+      absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
+      fit       strokes + fill edges idealized to straight/arc geometry (milestone 7)
+      arcs      the idealized geometry emitted as real arc primitives (milestone 8)"""
+    return [
+        ("skeleton", vectorize(ISO % key, milestone=1), False),
+        ("grow",     build_pre_absorb(key),             False),
+        ("absorb",   vectorize(ISO % key, milestone=2), False),
+        ("fit",      vectorize(ISO % key, milestone=7), False),
+        ("arcs",     vectorize(ISO % key, milestone=8), True),
+    ]
+
+
+STAGE_STRIP = "skeleton · grow · absorb · fit · arcs"
+rows = ""
+for key, name, note in SUBJECTS:
+    ink = ingest(np.asarray(Image.open(ISO % key).convert("RGB")))
+    panels, wh, counts = [], None, {}
+    for label, g, prim in stage_graphs(key):
+        svg, (w, h), _ = phase_svg(g, ink, clines=True, prim=prim)
+        panels.append((label, svg)); wh = (w, h); counts[label] = len(g.edges)
+    w, h = wh
+    pv = pv_cell(key, panels, default=0)             # default tab = skeleton (the raw starting point)
+    meta = "skeleton %d segments · arcs %d" % (counts["skeleton"], counts["arcs"])
+    cells = (tile("scan", "scan", scan_cell(key, w, h), "the drawing")
+             + tile("pv", STAGE_STRIP, pv, meta))
+    rows += ('<div class="row" style="--ar:%d/%d"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
+             '<div class="cells">%s</div></div>') % (w, h, name, note, cells)
+
+NTABS = 12          # emit tab show/hide rules for up to this many panels (grows with the milestone set)
+PVCSS = "\n".join(
+    "  .pv:has(.pvr:nth-of-type(%d):checked) .pvpanel:nth-of-type(%d){display:contents}" % (i, i)
+    for i in range(1, NTABS + 1))
+PVCSS += "\n" + ",\n".join(
+    "  .pv:has(.pvr:nth-of-type(%d):checked) .pvtabs label:nth-of-type(%d)" % (i, i)
+    for i in range(1, NTABS + 1))
+PVCSS += "{background:var(--blue);border-color:var(--blue);color:#fff}"
+
+HTML = r'''<title>Pencil Vector — pipeline stages</title>
+<style>
+  :root{
+    --desk:#17181c; --panel:#212229; --panel-2:#191a1f; --paper:#f6f1e6;
+    --ink:#e8e5dd; --muted:#9b988d; --hair:#33343c; --blue:#4763d0; --gold:#c9a24b;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;
+    --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+    --mono:ui-monospace,"SF Mono",Menlo,Consolas,monospace;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--desk)}
+  .wrap{background:radial-gradient(120% 80% at 50% -10%,#20222a 0%,var(--desk) 60%);
+    color:var(--ink);font-family:var(--sans);line-height:1.55;padding:clamp(20px,4vw,56px)}
+  .wrap>*{max-width:1290px;margin-inline:auto}
+  #shownums{position:fixed;opacity:0;width:0;height:0;pointer-events:none}
+  .numtoggle{position:fixed;top:16px;right:16px;z-index:1100;background:var(--panel);
+    border:1px solid var(--hair);color:var(--ink);padding:9px 15px;border-radius:20px;
+    font-size:13px;cursor:pointer;user-select:none;display:flex;gap:9px;align-items:center;
+    box-shadow:0 6px 20px -8px #000}
+  .numtoggle:hover{border-color:var(--blue)}
+  .numtoggle .dot{width:12px;height:12px;border-radius:50%;border:2px solid var(--muted)}
+  #shownums:checked ~ .numtoggle .dot{background:var(--blue);border-color:var(--blue)}
+  #shownums:focus-visible ~ .numtoggle{outline:2px solid var(--blue);outline-offset:2px}
+  .nums{display:none;pointer-events:none}
+  #shownums:checked ~ .wrap .nums{display:inline}
+  #shownums:checked ~ #lb .nums{display:inline}
+  #showskel{position:fixed;opacity:0;width:0;height:0;pointer-events:none}
+  .skeltoggle{top:58px}
+  #showskel:checked ~ .skeltoggle .dot{background:var(--skel,#16c7ee);border-color:var(--skel,#16c7ee)}
+  #showskel:focus-visible ~ .skeltoggle{outline:2px solid var(--blue);outline-offset:2px}
+  #showdiff{position:fixed;opacity:0;width:0;height:0;pointer-events:none}
+  .difftoggle{top:100px}
+  #showdiff:checked ~ .difftoggle .dot{background:#c9742b;border-color:#c9742b}
+  #showdiff:focus-visible ~ .difftoggle{outline:2px solid var(--blue);outline-offset:2px}
+  em{font-style:normal;color:#fff;font-weight:600}
+  code{font-family:var(--mono);font-size:.85em;background:var(--panel);padding:.12em .42em;
+    border-radius:4px;color:#d6d2c6}
+
+  .masthead{padding-bottom:clamp(20px,3vw,30px);border-bottom:1px solid var(--hair)}
+  .eyebrow{font-family:var(--mono);text-transform:uppercase;letter-spacing:.18em;font-size:12px;
+    color:var(--blue);margin:0 0 14px}
+  h1{font-family:var(--serif);font-weight:600;font-size:clamp(30px,5vw,50px);line-height:1.04;
+    margin:0;text-wrap:balance;letter-spacing:-.01em}
+  .dek{max-width:78ch;color:var(--muted);font-size:clamp(15px,1.5vw,17px);margin:16px 0 0}
+  .legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:18px 0 0;font-family:var(--mono);font-size:12px}
+  .legend span{display:flex;gap:8px;align-items:center;color:var(--ink)}
+  .legend i{width:22px;height:12px;border-radius:3px;display:inline-block;border:1px solid #0004}
+  .sw-black{background:#1a1917} .sw-orange{background:#c9742b} .sw-grey{background:#b2aa9a}
+  .sw-skel{background:#16c7ee} .sw-red{background:#e8402f}
+
+  .matrix{padding-top:clamp(18px,2.5vw,30px)}
+  .row{display:grid;grid-template-columns:196px 1fr;gap:24px;padding:22px 0;border-top:1px solid var(--hair)}
+  .row:first-of-type{border-top:none}
+  .rowhead h3{font-family:var(--serif);font-weight:600;font-size:20px;margin:0}
+  .rowhead p{color:var(--muted);font-size:13px;margin:6px 0 12px}
+  .delta{font-family:var(--mono);font-size:11px;letter-spacing:.02em;color:#e2b06a;
+    border:1px solid #4a3c22;background:#241d10;border-radius:20px;padding:4px 10px;display:inline-block}
+  .delta.flat{color:var(--muted);border-color:var(--hair);background:var(--panel-2)}
+  .cells{display:grid;gap:16px;grid-template-columns:repeat(2,1fr)}
+
+  .tile{position:relative;margin:0;background:var(--panel);border:1px solid var(--hair);
+    border-radius:10px;padding:12px;transition:border-color .15s,transform .15s}
+  .tile:hover{border-color:var(--blue);transform:translateY(-2px)}
+  .art{background:var(--paper);border-radius:6px;height:clamp(320px,48vh,470px);display:grid;
+    place-items:center;padding:14px;box-shadow:inset 0 0 0 1px rgba(0,0,0,.06);overflow:hidden;
+    position:relative;z-index:2;cursor:crosshair}
+  .art svg,.art img{max-height:100%;max-width:100%;width:auto;height:auto;display:block}
+  .scanov{pointer-events:none}
+  .scanov path{stroke:#e8402f} .scanov path[fill]:not([fill="none"]){fill:#e8402f}
+  .scanov circle{stroke:#e8402f} .scanov circle[fill]:not([fill="none"]){fill:#e8402f}
+  .cline{fill:none;stroke:#16c7ee;pointer-events:none;stroke-linejoin:round;stroke-linecap:round;display:none}
+  #showskel:checked ~ .wrap .cline{display:inline}
+  #showskel:checked ~ #lb .cline{display:inline}
+  .covdiff{pointer-events:none;image-rendering:pixelated;display:none}
+  #showdiff:checked ~ .wrap .covdiff{display:inline}
+  #showdiff:checked ~ #lb .covdiff{display:inline}
+  /* coverage panels: raster is the picture; hide svgdump's own strokes, reveal only the hovered
+     element in red -- a stroke via its .vis path, a blob via the .bhi highlight overlay. */
+  .covsvg .seg .vis{display:none}
+  .covsvg .seg.near:not(:has(path[data-blob])) .vis{display:inline}
+  .bhi{display:none;pointer-events:none}
+  .seg.near .bhi{display:inline}
+  .seg .vis,.seg .corner{pointer-events:none}
+  .hit{pointer-events:none}
+  .corner{display:none}
+  .seg.near .corner{display:inline}
+  .art .seg.near .corner{transform:scale(2);transform-box:fill-box;transform-origin:center}
+  /* Hover highlight: skeleton OFF -> the whole segment lights up at its native pen width; skeleton ON
+     -> a thin line to match the cyan centerlines. */
+  .seg.near .vis path{stroke:#e8402f}
+  #showskel:checked ~ .wrap .seg.near .vis path,
+  #showskel:checked ~ #lb .seg.near .vis path{stroke-width:3}
+  .seg.near .vis path[fill]:not([fill="none"]){fill:#e8402f}
+  .seg.near .vis circle{stroke:#e8402f}
+
+  /* Pencil-Vector milestone tab-strip over one cell (radio-driven, pure CSS). Panels use
+     display:contents so the shown SVG sizes exactly like the scan panel. Show/hide rules (PVCSS)
+     are generated for NTABS panels, so the strip grows with the milestone set. */
+  .art.pv{position:relative;padding-top:38px;cursor:default}
+  .pvr{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
+  .pvtabs{position:absolute;top:9px;left:10px;right:10px;z-index:4;display:flex;gap:6px;
+    flex-wrap:wrap;justify-content:center}
+  .pvtabs label{font-family:var(--mono);font-size:11px;letter-spacing:.06em;color:var(--muted);
+    background:var(--panel-2);border:1px solid var(--hair);border-radius:20px;padding:3px 11px;
+    cursor:pointer;transition:color .12s,border-color .12s,background .12s}
+  .pvtabs label:hover{border-color:var(--blue);color:var(--ink)}
+  .pvpanels{display:contents}
+  .pvpanel{display:none}
+''' + PVCSS + r'''
+  .pv:has(.pvr:focus-visible) .pvtabs{outline:2px solid var(--blue);outline-offset:3px;border-radius:22px}
+
+  .zoombtn{position:absolute;top:15px;right:15px;z-index:6;width:34px;height:34px;border-radius:50%;
+    padding:0;background:var(--panel);border:1px solid var(--hair);color:var(--ink);display:grid;
+    place-items:center;cursor:zoom-in}
+  .zoombtn:hover{border-color:var(--blue);color:var(--blue)}
+  figcaption{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-top:11px}
+  .k{font-size:13px;color:var(--ink)}
+  .m{font-family:var(--mono);font-size:11px;color:var(--muted);font-variant-numeric:tabular-nums;
+    text-align:right;white-space:nowrap}
+
+  .foot{border-top:1px solid var(--hair);margin-top:8px;padding-top:24px}
+  .foot p{color:var(--muted);font-size:14.5px;max-width:80ch;margin:0 0 12px}
+
+  #lb{position:fixed;inset:0;z-index:1000;display:none;place-items:center;cursor:zoom-out;
+    background:rgba(11,11,13,.93);backdrop-filter:blur(3px);padding:clamp(20px,5vh,64px)}
+  #lb.on{display:grid}
+  #lbframe{background:var(--paper);border-radius:12px;padding:min(5vw,48px);cursor:default;
+    box-shadow:0 30px 80px -20px #000;display:grid;place-items:center}
+  #lbframe svg{width:84vw;height:76vh;display:block}
+  /* cloned pv cell in the zoom: keep the tab strip, drop the panel chrome, let the SVG fill */
+  #lbframe .art.pv{width:86vw;height:auto;max-height:84vh;background:transparent;box-shadow:none;
+    padding:0;cursor:default;display:flex;flex-direction:column;align-items:center;gap:14px}
+  #lbframe .art.pv .pvtabs{position:static;flex-wrap:wrap}
+  #lbframe .art.pv svg{width:82vw;height:70vh}
+
+  @media(max-width:820px){
+    .cells{grid-template-columns:1fr;max-width:460px}
+    .row{grid-template-columns:1fr;gap:14px}
+  }
+</style>
+<input id="shownums" type="checkbox">
+<input id="showskel" type="checkbox">
+<input id="showdiff" type="checkbox">
+<label class="numtoggle" for="shownums"><span class="dot"></span>Element numbers</label>
+<label class="numtoggle skeltoggle" for="showskel"><span class="dot"></span>Skeleton</label>
+<label class="numtoggle difftoggle" for="showdiff"><span class="dot"></span>Coverage vs scan</label>
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
+    <h1>Contact-aware skeleton, every render stage</h1>
+    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>raw medial axis</strong> of the ink: every 2D region collapsed to a thin branch, no fills yet. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, grey where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
+    <div class="legend">
+      <span><i class="sw-black"></i>on ink</span>
+      <span><i class="sw-orange"></i>vs scan: bigger</span>
+      <span><i class="sw-grey"></i>vs scan: smaller</span>
+      <span><i class="sw-skel"></i>skeleton / centerline</span>
+      <span><i class="sw-red"></i>hover: element</span>
+    </div>
+  </header>
+  <section class="matrix">''' + rows + r'''</section>
+  <footer class="foot">
+    <p>The absorber is a width-class cleanup: it folds same-colour, rim-hugging short segments into the fill they fray off, then re-traces one outline. <em>grow</em> is the state just before it runs; flip <em>grow→absorb</em> on <em>soldier</em>/<em>mg</em> to watch the furry rim resolve. The <em>flag</em> pole barely changes (its raggedness is the blob&rsquo;s own boundary, a separate step). Render-connectivity is unchanged and no fills are lost.</p>
+  </footer>
+</div>
+<div id="lb"><div id="lbframe"></div></div>
+<script>
+(function(){
+  var lb=document.getElementById('lb'), fr=document.getElementById('lbframe'), n=0;
+  function close(){ lb.classList.remove('on'); fr.textContent=''; }
+  document.addEventListener('click', function(e){
+    var btn=e.target.closest('.zoombtn');
+    if(btn){
+      var art=btn.parentNode.querySelector('.art');
+      fr.textContent='';
+      if(art.classList.contains('pv')){
+        // clone the whole cell so the milestone tabs come with the zoom; remap the radio group
+        var clone=art.cloneNode(true), uid='lbpv'+(++n);
+        clone.querySelectorAll('.pvr').forEach(function(r){
+          var old=r.id; r.name=uid; r.id=uid+'-'+old;
+          var l=clone.querySelector('label[for="'+old+'"]');
+          if(l) l.setAttribute('for', uid+'-'+old);
+        });
+        fr.appendChild(clone);
+      } else {
+        var el=[].slice.call(art.querySelectorAll('svg,img')).filter(function(x){
+          return x.getBoundingClientRect().width>0; })[0];
+        if(el) fr.appendChild(el.cloneNode(true));
+      }
+      lb.classList.add('on'); return;
+    }
+    if(e.target===lb) close();
+  });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape') close(); });
+})();
+(function(){
+  function build(svg){
+    if(svg.__segs) return svg.__segs;
+    var out=[];
+    svg.querySelectorAll('.seg').forEach(function(seg){
+      var hit=seg.querySelector('.hit'); if(!hit) return;
+      var f=hit.getAttribute('fill'), isFill=!!f && f!=='none', pts=[], L=0;
+      try{ L=hit.getTotalLength(); }catch(e){}
+      var m=Math.max(2, Math.min(60, Math.round(L/6)));
+      for(var i=0;i<=m;i++){ try{ var p=hit.getPointAtLength(L*i/m); pts.push(p.x,p.y); }catch(e){} }
+      out.push({seg:seg, hit:hit, isFill:isFill, pts:pts});
+    });
+    svg.__segs=out; return out;
+  }
+  var cur=null, raf=0, last=null, mir=null;
+  function raise(el){ el.__next=el.nextSibling; el.__parent=el.parentNode; el.parentNode.appendChild(el); }
+  function restore(el){ if(el.__parent){ el.__parent.insertBefore(el, el.__next); el.__parent=null; el.__next=null; } }
+  function mirror(t){
+    if(mir){ mir.innerHTML=''; mir=null; }
+    if(!t) return;
+    var row=t.closest('.row'); if(!row) return;
+    var ov=row.querySelector('.scanov'), vis=t.querySelector('.vis');
+    if(ov&&vis){ ov.innerHTML=vis.innerHTML; mir=ov; }
+  }
+  function clear(){ if(cur){ cur.classList.remove('near'); restore(cur); cur=null; } mirror(null); }
+  function visibleSvg(host){
+    var s=host.querySelectorAll('svg');
+    for(var i=0;i<s.length;i++){ var r=s[i].getBoundingClientRect(); if(r.width>0&&r.height>0) return s[i]; }
+    return null;
+  }
+  function run(){
+    raf=0; if(!last) return; var e=last;
+    var host=e.target.closest ? (e.target.closest('.art')||e.target.closest('#lbframe')) : null;
+    var svg=host ? visibleSvg(host) : null;
+    if(!svg){ clear(); return; }
+    var tabs=host.querySelector('.pvtabs');           // cursor in the M# tab strip -> don't highlight anything
+    if(tabs){ var tr=tabs.getBoundingClientRect(); if(e.clientY<=tr.bottom){ clear(); return; } }
+    var ctm=svg.getScreenCTM(); if(!ctm){ clear(); return; }
+    var pt=svg.createSVGPoint(); pt.x=e.clientX-3; pt.y=e.clientY-3;
+    var loc=pt.matrixTransform(ctm.inverse());
+    var segs=build(svg), best=null, bd=Infinity;
+    for(var i=0;i<segs.length;i++){
+      var s=segs[i], d=Infinity;
+      if(s.isFill){ try{ if(s.hit.isPointInFill(loc)){ best=s; bd=0; break; } }catch(e2){} }
+      var p=s.pts;
+      for(var k=0;k<p.length;k+=2){ var dx=p[k]-loc.x, dy=p[k+1]-loc.y, dd=dx*dx+dy*dy; if(dd<d) d=dd; }
+      if(d<bd){ bd=d; best=s; }
+    }
+    var t=best?best.seg:null;
+    if(cur!==t){
+      if(cur){ cur.classList.remove('near'); restore(cur); }
+      cur=t; if(t){ t.classList.add('near'); raise(t); }
+      mirror(t);
+    }
+  }
+  document.addEventListener('pointermove', function(e){ last=e; if(!raf) raf=requestAnimationFrame(run); });
+  document.addEventListener('pointerdown', function(e){ last=e; if(!raf) raf=requestAnimationFrame(run); });
+})();
+(function(){
+  // The stage tabs are a per-cell radio group; selecting a stage broadcasts to every other cell so
+  // the whole page moves to the same pipeline stage at once (setting .checked doesn't re-fire change,
+  // so no loop). Scoped to .matrix, so the zoom lightbox's cloned cell keeps its own independent group.
+  document.addEventListener('change', function(e){
+    var r=e.target;
+    if(!r.classList||!r.classList.contains('pvr')||r.closest('#lb')) return;
+    var st=r.getAttribute('data-stage'); if(st==null) return;
+    document.querySelectorAll('.matrix .pvr[data-stage="'+st+'"]').forEach(function(o){ if(o!==r) o.checked=true; });
+  });
+})();
+</script>'''
+
+open(OUT, "w").write(HTML)
+print("wrote", OUT, "%.0f KB" % (os.path.getsize(OUT) / 1024))
