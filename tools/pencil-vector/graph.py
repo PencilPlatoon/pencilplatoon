@@ -179,20 +179,28 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
 def _drop_short_free_branches(skel: np.ndarray, protect: np.ndarray, minlen: float) -> np.ndarray:
     """Drop a leaf branch (free endpoint to its junction) shorter than `minlen` -- a leftover fork
     stub, below pen resolution, never emitted as a stroke. Branches touching `protect` (a fill) are
-    kept regardless of length. Iterated: dropping one stub can expose the next."""
+    kept regardless of length. A branch whose whole skeleton component has NO junction is not a stub
+    but a standalone mark (an isolated dot); it is kept too, else a lone pen-dab vanishes entirely.
+    Iterated: dropping one stub can expose the next."""
     sk = skel.copy()
     changed = True
     while changed:
         changed = False
         nb = _neigh(sk)
         endpt = sk & (nb == 1)
-        branches = sk & ~(sk & (nb >= 3))               # split at junctions into simple paths
+        junc = sk & (nb >= 3)
+        cc, _ = ndimage.label(sk, structure=_N8)         # whole components: a junction-free one is a mark
+        has_junc = set(cc[junc].tolist())
+        branches = sk & ~junc                            # split at junctions into simple paths
         lbl, n = ndimage.label(branches, structure=_N8)
         for i in range(1, n + 1):
             comp = lbl == i
-            if (comp & endpt).any() and not (comp & protect).any() and int(comp.sum()) < minlen:
-                sk &= ~comp
-                changed = True
+            if not (comp & endpt).any() or (comp & protect).any() or int(comp.sum()) >= minlen:
+                continue
+            if int(cc[comp][0]) not in has_junc:         # standalone mark, not a fork stub -> keep
+                continue
+            sk &= ~comp
+            changed = True
     return sk
 
 
