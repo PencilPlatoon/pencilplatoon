@@ -1,13 +1,15 @@
-"""Comparison artifact: per subject, the original SCAN next to a tab strip stepping through the
+"""Pipeline Stages study page: per subject, the original SCAN next to a tab strip stepping through the
 pipeline stages that each visibly change the diagram -- skeleton, grow, absorb, fit, arcs (named for
 what they do, not by milestone number; see stage_graphs). Tabs are radio-driven (pure CSS) and clone
-into the zoom, so they work zoomed and non-zoomed (the pencil-vector study-page pattern).
+into the zoom, so they work zoomed and non-zoomed (the pencil-vector study-page pattern). Selecting a
+stage in any cell syncs every cell on the page. Published as artifact bab2a5a5 ("Pencil Vector —
+pipeline stages").
 
 Each panel renders the stage as plain black on paper; the 'coverage vs scan' toggle recolours it
 against the ink (ORANGE where the render is bigger than the scan, GREY where smaller). Hover
 identifies an element (mirrors red onto the scan); the Skeleton toggle overlays the cyan centerlines.
 
-    python build_compare.py [out.html]       # default: compare.html next to this script"""
+    python pipeline_stages.py [out.html]     # default: pipeline_stages.html next to this script"""
 import base64, io, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -20,7 +22,7 @@ from vectorize import vectorize
 from ink import ingest
 from svgdump import dump
 
-OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "compare.html")
+OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "pipeline_stages.html")
 ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
 PRIM = False        # default; stage_graphs sets primitives=True only for the 'arcs' stage
 
@@ -322,7 +324,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
 <div class="wrap">
   <header class="masthead">
     <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
-    <h1>Contact-aware skeleton, every render stage</h1>
+    <h1>Pencil Vector — the pipeline, stage by stage</h1>
     <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>raw medial axis</strong> of the ink: every 2D region collapsed to a thin branch, no fills yet. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, grey where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
     <div class="legend">
       <span><i class="sw-black"></i>on ink</span>
