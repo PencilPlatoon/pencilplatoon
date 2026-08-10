@@ -376,15 +376,17 @@ def fill_boundary(mask, w, holes_mask=None):
     only as a side effect of `absorb_rim_stubs` re-tracing the blobs that happen to have a stub. No
     pen-width floor -- a blob mask is a `grown` region (seeded at d>0.90w, expanded to d>0.75w), so it is
     already >~1.5 pen wide everywhere and can't pinch off. A hole the pen actually left open (`holes_mask`)
-    must survive even when the closing or the outline decimation spans its narrow mouth: so after tracing,
-    add every real hole the OUTER polygon encloses as its own even-odd contour."""
-    outer, holes = WC._boundaries(ndimage.binary_closing(mask, iterations=1), w)
+    must survive even when the closing SEALS its narrow mouth: any such hole `_boundaries` couldn't trace
+    is re-added as its own even-odd contour. Only holes the closing FULLY sealed are re-added (`& closed`) --
+    a hole that survived closing is already in `holes`, and adding it twice would even-odd cancel it open."""
+    closed = ndimage.binary_closing(mask, iterations=1)
+    outer, holes = WC._boundaries(closed, w)
     if outer is None or holes_mask is None or not holes_mask.any():
         return outer, holes
     H, W = mask.shape
     im = Image.new("1", (W, H), 0)
     ImageDraw.Draw(im).polygon([(float(x), float(y)) for x, y in outer], fill=1)
-    enclosed = holes_mask & np.asarray(im, bool)          # real holes the fill polygon covers
+    enclosed = holes_mask & np.asarray(im, bool) & closed   # real holes closing sealed (not already traced)
     lab, n = ndimage.label(enclosed)
     for k in range(1, n + 1):
         comp = lab == k
