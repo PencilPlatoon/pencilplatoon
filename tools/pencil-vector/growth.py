@@ -299,11 +299,14 @@ def grow(contacts, grown, w, com):
                     for j in range(len(paths)):
                         if j == i:
                             continue
-                        for kk in range(len(paths[j])):
-                            if np.hypot(*(newp - paths[j][kk])) < MEET_D:
-                                cross = paths[j][kk]; cstamp = stamps[j][kk]; break
-                        if cross is not None:
-                            break
+                        # vectorized proximity to path j's committed points; np.hypot (not d^2 < r^2)
+                        # keeps the compared value bitwise-identical to the scalar scan, and argmax
+                        # picks the first point in index order -- same (j, kk) the nested loop found.
+                        P = np.asarray(paths[j])
+                        hit = np.hypot(newp[0] - P[:, 0], newp[1] - P[:, 1]) < MEET_D
+                        if hit.any():
+                            kk = int(np.argmax(hit))
+                            cross = paths[j][kk]; cstamp = stamps[j][kk]; break
                 if cross is not None:
                     fj = next((f for f in range(len(forced)) if np.hypot(*(cross - forced[f])) < joinr), -1)
                     if fj >= 0:
@@ -313,8 +316,10 @@ def grow(contacts, grown, w, com):
                         paths[i].append(cp); stamps[i].append(step); active[i] = False; matched[i] = True
                         nodes.append(cp); continue
                     return ('split', np.asarray(cross, float).copy(), cstamp)
-                if len(paths[i]) > self_skip and any(np.hypot(*(newp - q)) < MEET_D for q in paths[i][:-self_skip]):
-                    active[i] = False; continue             # (c) self-intersection
+                if len(paths[i]) > self_skip:               # (c) self-intersection
+                    Q = np.asarray(paths[i][:-self_skip])
+                    if (np.hypot(newp[0] - Q[:, 0], newp[1] - Q[:, 1]) < MEET_D).any():
+                        active[i] = False; continue
                 paths[i].append(newp); stamps[i].append(step); dirs[i] = nd
         return ('done', paths, nodes, matched)
 
