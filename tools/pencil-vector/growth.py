@@ -428,10 +428,11 @@ def resolve(ink):
     """Resolve one colour layer's 2D regions. Returns (skeleton, fills):
       skeleton -- carved stroke skeleton + the growth networks of junction regions + blob-bridge links,
                   ready for graph.build (blob interiors are absent, so they aren't skeletonized)
-      fills    -- [(mask, boundary, holes, centroid)] for every region kept as a solid blob."""
+      fills    -- [(mask, centroid)] for every region kept as a solid blob. The boundary is NOT traced
+                  here: rim-stub absorption folds ink into these masks first, so tracing waits until the
+                  mask is final (vectorize._trace_blobs) and each blob is traced once, not twice."""
     w = ink.w
     grown, skel, candidates, kept, snapped = classify(ink)
-    ink_holes = ndimage.binary_fill_holes(ink.mask) & ~ink.mask   # holes the pen left open in the drawing
     lab, _ = ndimage.label(grown, structure=np.ones((3, 3)))
     owned = {}; bynear = {}
     for near, edge, dv, L in blob_contacts(skel, grown, w):
@@ -442,10 +443,9 @@ def resolve(ink):
     fills = []
 
     def add_fill(mask):
-        outer, holes = fill_boundary(mask, w, ink_holes)
-        if outer is not None:
-            ys, xs = np.where(mask)
-            fills.append((mask, outer, holes, (float(xs.mean()), float(ys.mean()))))
+        if mask.any():                                     # boundary + holes traced later, once the mask
+            ys, xs = np.where(mask)                        # is final (post rim-stub absorption)
+            fills.append((mask, (float(xs.mean()), float(ys.mean()))))
 
     for c in kept:
         add_fill(c)

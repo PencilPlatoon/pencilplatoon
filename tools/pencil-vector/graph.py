@@ -392,19 +392,17 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     running ALONG the rim just outside the fill -- fragments of the blob's own edge that width
     detection and ring-removal didn't reach. Rendered at pen width, each stub's round-capped end
     bulges past the smooth ink edge, so a fill that should read as one clean outline comes out with
-    a rim of bumps. The stub's ink IS the blob's edge, so absorb it: grow the blob to swallow the
-    stub's ink (clamped to the real ink, so nothing overshoots the drawn edge), re-trace the OUTER
-    boundary (interior holes are untouched -- they're not on the rim), and drop the edge.
+    a rim of bumps. The stub's ink IS the blob's edge, so absorb it: fold the stub's ink into the
+    blob's mask (clamped to the real ink, so nothing overshoots the drawn edge) and drop the edge.
+    The boundary is (re)traced once from the final mask by vectorize._trace_blobs, not here.
 
     A stub is short AND rim-hugging (most of its length within STUB_NEAR*w of the blob). That keeps
     a radial stroke *ending* at the blob (only its tip is near) and a long stroke running tangent to
     it (length gate) as strokes. Same-colour only, so a coloured detail over a black fill isn't lost."""
     from PIL import Image, ImageDraw
 
-    from growth import fill_boundary                       # one shaping path for creation AND absorb
     from model import BLOB
 
-    ink_holes = ndimage.binary_fill_holes(ink_mask) & ~ink_mask   # holes the pen left open in the drawing
     sw = max(1, int(round(w)))
     removed: set = set()
     for nid, mask in list(blob_masks.items()):
@@ -428,14 +426,8 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
                 d.line(pts, fill=255, width=sw, joint="curve")
             for q in (pts[0], pts[-1]):
                 d.ellipse([q[0] - sw / 2, q[1] - sw / 2, q[0] + sw / 2, q[1] + sw / 2], fill=255)
-        absorbed = mask | ((np.asarray(im) > 0) & ink_mask)   # blob ink + the stubs' ink (clamped to ink)
-        outer, holes = fill_boundary(absorbed, w, ink_holes)  # same closing + trace + hole recovery as creation
-        if outer is None:
-            continue
-        g.nodes[nid].boundary = outer
-        g.nodes[nid].ann["holes"] = holes
-        blob_masks[nid] = absorbed
-        removed.update(e.id for e in stubs)
+        blob_masks[nid] = mask | ((np.asarray(im) > 0) & ink_mask)   # fold the stubs' ink into the blob mask;
+        removed.update(e.id for e in stubs)                          # the boundary is (re)traced once, later
 
     for eid in removed:
         g.edges.pop(eid, None)

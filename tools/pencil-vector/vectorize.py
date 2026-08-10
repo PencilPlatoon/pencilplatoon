@@ -35,9 +35,10 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
               scale: int | None = None):
     """Run the pipeline up to `milestone` -- each milestone adds the features up
     to it, so a given milestone's output is what the approach produced at that
-    stage. M1 naive skeleton; M2 width classes; M3 stable IDs + freeze; M4/M5 add
-    connectivity (no render change); M6 interior holes + embedding. Only render-
-    changing milestones differ visually (M1, M2, M3, M6).
+    stage. M1 naive skeleton; M2 width classes (blobs, holes and all -- a hollow shape
+    is hollow from the start); M3 stable IDs + freeze; M4/M5 add connectivity (no
+    render change); M6 planar embedding. Only render-changing milestones differ
+    visually (M1, M2, M3).
 
     `scale` supersamples the scan (§5); None picks it dynamically from the native
     pen width so small holes / thin walls resolve instead of pinching shut."""
@@ -66,11 +67,10 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         sub = build(ink_c, mask=net)
         merge_close_junctions(sub, ink.w)   # collapse the skeletonizer's split junctions at a fill
         _merge(g, sub, c, nc, ec)
-        for mask, boundary, holes, centroid in fills:   # fills are first-class blob nodes (§6.3)
-            nid = nc[0]; nc[0] += 1
-            g.nodes[nid] = Node(id=nid, kind=BLOB, pos=centroid, boundary=boundary,
-                                ann={"color": c, "width_class": "blob",
-                                     "holes": holes if milestone >= 6 else []})   # holes are M6
+        for mask, centroid in fills:                    # fills are first-class blob nodes (§6.3)
+            nid = nc[0]; nc[0] += 1                      # boundary + holes traced once, post-absorb (below)
+            g.nodes[nid] = Node(id=nid, kind=BLOB, pos=centroid, boundary=None,
+                                ann={"color": c, "width_class": "blob", "holes": []})
             blob_masks[nid] = mask
     if milestone <= 1:
         return g                            # M1 is a skeleton -- no fills, so no contiguity base
@@ -78,6 +78,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     absorb_rim_stubs(g, blob_masks, ink.mask, ink.w)   # M2: fold rim fray into the fill it bumps off
                                             # -- a width-class cleanup, so it belongs with M2's blobs
                                             # and must run before the M3 topology freeze either way
+    _trace_blobs(g, blob_masks, ink)                   # trace each blob's boundary + holes ONCE, from its final mask
 
     if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
         # (no spur-prune: the contact-aware skeleton already drops sub-pen twigs at the source, §6.2)
@@ -177,6 +178,26 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
         arc = path_d(nd.ann["fit"])
         if raster.is_intact(arc, _poly_area(ideal)) and not opens(arc, edges, traced):
             nd.ann["fit_ok"] = True                   # arcs render intact AND keep every attachment
+
+
+def _trace_blobs(g: Graph, blob_masks: dict, ink: Ink) -> None:
+    """Trace each blob's outer boundary + interior holes from its FINAL (post rim-stub absorption) mask,
+    once. Deferred here (rather than at blob creation in growth.resolve) so a blob whose rim stub absorb
+    folded in isn't traced twice -- 23 of the 26 blobs were being traced then re-traced. Holes are traced
+    natively WITH the outline -- a hollow shape is hollow from the start, not gated to a later milestone."""
+    ink_holes = ndimage.binary_fill_holes(ink.mask) & ~ink.mask   # holes the pen left open in the drawing
+    dead = []
+    for nid, mask in blob_masks.items():
+        nd = g.nodes.get(nid)
+        if nd is None or nd.kind != BLOB:
+            continue
+        outer, holes = growth.fill_boundary(mask, ink.w, ink_holes)
+        if outer is None:
+            dead.append(nid)                              # degenerate mask -> not a real blob
+            continue
+        nd.boundary, nd.ann["holes"] = outer, holes
+    for nid in dead:
+        g.nodes.pop(nid, None); blob_masks.pop(nid, None)
 
 
 def _color_masks(ink: Ink):
