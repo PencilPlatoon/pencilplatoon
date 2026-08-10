@@ -141,7 +141,7 @@ def _neigh(sk: np.ndarray) -> np.ndarray:
 
 
 def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarray,
-                cap_len: float | None = None) -> np.ndarray:
+                cap_len: float) -> np.ndarray:
     """Retract the skeleton from its FREE endpoints while they sit closer than `thr` to the ink edge:
     eat degree<=1 tips one pixel at a time, stopping at the first pixel with dt >= thr. Free-end caps
     and fork prongs (which run toward the edge) are trimmed; a mid-stroke thin spot (never an endpoint)
@@ -150,8 +150,7 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
 
     `cap_len` bounds the retraction per free end (in px): a ragged cap or prong is short and stops at
     the pen-wide body well within it, but a stroke that is thinner than the pen along its WHOLE length
-    (no body to stop on) keeps everything past `cap_len` instead of being consumed entirely. None =
-    unbounded (the original behaviour)."""
+    (no body to stop on) keeps everything past `cap_len` instead of being consumed entirely."""
     sk = skel.copy()
     erodable = (dt < thr) & ~protect
     # Incremental leaf-peel: keep an 8-neighbour count and only revisit a pixel when a neighbour is
@@ -163,7 +162,7 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
     stack = [(int(y), int(x), 0) for y, x in zip(ys, xs)]
     while stack:
         y, x, d = stack.pop()
-        if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1 or (cap_len is not None and d > cap_len):
+        if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1 or d > cap_len:
             continue                                    # gone / not a leaf / retracted a full cap-length
         sk[y, x] = False
         for dy in (-1, 0, 1):

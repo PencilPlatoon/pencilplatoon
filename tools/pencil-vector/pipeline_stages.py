@@ -28,7 +28,6 @@ from svgdump import dump
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "pipeline_stages.html")
 ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
-PRIM = False        # default; stage_graphs sets primitives=True only for the 'arcs' stage
 
 PAPER = (246, 241, 230)
 LAVENDER = (181, 126, 220)
@@ -50,9 +49,10 @@ def build_pre_absorb(key):
     'absorb' tab (the finished M2), this isolates exactly what the rim-stub absorber changes."""
     saved = V.absorb_rim_stubs
     V.absorb_rim_stubs = (lambda *a, **k: None)
-    g = vectorize(ISO % key, milestone=2)
-    V.absorb_rim_stubs = saved
-    return g
+    try:
+        return vectorize(ISO % key, milestone=2)
+    finally:
+        V.absorb_rim_stubs = saved                        # restore even if vectorize raises
 
 
 def pre_grow(key):
@@ -79,7 +79,7 @@ def _png_b64(arr):
     return base64.b64encode(bio.getvalue()).decode()
 
 
-def coverage_datauri(g, ink, prim=PRIM):
+def coverage_datauri(g, ink, prim=False):
     """Two layers: the stage's render as plain BLACK on paper (always shown), and a transparent
     diff overlay marking where the render is BIGGER than the scan (orange) or SMALLER (grey) --
     revealed only by the 'coverage vs scan' toggle."""
@@ -94,7 +94,7 @@ def coverage_datauri(g, ink, prim=PRIM):
     return _png_b64(base), _png_b64(diff), int((render & ~inkm).sum())
 
 
-def phase_svg(g, ink, clines=False, prim=PRIM):
+def phase_svg(g, ink, clines=False, prim=False):
     """One stage's interactive coverage SVG: the black coverage raster (+ the toggleable diff overlay
     and cyan centerlines) under the svgdump graph. The graph's own strokes are hidden but hoverable --
     the hovered element, stroke or blob, highlights red; every segment of this stage is present."""
@@ -163,12 +163,13 @@ def stage_graphs(key):
       absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
       fit       strokes + fill edges idealized to straight/arc geometry (milestone 7)
       arcs      the idealized geometry emitted as real arc primitives (milestone 8)"""
-    return [
+    fitted = vectorize(ISO % key, milestone=8)            # fit and arcs are the SAME graph (m7==m8
+    return [                                              # compute); only the SVG emit (prim) differs
         ("skeleton", pre_grow(key),                     False),
         ("grow",     build_pre_absorb(key),             False),
         ("absorb",   vectorize(ISO % key, milestone=2), False),
-        ("fit",      vectorize(ISO % key, milestone=7), False),
-        ("arcs",     vectorize(ISO % key, milestone=8), True),
+        ("fit",      fitted,                            False),
+        ("arcs",     fitted,                            True),
     ]
 
 

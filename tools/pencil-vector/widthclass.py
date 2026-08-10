@@ -168,6 +168,17 @@ def _reclaim_rim_crumbs(wide: np.ndarray, ink: Ink) -> np.ndarray:
     return wide | np.isin(lab, crumbs) if crumbs.size else wide
 
 
+def bbox_slice(mask: np.ndarray, pad: int = 1):
+    """(y-slice, x-slice) of mask's true-pixel bounding box grown by `pad`, clamped to shape; None if
+    mask is empty. Lets a per-region EDT run on a small window instead of the full supersampled image."""
+    ys, xs = np.where(mask)
+    if len(ys) == 0:
+        return None
+    H, W = mask.shape
+    return (slice(max(0, ys.min() - pad), min(H, ys.max() + 1 + pad)),
+            slice(max(0, xs.min() - pad), min(W, xs.max() + 1 + pad)))
+
+
 def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:
     """A pen mark is at least a pen wide EVERYWHERE -- a sub-pen taper or spike is unphysical
     (the pen can't draw thinner). Reconstruct the region from its skeleton with the medial
@@ -199,12 +210,10 @@ def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
     """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
     A thickened spot on a line or a small dark mark has almost none, so it fails."""
-    ys, xs = np.where(comp)                               # crop to the component: the EDT is
-    if len(ys) == 0:                                      # identical on bbox+1 but far cheaper than
-        return False                                     # running it over the whole supersampled image
-    y0, y1 = max(0, ys.min() - 1), min(comp.shape[0], ys.max() + 2)
-    x0, x1 = max(0, xs.min() - 1), min(comp.shape[1], xs.max() + 2)
-    core = ndimage.distance_transform_edt(comp[y0:y1, x0:x1]) > CORE_R * w
+    sl = bbox_slice(comp)                                 # crop: the EDT is identical on bbox+1 but far
+    if sl is None:                                        # cheaper than running it over the whole scan
+        return False
+    core = ndimage.distance_transform_edt(comp[sl]) > CORE_R * w
     return int(core.sum()) >= MIN_CORE_W2 * w * w
 
 
