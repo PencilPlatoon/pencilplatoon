@@ -370,13 +370,15 @@ def rasterize_network(paths, shape):
 
 
 def fill_boundary(mask, w, holes_mask=None):
-    """A region kept as a blob: trace its outer edge + holes straight from the ink mask. No pen-width
-    floor -- a blob mask is a `grown` region (seeded at d>0.90w, expanded to d>0.75w), so it is already
-    >~1.5 pen wide everywhere and can't pinch off; flooring only inflated thin rim spurs into bulges.
-    A hole the pen actually left open (`holes_mask`) must survive even when the outline decimation spans
-    its narrow mouth: so after tracing, add every real hole the OUTER polygon encloses as its own
-    even-odd contour (re-tracing a carved mask loses a hole with a thin channel)."""
-    outer, holes = WC._boundaries(mask, w)
+    """A region kept as a blob: trace its outer edge + holes from the ink mask, one pen-scale closing
+    first. The closing (dilate-then-erode by 1) is the blob's SHAPING -- it fills sub-pen rim notches so
+    a fill reads as one clean outline; it runs for EVERY blob here so the shape is uniform, rather than
+    only as a side effect of `absorb_rim_stubs` re-tracing the blobs that happen to have a stub. No
+    pen-width floor -- a blob mask is a `grown` region (seeded at d>0.90w, expanded to d>0.75w), so it is
+    already >~1.5 pen wide everywhere and can't pinch off. A hole the pen actually left open (`holes_mask`)
+    must survive even when the closing or the outline decimation spans its narrow mouth: so after tracing,
+    add every real hole the OUTER polygon encloses as its own even-odd contour."""
+    outer, holes = WC._boundaries(ndimage.binary_closing(mask, iterations=1), w)
     if outer is None or holes_mask is None or not holes_mask.any():
         return outer, holes
     H, W = mask.shape

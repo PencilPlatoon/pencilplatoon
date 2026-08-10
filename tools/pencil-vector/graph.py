@@ -400,11 +400,9 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     a radial stroke *ending* at the blob (only its tip is near) and a long stroke running tangent to
     it (length gate) as strokes. Same-colour only, so a coloured detail over a black fill isn't lost."""
     from PIL import Image, ImageDraw
-    from skimage.measure import approximate_polygon, find_contours
 
-    from ink import MIN_HOLE_W2
+    from growth import fill_boundary                       # one shaping path for creation AND absorb
     from model import BLOB
-    from widthclass import POLY_TOL_W, _boundaries
 
     ink_holes = ndimage.binary_fill_holes(ink_mask) & ~ink_mask   # holes the pen left open in the drawing
     sw = max(1, int(round(w)))
@@ -430,32 +428,13 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
                 d.line(pts, fill=255, width=sw, joint="curve")
             for q in (pts[0], pts[-1]):
                 d.ellipse([q[0] - sw / 2, q[1] - sw / 2, q[0] + sw / 2, q[1] + sw / 2], fill=255)
-        grown = ndimage.binary_closing(mask | ((np.asarray(im) > 0) & ink_mask), iterations=1)
-        outer, _ = _boundaries(grown, w)
+        absorbed = mask | ((np.asarray(im) > 0) & ink_mask)   # blob ink + the stubs' ink (clamped to ink)
+        outer, holes = fill_boundary(absorbed, w, ink_holes)  # same closing + trace + hole recovery as creation
         if outer is None:
             continue
-        # growing + re-tracing can span a hole the pen left open; add every such hole back so the
-        # absorb never fills one shut (the existing interior holes ride on ann['holes'] untouched).
-        im2 = Image.new("1", (mask.shape[1], mask.shape[0]), 0)
-        ImageDraw.Draw(im2).polygon([(float(x), float(y)) for x, y in outer], fill=1)
-        holes = list(g.nodes[nid].ann.get("holes", []))
-        seen = [np.asarray(h).mean(0) for h in holes]
-        hlab, hn = ndimage.label(ink_holes & np.asarray(im2, bool))
-        for k in range(1, hn + 1):
-            comp = hlab == k
-            if comp.sum() < MIN_HOLE_W2 * w * w:
-                continue
-            ys, xs = np.where(comp); cen = np.array([xs.mean(), ys.mean()])
-            if any(np.hypot(*(cen - s)) < w for s in seen):
-                continue
-            cs = find_contours(comp.astype(float), 0.5)
-            if cs:
-                hp = approximate_polygon(max(cs, key=len), POLY_TOL_W * w)
-                if len(hp) >= 3:
-                    holes.append(np.column_stack([hp[:, 1], hp[:, 0]]))
         g.nodes[nid].boundary = outer
         g.nodes[nid].ann["holes"] = holes
-        blob_masks[nid] = grown
+        blob_masks[nid] = absorbed
         removed.update(e.id for e in stubs)
 
     for eid in removed:
