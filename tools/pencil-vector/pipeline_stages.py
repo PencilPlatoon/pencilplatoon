@@ -6,7 +6,7 @@ stage in any cell syncs every cell on the page. Published as artifact bab2a5a5 (
 pipeline stages").
 
 Each panel renders the stage as plain black on paper; the 'coverage vs scan' toggle recolours it
-against the ink (ORANGE where the render is bigger than the scan, GREY where smaller). Hover
+against the ink (ORANGE where the render is bigger than the scan, LAVENDER where smaller). Hover
 identifies an element (mirrors red onto the scan); the Skeleton toggle overlays the cyan centerlines.
 
     python pipeline_stages.py [out.html]     # default: pipeline_stages.html next to this script"""
@@ -27,7 +27,7 @@ ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
 PRIM = False        # default; stage_graphs sets primitives=True only for the 'arcs' stage
 
 PAPER = (246, 241, 230)
-GREY = (178, 170, 154)
+LAVENDER = (181, 126, 220)
 BLACK = (26, 25, 23)
 ORANGE = (201, 116, 43)
 
@@ -67,7 +67,7 @@ def coverage_datauri(g, ink, prim=PRIM):
     base[:] = PAPER
     base[render] = BLACK
     diff = np.zeros((*inkm.shape, 4), np.uint8)            # transparent everywhere it matches
-    diff[inkm & ~render] = (*GREY, 255)                   # smaller than the scan (missed ink)
+    diff[inkm & ~render] = (*LAVENDER, 255)               # pen in the scan, missing in the render
     diff[render & ~inkm] = (*ORANGE, 255)                 # bigger than the scan (overshoot)
     return _png_b64(base), _png_b64(diff), int((render & ~inkm).sum())
 
@@ -222,7 +222,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   .legend{display:flex;flex-wrap:wrap;gap:8px 20px;margin:18px 0 0;font-family:var(--mono);font-size:12px}
   .legend span{display:flex;gap:8px;align-items:center;color:var(--ink)}
   .legend i{width:22px;height:12px;border-radius:3px;display:inline-block;border:1px solid #0004}
-  .sw-black{background:#1a1917} .sw-orange{background:#c9742b} .sw-grey{background:#b2aa9a}
+  .sw-black{background:#1a1917} .sw-orange{background:#c9742b} .sw-lav{background:#b57edc}
   .sw-skel{background:#16c7ee} .sw-red{background:#e8402f}
 
   .matrix{padding-top:clamp(18px,2.5vw,30px)}
@@ -325,11 +325,11 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   <header class="masthead">
     <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
     <h1>Pencil Vector — the pipeline, stage by stage</h1>
-    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>raw medial axis</strong> of the ink: every 2D region collapsed to a thin branch, no fills yet. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, grey where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
+    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>raw medial axis</strong> of the ink: every 2D region collapsed to a thin branch, no fills yet. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, lavender where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
     <div class="legend">
       <span><i class="sw-black"></i>on ink</span>
       <span><i class="sw-orange"></i>vs scan: bigger</span>
-      <span><i class="sw-grey"></i>vs scan: smaller</span>
+      <span><i class="sw-lav"></i>vs scan: smaller</span>
       <span><i class="sw-skel"></i>skeleton / centerline</span>
       <span><i class="sw-red"></i>hover: element</span>
     </div>
