@@ -77,7 +77,7 @@ def classify(ink):
     skel = skeletonize(ink.mask) & ~grown                 # carve every region; contacts snap to its edge
     dt = ndimage.distance_transform_edt(ink.mask)
     band = ndimage.binary_dilation(grown, iterations=max(1, int(round(w / 2.0))))
-    skel = GR._edge_prune(skel, dt, w / 2.0 - GR.EDGE_TOL, band)
+    skel = GR._edge_prune(skel, dt, w / 2.0 - GR.EDGE_TOL, band, cap_len=round(GR.EDGE_CAP_W * w))
     skel = GR._drop_short_free_branches(skel, band, w)
     skel, snapped = snap_overshoot(skel, grown, w)
     return grown, skel, candidates, kept, snapped

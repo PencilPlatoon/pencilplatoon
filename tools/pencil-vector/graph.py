@@ -129,6 +129,9 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
 # then apply one w/2 endpoint rule, symmetric about a half pen, entirely here (not as later cleanups).
 
 EDGE_TOL = 0.75         # px: discretization slack on the w/2 edge margin
+EDGE_CAP_W = 1.0        # w: max free-end retraction. A ragged pen cap / fork prong is short and gets
+                        # trimmed (it stops at the pen-wide body first anyway); a stroke thinner than the
+                        # pen along its whole length keeps everything past this, so it isn't consumed whole.
 MERGE_THR = 1.4         # w: collapse a junction-junction stub shorter than this (the skeletonizer 'H')
 
 
@@ -137,26 +140,31 @@ def _neigh(sk: np.ndarray) -> np.ndarray:
     return ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
 
 
-def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarray) -> np.ndarray:
+def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarray,
+                cap_len: float | None = None) -> np.ndarray:
     """Retract the skeleton from its FREE endpoints while they sit closer than `thr` to the ink edge:
-    eat degree<=1 tips one pixel per pass, stopping at the first pixel with dt >= thr. Free-end caps
+    eat degree<=1 tips one pixel at a time, stopping at the first pixel with dt >= thr. Free-end caps
     and fork prongs (which run toward the edge) are trimmed; a mid-stroke thin spot (never an endpoint)
     is preserved, so a stroke is never severed. Tips inside `protect` (the fill contact band) are a
-    contact, not a free end -- they are left, so a stroke that meets a fill keeps its contact."""
+    contact, not a free end -- they are left, so a stroke that meets a fill keeps its contact.
+
+    `cap_len` bounds the retraction per free end (in px): a ragged cap or prong is short and stops at
+    the pen-wide body well within it, but a stroke that is thinner than the pen along its WHOLE length
+    (no body to stop on) keeps everything past `cap_len` instead of being consumed entirely. None =
+    unbounded (the original behaviour)."""
     sk = skel.copy()
     erodable = (dt < thr) & ~protect
-    # Leaf-peel is confluent: the fixed point (every surviving pixel non-erodable or degree >= 2) is
-    # the same however you order the removals. So keep an 8-neighbour count and only revisit a pixel
-    # when a neighbour is removed -- one convolution up front, then O(1) per removed pixel -- instead
-    # of a full-image convolution every pass.
+    # Incremental leaf-peel: keep an 8-neighbour count and only revisit a pixel when a neighbour is
+    # removed (one convolution up front, then O(1) per removed pixel). Each worklist entry carries how
+    # many pixels have been eaten from its free end, so the cap can stop a run without a full re-scan.
     deg = ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
     H, W = sk.shape
     ys, xs = np.where(sk & erodable & (deg <= 1))
-    stack = list(zip(ys.tolist(), xs.tolist()))
+    stack = [(int(y), int(x), 0) for y, x in zip(ys, xs)]
     while stack:
-        y, x = stack.pop()
-        if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1:
-            continue                                    # already gone or no longer a leaf
+        y, x, d = stack.pop()
+        if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1 or (cap_len is not None and d > cap_len):
+            continue                                    # gone / not a leaf / retracted a full cap-length
         sk[y, x] = False
         for dy in (-1, 0, 1):
             for dx in (-1, 0, 1):
@@ -165,7 +173,7 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
                     if 0 <= ny < H and 0 <= nx < W and sk[ny, nx]:
                         deg[ny, nx] -= 1
                         if erodable[ny, nx] and deg[ny, nx] <= 1:
-                            stack.append((ny, nx))
+                            stack.append((ny, nx, d + 1))
     return sk
 
 
@@ -245,7 +253,7 @@ def contact_skeleton(mask: np.ndarray, blob_union: np.ndarray, w: float) -> np.n
     band = ndimage.binary_dilation(blob_union, iterations=max(1, int(round(w / 2.0))))
     dt = ndimage.distance_transform_edt(mask)
     skel = skeletonize(mask) & ~blob_union
-    skel = _edge_prune(skel, dt, w / 2.0 - EDGE_TOL, band)
+    skel = _edge_prune(skel, dt, w / 2.0 - EDGE_TOL, band, cap_len=round(EDGE_CAP_W * w))
     skel = _drop_short_free_branches(skel, band, w)
     skel = _extend_contacts(skel, blob_union, w)
     return skel
