@@ -110,9 +110,8 @@ class _Prefix:
         s = self._s(i, j)
         if s[0] < 2:
             return 0.0
-        # plain floats: this runs once per DP span, scalar np.float64 math was pure overhead
-        n, Sx, Sy, Sxx, Syy, Sxy = (float(s[0]), float(s[1]), float(s[2]),
-                                    float(s[4]), float(s[5]), float(s[6]))
+        # plain floats via one tolist() (scalar np.float64 math / per-elem float() was pure overhead)
+        n, Sx, Sy, _, Sxx, Syy, Sxy, *_ = s.tolist()
         mx, my = Sx / n, Sy / n
         cxx, cyy, cxy = Sxx - n * mx * mx, Syy - n * my * my, Sxy - n * mx * my
         # smaller eigenvalue of the scatter matrix = sum of squared perpendicular distances
@@ -124,7 +123,7 @@ class _Prefix:
         s = self._s(i, j)
         if s[0] < 3:
             return 0.0, None, 0.0
-        n, Sx, Sy, Sz, Sxx, Syy, Sxy, Sxz, Syz, Szz = (float(v) for v in s)
+        n, Sx, Sy, Sz, Sxx, Syy, Sxy, Sxz, Syz, Szz = s.tolist()   # one C conversion, no per-elem float()
         # Kasa algebraic fit: minimize sum (z + D x + E y + F)^2 -> the symmetric 3x3 normal eqs
         # [[Sxx,Sxy,Sx],[Sxy,Syy,Sy],[Sx,Sy,n]] @ [D,E,F] = -[Sxz,Syz,Sz]. Solved in closed form
         # (cofactor inverse) -- far cheaper per span than np.linalg.solve, which this O(M^2) DP
