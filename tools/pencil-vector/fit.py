@@ -21,6 +21,7 @@ fraction can be reapplied as a style layer -- compact geometry and the hand, ind
 controllable (§11 wobble/charm)."""
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 
 import numpy as np
@@ -106,35 +107,47 @@ class _Prefix:
         return self.c[j] - self.c[i]     # sums over [i, j)
 
     def line(self, i, j):
-        n, Sx, Sy, _, Sxx, Syy, Sxy, *_ = self._s(i, j)
-        if n < 2:
+        s = self._s(i, j)
+        if s[0] < 2:
             return 0.0
+        # plain floats: this runs once per DP span, scalar np.float64 math was pure overhead
+        n, Sx, Sy, Sxx, Syy, Sxy = (float(s[0]), float(s[1]), float(s[2]),
+                                    float(s[4]), float(s[5]), float(s[6]))
         mx, my = Sx / n, Sy / n
         cxx, cyy, cxy = Sxx - n * mx * mx, Syy - n * my * my, Sxy - n * mx * my
         # smaller eigenvalue of the scatter matrix = sum of squared perpendicular distances
         tr, det = cxx + cyy, cxx * cyy - cxy * cxy
         disc = max(0.0, tr * tr / 4 - det)
-        return max(0.0, tr / 2 - np.sqrt(disc))
+        return max(0.0, tr / 2 - math.sqrt(disc))
 
     def circle(self, i, j):
-        n, Sx, Sy, Sz, Sxx, Syy, Sxy, Sxz, Syz, Szz = self._s(i, j)
-        if n < 3:
+        s = self._s(i, j)
+        if s[0] < 3:
             return 0.0, None, 0.0
-        # Kasa algebraic fit: minimize sum (z + D x + E y + F)^2  -> solve 3x3 normal eqs
-        A = np.array([[Sxx, Sxy, Sx], [Sxy, Syy, Sy], [Sx, Sy, n]])
-        b = -np.array([Sxz, Syz, Sz])
-        try:
-            D, E, F = np.linalg.solve(A, b)
-        except np.linalg.LinAlgError:
+        n, Sx, Sy, Sz, Sxx, Syy, Sxy, Sxz, Syz, Szz = (float(v) for v in s)
+        # Kasa algebraic fit: minimize sum (z + D x + E y + F)^2 -> the symmetric 3x3 normal eqs
+        # [[Sxx,Sxy,Sx],[Sxy,Syy,Sy],[Sx,Sy,n]] @ [D,E,F] = -[Sxz,Syz,Sz]. Solved in closed form
+        # (cofactor inverse) -- far cheaper per span than np.linalg.solve, which this O(M^2) DP
+        # called hundreds of thousands of times.
+        co0 = Syy * n - Sy * Sy                       # cofactors of the symmetric matrix
+        co1 = Sx * Sy - Sxy * n
+        co2 = Sxy * Sy - Sx * Syy
+        det = Sxx * co0 + Sxy * co1 + Sx * co2
+        if abs(det) < 1e-9:
             return 1e18, None, 0.0
+        co3 = Sxx * n - Sx * Sx
+        co4 = Sx * Sxy - Sxx * Sy
+        co5 = Sxx * Syy - Sxy * Sxy
+        D = (co0 * -Sxz + co1 * -Syz + co2 * -Sz) / det
+        E = (co1 * -Sxz + co3 * -Syz + co4 * -Sz) / det
+        F = (co2 * -Sxz + co4 * -Syz + co5 * -Sz) / det
         cx, cy = -D / 2, -E / 2
         R2 = cx * cx + cy * cy - F
         if R2 <= 1e-6:
             return 1e18, None, 0.0
-        R = np.sqrt(R2)
         alg = (Szz + D * D * Sxx + E * E * Syy + n * F * F
                + 2 * (D * Sxz + E * Syz + F * Sz + D * E * Sxy + D * F * Sx + E * F * Sy))
-        return max(0.0, alg) / (4 * R2), (cx, cy), R      # algebraic -> ~geometric SSE
+        return max(0.0, alg) / (4 * R2), (cx, cy), math.sqrt(R2)   # algebraic -> ~geometric SSE
 
 
 # ---------------------------------------------------------------- segmentation (MDL DP)
