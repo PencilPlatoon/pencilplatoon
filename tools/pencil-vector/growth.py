@@ -40,6 +40,10 @@ SNAP_W = 0.2                                   # a stroke within this many w of 
 KBACK = 7                                      # steps walked back along a skeleton end to read its direction
 MIN_OVERSHOOT = 2                              # px: a tail this long past a contact is trimmed
 LOBE_FACTOR = 0.5                              # a leftover lobe with inscribed radius > this*w keeps the region a fill
+MIN_NET_SEG_W = 0.5                            # drop a grown network segment shorter than this many w: too
+                                               # short to be more than its pen-width round cap, which only
+                                               # pokes past the (thin) region edge; the sub-w/2 gap it leaves
+                                               # is bridged by the neighbouring segments' caps
 _NB = np.ones((3, 3), np.uint8); _NB[1, 1] = 0
 
 
@@ -352,6 +356,11 @@ def _draw_polyline(mask, pts):
                 mask[yy, xx] = True
 
 
+def _arclen(pth):
+    p = np.asarray(pth, float)
+    return float(np.sum(np.hypot(*np.diff(p, axis=0).T))) if len(p) >= 2 else 0.0
+
+
 def rasterize_network(paths, shape):
     m = np.zeros(shape, bool)
     for pth in paths:
@@ -445,6 +454,7 @@ def resolve(ink):
             net |= skeletonize(c)
             continue
         paths, _nodes, _matched = grow(own, grown, w, com)
+        paths = [p for p in paths if _arclen(p) >= MIN_NET_SEG_W * w]   # omit sub-pen stubs BEFORE deciding
         if keep_as_blob(c, paths, w):
             add_fill(c)
         else:
