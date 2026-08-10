@@ -33,6 +33,7 @@ K_MOM, K_CEN, K_GRAV = 2.0, 0.25, 0.5          # momentum / centering / gravity
 QUANTUM, MEET_D = 0.5, 0.8                      # step length / meeting distance
 SAFETY_STEPS = 4000                            # hang-guard; real stops are edge / meet / self
 _CONE = [np.radians(a) for a in (-45.0, -30.0, -15.0, 0.0, 15.0, 30.0, 45.0)]   # edge-stop looks ahead only
+_CONE_CS = [(float(np.cos(a)), float(np.sin(a))) for a in _CONE]                # (cos, sin) to rotate a dir into each ray
 
 # --- contact detection / decision ---
 SNAP_W = 0.2                                   # a stroke within this many w of a region snaps onto it
@@ -187,10 +188,14 @@ def blob_contacts(skel, grown, w):
 
 # ----------------------------------------------------------------------------- growth-sim
 def cast(p, d, grown, maxd):
+    """March from p along dir d in 0.5-px steps; return the distance at which we leave `grown` (a
+    wall ahead), capped at maxd. p/d may be arrays or tuples -- read as plain Python floats so the
+    inner loop stays in scalars: np.float64 scalar math + round() here dominated the growth sim."""
     H, W = grown.shape
+    px, py, dx, dy = float(p[0]), float(p[1]), float(d[0]), float(d[1])
     t = 0.5
     while t < maxd:
-        x, y = int(round(p[0] + d[0] * t)), int(round(p[1] + d[1] * t))
+        x, y = int(round(px + dx * t)), int(round(py + dy * t))
         if not (0 <= y < H and 0 <= x < W and grown[y, x]):
             return t
         t += 0.5
@@ -231,10 +236,19 @@ def grow(contacts, grown, w, com):
                 occupied[fj] = True; nodes.append(forced[fj]); spawn_from(forced[fj])
 
         def cone_dist(p, d):
-            best = 20 * w
-            for th in _CONE:
-                c, s = np.cos(th), np.sin(th)
-                best = min(best, cast(p, np.array([d[0] * c - d[1] * s, d[0] * s + d[1] * c]), grown, 20 * w))
+            # The result is only ever tested against w/2 (deep-latch / stop), never used as a real
+            # distance -- so cap each ray's march at the threshold and bail the instant one ray is
+            # under it (the min can only fall further). Turns a full 20*w march per ray into ~w in
+            # open regions, which is where the sim spent most of its time.
+            cap = 0.5 * w + 1.0
+            best = cap
+            d0, d1 = float(d[0]), float(d[1])
+            for c, s in _CONE_CS:
+                t = cast(p, (d0 * c - d1 * s, d0 * s + d1 * c), grown, cap)
+                if t < best:
+                    best = t
+                    if best < 0.5 * w:                     # already below the only threshold that matters
+                        break
             return best
 
         def seg_ahead(i, p, d):
@@ -379,10 +393,11 @@ def keep_as_blob(region_mask, paths, w):
     if not leftover.any():
         return False
     ll, nll = ndimage.label(leftover)
-    for k in range(1, nll + 1):
-        if ndimage.distance_transform_edt(ll == k).max() > LOBE_FACTOR * w:
-            return True
-    return False
+    # each lobe's inscribed radius = its max distance-to-own-boundary. The lobes are disjoint, so ONE
+    # EDT of their union gives every lobe that distance at once (was one EDT per lobe -- the pipeline's
+    # single biggest EDT cost); read the per-lobe maxima straight off it.
+    edt = ndimage.distance_transform_edt(leftover)
+    return float(np.max(ndimage.maximum(edt, ll, index=range(1, nll + 1)))) > LOBE_FACTOR * w
 
 
 # ----------------------------------------------------------------------------- one-layer resolution
