@@ -337,6 +337,11 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     .cells{grid-template-columns:1fr;max-width:460px}
     .row{grid-template-columns:1fr;gap:14px}
   }
+  #coord{position:fixed;bottom:14px;right:14px;z-index:1200;pointer-events:none;letter-spacing:.02em;
+    font:600 13px/1.2 ui-monospace,SFMono-Regular,Menlo,monospace;color:#fff;padding:7px 10px;
+    border-radius:7px;background:rgba(20,22,28,.86)}
+  #coord[hidden]{display:none}
+  #coord b{color:#7fd0ff;font-weight:700}
 </style>
 <input id="shownums" type="checkbox">
 <input id="showskel" type="checkbox">
@@ -359,6 +364,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   <section class="matrix">''' + rows + r'''</section>
 </div>
 <div id="lb"><div id="lbframe"></div></div>
+<div id="coord" hidden></div>
 <script>
 (function(){
   var lb=document.getElementById('lb'), fr=document.getElementById('lbframe'), n=0;
@@ -402,7 +408,9 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     });
     svg.__segs=out; return out;
   }
-  var cur=null, raf=0, last=null, mir=null;
+  var cur=null, raf=0, last=null, mir=null, coordEl=document.getElementById('coord');
+  function showCoord(x,y){ coordEl.innerHTML='x <b>'+x+'</b>&nbsp;&nbsp;y <b>'+y+'</b>'; coordEl.hidden=false; }
+  function hideCoord(){ coordEl.hidden=true; }
   function raise(el){ el.__next=el.nextSibling; el.__parent=el.parentNode; el.parentNode.appendChild(el); }
   function restore(el){ if(el.__parent){ el.__parent.insertBefore(el, el.__next); el.__parent=null; el.__next=null; } }
   function mirror(t){
@@ -412,7 +420,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     var ov=row.querySelector('.scanov'), vis=t.querySelector('.vis');
     if(ov&&vis){ ov.innerHTML=vis.innerHTML; mir=ov; }
   }
-  function clear(){ if(cur){ cur.classList.remove('near'); restore(cur); cur=null; } mirror(null); }
+  function clear(){ if(cur){ cur.classList.remove('near'); restore(cur); cur=null; } mirror(null); hideCoord(); }
   function visibleSvg(host){
     var s=host.querySelectorAll('svg');
     for(var i=0;i<s.length;i++){ var r=s[i].getBoundingClientRect(); if(r.width>0&&r.height>0) return s[i]; }
@@ -428,6 +436,9 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     var ctm=svg.getScreenCTM(); if(!ctm){ clear(); return; }
     var pt=svg.createSVGPoint(); pt.x=e.clientX-3; pt.y=e.clientY-3;
     var loc=pt.matrixTransform(ctm.inverse());
+    var rp=svg.createSVGPoint(); rp.x=e.clientX; rp.y=e.clientY;   // clean point (no hover fudge) for the readout
+    var rl=rp.matrixTransform(ctm.inverse());
+    showCoord(Math.round(rl.x), Math.round(rl.y));                 // viewBox px == ink-mask px (my analysis space)
     var segs=build(svg), best=null, bd=Infinity;
     for(var i=0;i<segs.length;i++){
       var s=segs[i], d=Infinity;
