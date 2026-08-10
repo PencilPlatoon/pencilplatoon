@@ -90,7 +90,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         rotational_order(g)
         containment(g)
     if milestone >= 7:                      # M7: geometry fitting (§9)
-        fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
+        fit_graph(g, ink.w, ink.mask)       # strokes AND fills fit to primitives (annotations)
         _idealize_blob_boundaries(g, ink)    # idealize/emit only where it keeps strokes in contact
     return g
 

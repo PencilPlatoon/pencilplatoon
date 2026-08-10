@@ -25,7 +25,7 @@ import math
 from dataclasses import dataclass, field
 
 import numpy as np
-from scipy.ndimage import gaussian_filter1d
+from scipy.ndimage import distance_transform_edt, gaussian_filter1d
 from skimage.restoration import denoise_tv_chambolle
 
 RESAMPLE_W = 0.5        # resample step, in units of w
@@ -36,6 +36,7 @@ SPLIT_PEN_W = 0.35      # per-segment description-length penalty, as (SPLIT_PEN_
 ARC_EXTRA_W = 0.15      # an arc costs this much (in the same SSE units) more than a line
 MIN_SEG = 4             # a primitive spans at least this many samples
 CORNER_DEG = 38.0       # a tangent break wider than this at a join is a corner (else smooth)
+ENVELOPE_TOL_W = 0.15   # a fitted arc may bow at most this far (units of w) FURTHER out than the raw edge
 CLOTHOID_GAIN = 0.55    # clothoid must cut an arc-span's residual to at most this fraction
 CLOTHOID_MIN_DK = 0.15  # ...and its curvature must sweep at least this many rad over the span
 
@@ -151,8 +152,42 @@ class _Prefix:
 
 # ---------------------------------------------------------------- segmentation (MDL DP)
 
+ENV_K = 16              # points sampled along a span for the envelope test (keeps it O(1) per span)
+
+
+def _per_pt_out(pts: np.ndarray, dt_out: np.ndarray) -> np.ndarray:
+    """Per-point distance outside the ink (0 on ink); off-image treated as far outside."""
+    H, W = dt_out.shape
+    xi = np.round(pts[:, 0]).astype(int); yi = np.round(pts[:, 1]).astype(int)
+    off = (xi < 0) | (yi < 0) | (xi >= W) | (yi >= H)
+    d = dt_out[np.clip(yi, 0, H - 1), np.clip(xi, 0, W - 1)]
+    d[off] = 1e9
+    return d
+
+
+def _line_dir(pre: _Prefix, i: int, j: int):
+    """The span's least-squares line (centroid, unit direction) in O(1) from the prefix sums --
+    the principal axis of its scatter, the same fit `pre.line` scores."""
+    n, Sx, Sy, _, Sxx, Syy, Sxy, *_ = pre._s(i, j).tolist()
+    mx, my = Sx / n, Sy / n
+    th = 0.5 * math.atan2(2 * (Sxy - n * mx * my), (Sxx - n * mx * mx) - (Syy - n * my * my))
+    return np.array([mx, my]), np.array([math.cos(th), math.sin(th)])
+
+
+def _bulges(curve_K: np.ndarray, raw_K: np.ndarray, p0, dr, env) -> bool:
+    """True where the curved primitive bows further outside the ink than BOTH the raw traced edge
+    and the straight-line fallback, by more than `tol` px, at the same sampled point. Beating the
+    raw edge means the curve inflated the shape past the drawn ink; beating the line too means a
+    line would hug better, so a curve that merely tracks a gentle bend (whose line pokes out just
+    as far) is spared. All three are sampled at the same ENV_K points, so the test is O(1)/span."""
+    dt_out, tol = env
+    line_K = p0 + np.outer((raw_K - p0) @ dr, dr)
+    arc = _per_pt_out(curve_K, dt_out)
+    return bool(((arc - _per_pt_out(raw_K, dt_out) > tol) & (arc - _per_pt_out(line_K, dt_out) > tol)).any())
+
+
 def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray,
-             closed: bool, w: float):
+             closed: bool, w: float, env=None):
     """Shortest-path partition of [0, M) into line/arc/clothoid spans by description length.
 
     Segment cost = geometric SSE + a fixed per-segment penalty (the description-length
@@ -170,6 +205,25 @@ def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray,
     def cs(v):
         return np.concatenate([[0.0], np.cumsum(v)])
     Sk, Ssk, Ss, Ss2, Sk2 = cs(kappa), cs(s_arc * kappa), cs(s_arc), cs(s_arc * s_arc), cs(kappa * kappa)
+
+    def env_ok(i, j, c=None, R=None, cpts=None):
+        """Would the arc (c,R) / clothoid (cpts) stay within the ink envelope? Samples ENV_K points
+        so the whole check is O(1) per span rather than O(span)."""
+        if env is None:
+            return True
+        if cpts is None:                                    # cheap skip: an arc within `tol` of its
+            chord = math.hypot(P[j - 1, 0] - P[i, 0], P[j - 1, 1] - P[i, 1])   # own chord can't bow
+            if R - math.sqrt(max(0.0, R * R - (chord / 2) ** 2)) <= env[1]:    # past a hugging line
+                return True
+        idx = np.linspace(i, j - 1, min(j - i, ENV_K)).round().astype(int)
+        raw_K = P[idx]
+        if cpts is None:
+            cen = np.array(c); v = raw_K - cen; d = np.hypot(v[:, 0], v[:, 1]); d[d < 1e-9] = 1e-9
+            curve_K = cen + R * v / d[:, None]
+        else:
+            curve_K = cpts[idx - i]
+        p0, dr = _line_dir(pre, i, j)
+        return not _bulges(curve_K, raw_K, p0, dr, env)
 
     def clothoid_cost(i, j):
         n = j - i
@@ -202,6 +256,22 @@ def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray,
             best = (cl[0] + pen, cl[1])
         return best
 
+    def line_partition(lo, hi):
+        """Re-cover [lo, hi) with only lines (an arc that bulged past the ink is dropped for these)."""
+        n = hi - lo
+        if n < 2 * MIN_SEG:
+            return [(lo, hi, ("line", None))]
+        dl = [math.inf] * (n + 1); dl[0] = 0.0; bk = [0] * (n + 1)
+        for b in range(MIN_SEG, n + 1):
+            for a in range(0, b - MIN_SEG + 1):
+                cost = dl[a] + pre.line(lo + a, lo + b) + pen
+                if cost < dl[b]:
+                    dl[b] = cost; bk[b] = a
+        out, b = [], n
+        while b > 0:
+            a = bk[b]; out.append((lo + a, lo + b, ("line", None))); b = a
+        return out[::-1]
+
     dp = np.full(M + 1, np.inf)
     back = [(-1, None)] * (M + 1)
     dp[0] = 0.0
@@ -219,7 +289,20 @@ def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray,
         i, info = back[j]
         spans.append((i, j, info))
         j = i
-    return spans[::-1]
+    spans = spans[::-1]
+    if env is None:
+        return spans
+    fixed = []                                       # envelope test only the CHOSEN curves, not every
+    for i, j, info in spans:                          # candidate -- a bulging arc/clothoid falls back to lines
+        if info[0] == "arc":
+            bad = not env_ok(i, j, c=info[1][0], R=info[1][1])
+        elif info[0] == "clothoid":
+            cpts, _ = _clothoid(P[i:j], s_arc[i:j], info[1]["k0"], info[1]["dk"])
+            bad = not env_ok(i, j, cpts=cpts)
+        else:
+            bad = False
+        fixed.extend(line_partition(i, j) if bad else [(i, j, info)])
+    return fixed
 
 
 # ---------------------------------------------------------------- primitive geometry
@@ -266,7 +349,7 @@ def _rms(a, b):
 
 # ---------------------------------------------------------------- top level
 
-def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None) -> Fit | None:
+def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None, env=None) -> Fit | None:
     """Fit one polyline to primitives; returns a Fit (annotations) or None if too short."""
     step = max(MIN_STEP, RESAMPLE_W * w)
     S = resample(P, step, closed)
@@ -284,7 +367,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
     kappa = gaussian_filter1d(_turning(S, closed), KAPPA_SMOOTH,
                               mode="wrap" if closed else "nearest") / step
     pre = _Prefix(S)
-    spans = _segment(S, pre, kappa, s_arc, closed, w)
+    spans = _segment(S, pre, kappa, s_arc, closed, w, env)
 
     prims, cleaned = [], np.array(S, float)
     for i, j, info in spans:
@@ -360,17 +443,20 @@ def reconstruct(fit: Fit, alpha: float = 0.0) -> np.ndarray:
     return np.vstack([out, out[:1]]) if fit.closed else out
 
 
-def fit_graph(g, w: float) -> None:
+def fit_graph(g, w: float, ink_mask=None) -> None:
     """Annotate every stroke edge and blob boundary (+holes) with its primitive fit (§9).
-    Uniform across strokes and fills; raw geometry is left untouched."""
+    Uniform across strokes and fills; raw geometry is left untouched. When `ink_mask` is given,
+    an arc that would bow more than ENVELOPE_TOL_W*w outside the ink is not offered -- the fit
+    keeps a hugging line/split instead, so idealization never bulges the shape past the drawn ink."""
+    env = (distance_transform_edt(~ink_mask), ENVELOPE_TOL_W * w) if ink_mask is not None else None
     for e in g.edges.values():
-        f = fit_curve(e.pts, w, closed=False, r=getattr(e, "r", None))
+        f = fit_curve(e.pts, w, closed=False, r=getattr(e, "r", None), env=env)
         if f is not None:
             e.ann["fit"] = f
     for nd in g.nodes.values():
         if nd.boundary is not None and len(nd.boundary) >= 3:
-            fb = fit_curve(nd.boundary, w, closed=True)
+            fb = fit_curve(nd.boundary, w, closed=True, env=env)
             if fb is not None:
                 nd.ann["fit"] = fb
-            hf = [fit_curve(h, w, closed=True) for h in nd.ann.get("holes", []) if len(h) >= 3]
+            hf = [fit_curve(h, w, closed=True, env=env) for h in nd.ann.get("holes", []) if len(h) >= 3]
             nd.ann["fit_holes"] = [h for h in hf if h is not None]
