@@ -145,11 +145,28 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
     contact, not a free end -- they are left, so a stroke that meets a fill keeps its contact."""
     sk = skel.copy()
     erodable = (dt < thr) & ~protect
-    while True:
-        rm = sk & (_neigh(sk) <= 1) & erodable
-        if not rm.any():
-            return sk
-        sk &= ~rm
+    # Leaf-peel is confluent: the fixed point (every surviving pixel non-erodable or degree >= 2) is
+    # the same however you order the removals. So keep an 8-neighbour count and only revisit a pixel
+    # when a neighbour is removed -- one convolution up front, then O(1) per removed pixel -- instead
+    # of a full-image convolution every pass.
+    deg = ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
+    H, W = sk.shape
+    ys, xs = np.where(sk & erodable & (deg <= 1))
+    stack = list(zip(ys.tolist(), xs.tolist()))
+    while stack:
+        y, x = stack.pop()
+        if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1:
+            continue                                    # already gone or no longer a leaf
+        sk[y, x] = False
+        for dy in (-1, 0, 1):
+            for dx in (-1, 0, 1):
+                if dy or dx:
+                    ny, nx = y + dy, x + dx
+                    if 0 <= ny < H and 0 <= nx < W and sk[ny, nx]:
+                        deg[ny, nx] -= 1
+                        if erodable[ny, nx] and deg[ny, nx] <= 1:
+                            stack.append((ny, nx))
+    return sk
 
 
 def _drop_short_free_branches(skel: np.ndarray, protect: np.ndarray, minlen: float) -> np.ndarray:
