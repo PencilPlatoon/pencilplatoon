@@ -173,13 +173,27 @@ def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:
     (the pen can't draw thinner). Reconstruct the region from its skeleton with the medial
     radius floored at w/2, so a thin tip blunts to a pen-wide rounded cap -- fixing the pinch-
     offs that disconnect a tapering blob -- while the thick body is kept exactly (union)."""
-    skel = skeletonize(comp)
-    if not skel.any():
+    ys, xs = np.where(comp)
+    if len(ys) == 0:
         return comp
-    dist = ndimage.distance_transform_edt(comp)
-    d2s, idx = ndimage.distance_transform_edt(~skel, return_distances=True, return_indices=True)
+    # the skeleton reconstruction reaches at most one medial radius outside comp (<= half the
+    # region's smaller extent), so run the skeletonize + both EDTs on bbox+that window rather than
+    # the whole supersampled image -- identical result, far cheaper for a small blob in a big scan.
+    H, W = comp.shape
+    y0b, y1b, x0b, x1b = ys.min(), ys.max(), xs.min(), xs.max()
+    pad = int(np.ceil(min(y1b - y0b, x1b - x0b) / 2.0)) + 2
+    y0, y1 = max(0, y0b - pad), min(H, y1b + 1 + pad)
+    x0, x1 = max(0, x0b - pad), min(W, x1b + 1 + pad)
+    cw = comp[y0:y1, x0:x1]
+    sk = skeletonize(cw)
+    if not sk.any():
+        return comp
+    dist = ndimage.distance_transform_edt(cw)
+    d2s, idx = ndimage.distance_transform_edt(~sk, return_distances=True, return_indices=True)
     radius = dist[idx[0], idx[1]]                     # medial radius of the nearest skeleton point
-    return comp | (d2s <= np.maximum(radius, MIN_WIDTH_R * w))
+    out = comp.copy()
+    out[y0:y1, x0:x1] = cw | (d2s <= np.maximum(radius, MIN_WIDTH_R * w))
+    return out
 
 
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
