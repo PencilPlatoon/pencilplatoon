@@ -348,7 +348,6 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   <header class="masthead">
     <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
     <h1>Pencil Vector — the pipeline, stage by stage</h1>
-    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>contact-aware stroke skeleton</strong>: strokes thinned to clean centerlines with their free ends pulled back to the pen&rsquo;s reach, and the 2D regions carved out (they show through pale) &mdash; the exact skeleton the grow step starts from, its regions still empty. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, lavender where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
     <div class="legend">
       <span><i class="sw-black"></i>on ink</span>
       <span><i class="sw-orange"></i>vs scan: bigger</span>
@@ -358,9 +357,6 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     </div>
   </header>
   <section class="matrix">''' + rows + r'''</section>
-  <footer class="foot">
-    <p>The absorber is a width-class cleanup: it folds same-colour, rim-hugging short segments into the fill they fray off, then re-traces one outline. <em>grow</em> is the state just before it runs; flip <em>grow→absorb</em> on <em>soldier</em>/<em>mg</em> to watch the furry rim resolve. The <em>flag</em> pole barely changes (its raggedness is the blob&rsquo;s own boundary, a separate step). Render-connectivity is unchanged and no fills are lost.</p>
-  </footer>
 </div>
 <div id="lb"><div id="lbframe"></div></div>
 <script>
