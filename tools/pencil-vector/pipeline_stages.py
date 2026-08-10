@@ -16,10 +16,14 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import numpy as np
 from PIL import Image
+from scipy import ndimage
+import growth
 import raster
 import vectorize as V
 from vectorize import vectorize
-from ink import ingest
+from graph import build
+from ink import Ink, ingest
+from model import Graph
 from svgdump import dump
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "pipeline_stages.html")
@@ -48,6 +52,24 @@ def build_pre_absorb(key):
     V.absorb_rim_stubs = (lambda *a, **k: None)
     g = vectorize(ISO % key, milestone=2)
     V.absorb_rim_stubs = saved
+    return g
+
+
+def pre_grow(key):
+    """The real 'before grow' stage: growth.classify's carved, endpoint-disciplined stroke skeleton
+    -- the exact input the growth sim starts from (`net = skel.copy()`), built into a graph with the
+    2D regions still carved out (no fills yet). This is what grow actually works from, not a separate
+    naive skeletonize; its free ends are already pulled back to the pen's reach."""
+    rgb = np.asarray(Image.open(ISO % key).convert("RGB"))
+    ink = ingest(rgb)
+    g = Graph(nodes={}, edges={}, w=ink.w, size=(ink.mask.shape[1], ink.mask.shape[0]),
+              scale=ink.scale, palette=ink.palette)
+    nc, ec = [0], [0]
+    for c, cmask in V._color_masks(ink):
+        ink_c = Ink(mask=cmask, dist=ndimage.distance_transform_edt(cmask), w=ink.w, scale=ink.scale)
+        _grown, skel, *_ = growth.classify(ink_c)
+        V._merge(g, build(ink_c, mask=skel), c, nc, ec)
+    g.labels = ink.labels
     return g
 
 
@@ -136,13 +158,13 @@ def stage_graphs(key):
     """The pipeline checkpoints that each visibly change the diagram, named for what they DO rather
     than by milestone number. Each was verified to differ from the one before by hundreds to tens of
     thousands of rendered pixels on every scan (skeleton->grow is the big one -- 2D regions fill in).
-      skeleton  raw medial axis of the ink, no blob resolution (milestone 1)
+      skeleton  contact-aware stroke skeleton: endpoints disciplined, 2D regions carved out (classify)
       grow      2D regions grown from their stroke contacts into networks + kept fills (pre-absorb)
       absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
       fit       strokes + fill edges idealized to straight/arc geometry (milestone 7)
       arcs      the idealized geometry emitted as real arc primitives (milestone 8)"""
     return [
-        ("skeleton", vectorize(ISO % key, milestone=1), False),
+        ("skeleton", pre_grow(key),                     False),
         ("grow",     build_pre_absorb(key),             False),
         ("absorb",   vectorize(ISO % key, milestone=2), False),
         ("fit",      vectorize(ISO % key, milestone=7), False),
@@ -325,7 +347,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   <header class="masthead">
     <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
     <h1>Pencil Vector — the pipeline, stage by stage</h1>
-    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>raw medial axis</strong> of the ink: every 2D region collapsed to a thin branch, no fills yet. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, lavender where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
+    <p class="dek">Each subject carries a tab strip that steps through the pipeline stages that actually change the drawing &mdash; named for what each <em>does</em>, not by milestone number, and each verified to move hundreds to tens of thousands of rendered pixels off the one before. <em>skeleton</em> is the <strong>contact-aware stroke skeleton</strong>: strokes thinned to clean centerlines with their free ends pulled back to the pen&rsquo;s reach, and the 2D regions carved out (they show through pale) &mdash; the exact skeleton the grow step starts from, its regions still empty. <em>grow</em> resolves those regions &mdash; each grown inward from the stroke contacts that touch it, then kept as a solid fill or a segment network (this is the big jump; the blobs fill in). <em>absorb</em> folds rim fray into the fill it frays off and re-traces one clean outline. <em>fit</em> idealizes strokes and fill edges to straight/arc geometry. <em>arcs</em> emits that geometry as real arc/line primitives. (Stable-IDs, connectivity resolution and planar-embedding + interior holes run inside the chain but change no pixel a later tab doesn&rsquo;t also show, so they earn no tab.) By default the render is plain black; the <em>Coverage&nbsp;vs&nbsp;scan</em> toggle recolours it against the ink &mdash; orange where the render runs bigger than the scan, lavender where smaller. Zoom any cell (tabs come with it); hover to identify a segment (it mirrors red onto the scan); toggle the <em>Skeleton</em>, <em>Element&nbsp;numbers</em> and <em>Coverage&nbsp;vs&nbsp;scan</em> overlays.</p>
     <div class="legend">
       <span><i class="sw-black"></i>on ink</span>
       <span><i class="sw-orange"></i>vs scan: bigger</span>
