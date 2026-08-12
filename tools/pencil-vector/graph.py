@@ -18,7 +18,7 @@ from scipy import ndimage
 from skimage.morphology import skeletonize
 
 from ink import Ink
-from model import ENDPOINT, JUNCTION, Edge, Graph, Node
+from model import BLOB, ENDPOINT, JUNCTION, Edge, Graph, Node
 
 # 8-connectivity for skeleton pixel adjacency
 _N8 = np.ones((3, 3), dtype=int)
@@ -384,6 +384,98 @@ def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
                 if nb.sid not in e.ann["blobs"]:
                     e.ann["blobs"].append(nb.sid)
         nb.ann["edges"] = attached
+    return g
+
+
+CONTACT_REACH_W = 0.5    # a stroke centreline within this*w of a blob touches it (the stroke body overlaps)
+CONTACT_GRAZE_W = 2.5    # split only where the near-blob run is shorter than this*w (a graze, not run-along)
+CONTACT_ARM_W = 1.0      # ...and each resulting half is at least this*w long (never leave a tiny stub)
+
+
+def split_edges_at_blob_contacts(g: Graph, blob_masks: dict, w: float) -> Graph:
+    """Separate a stroke that only GRAZES a blob mid-edge (a tangential contact, not an endpoint) at the
+    contact: insert a valence-2 node there and cut the edge in two, so the boundary fit anchors to it (the
+    contact node becomes an edge endpoint on the blob). A loop or through-stroke touching a blob has no
+    free end, so neither the endpoint nor the overlap-fraction attach catches it, and idealising the
+    boundary later pulls it off the stroke. Runs before assign()/attach so the new elements get stable ids
+    and are attached like any other. `blob_contact` on the new node records the blob for the incidence pass."""
+    if not blob_masks:
+        return g
+    reach = CONTACT_REACH_W * w
+    dts = {nid: ndimage.distance_transform_edt(~m) for nid, m in blob_masks.items()}
+    nc = (max(g.nodes) if g.nodes else 0) + 1
+    ec = (max(g.edges) if g.edges else 0) + 1
+    for e in list(g.edges.values()):                       # snapshot: g.edges is mutated in the loop
+        p = e.pts
+        if len(p) < 5:
+            continue
+        seglen = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(p, axis=0).T))])
+        best = None
+        for nid, dt in dts.items():
+            H, W = dt.shape
+            d = dt[np.clip(p[:, 1].astype(int), 0, H - 1), np.clip(p[:, 0].astype(int), 0, W - 1)]
+            k = int(d.argmin())
+            if d[k] >= reach:
+                continue
+            lo = hi = k                                    # the contiguous near-blob run around k
+            while lo > 0 and d[lo - 1] < reach:
+                lo -= 1
+            while hi < len(p) - 1 and d[hi + 1] < reach:
+                hi += 1
+            if seglen[hi] - seglen[lo] > CONTACT_GRAZE_W * w:
+                continue                                   # a long run = lies ALONG the blob, overlap owns it
+            if best is None or d[k] < best[1]:
+                best = (nid, d[k], k)
+        if best is None:
+            continue
+        nid, _, k = best
+        if seglen[k] < CONTACT_ARM_W * w or seglen[-1] - seglen[k] < CONTACT_ARM_W * w:
+            e.ann.setdefault("blob_contact_ends", [])      # contact AT an endpoint (splitting would leave a
+            if nid not in e.ann["blob_contact_ends"]:      # stub) -> the endpoint exists; just attach the edge
+                e.ann["blob_contact_ends"].append(nid)     # (endpoint runs tangent/away, so _runs_into missed it)
+            continue
+        B = g.nodes[nid].boundary                          # mid-edge graze: snap the contact ONTO the blob edge
+        if B is not None and len(B) >= 2:                  # (like the growth-stage snap) and split there
+            j = int(np.hypot(B[:, 0] - p[k, 0], B[:, 1] - p[k, 1]).argmin())
+            X = np.array([float(B[j, 0]), float(B[j, 1])])
+        else:
+            X = p[k].astype(float)
+        pts1 = p[:k + 1].astype(float).copy(); pts1[-1] = X
+        pts2 = p[k:].astype(float).copy(); pts2[0] = X
+        g.nodes[nc] = Node(id=nc, kind=JUNCTION, pos=(float(X[0]), float(X[1])), ann={"blob_contact": nid})
+        g.edges[ec] = Edge(id=ec, a=e.a, b=nc, pts=pts1, r=e.r[:k + 1].copy(),
+                           width_class=e.width_class, ann=dict(e.ann))
+        g.edges[ec + 1] = Edge(id=ec + 1, a=nc, b=e.b, pts=pts2, r=e.r[k:].copy(),
+                               width_class=e.width_class, ann=dict(e.ann))
+        del g.edges[e.id]
+        nc += 1; ec += 2
+    return g
+
+
+def attach_contact_splits(g: Graph) -> Graph:
+    """Wire incidence for the tangential-contact splits: each split node's two edges attach to its blob
+    (endpoint-only attach can't see a tangential touch, so record it directly from the split we made)."""
+    def wire(blob, e):
+        if blob is None or blob.kind != BLOB:
+            return
+        elist = blob.ann.setdefault("edges", [])
+        if e.sid and e.sid not in elist:
+            elist.append(e.sid)
+        bl = e.ann.setdefault("blobs", [])
+        if blob.sid and blob.sid not in bl:
+            bl.append(blob.sid)
+
+    for nd in list(g.nodes.values()):                      # mid-edge split node: attach both incident edges
+        bid = nd.ann.get("blob_contact") if nd.ann else None
+        if bid is None:
+            continue
+        blob = g.nodes.get(bid)
+        for e in g.edges.values():
+            if nd.id in (e.a, e.b):
+                wire(blob, e)
+    for e in g.edges.values():                             # near-endpoint contact: attach that edge alone
+        for bid in e.ann.get("blob_contact_ends", []):
+            wire(g.nodes.get(bid), e)
     return g
 
 

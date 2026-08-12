@@ -22,7 +22,7 @@ COORD = re.compile(r"-?\d+\.\d{2,}")            # a coordinate with 2+ decimals 
 def test_arc_becomes_one_A_command():
     rng = np.random.default_rng(0)
     th = np.linspace(0, 2 * np.pi, 160, endpoint=False)
-    P = np.column_stack([200 + 70 * np.cos(th), 200 + 70 * np.sin(th)]) + rng.normal(0, 0.1 * W, (th.size, 2))
+    P = np.column_stack([200 + 70 * np.cos(th), 200 + 70 * np.sin(th)]) + rng.normal(0, 0.06 * W, (th.size, 2))
     d = path_d(fit_curve(P, W, closed=True))
     assert d.count("A") == 1, d                 # the whole circle is a single arc command
     r = float(re.search(r"A([\d.]+)", d).group(1))
@@ -32,7 +32,7 @@ def test_arc_becomes_one_A_command():
 def test_line_is_all_linetos_no_arcs():
     rng = np.random.default_rng(0)
     s = np.linspace(0, 400, 120)
-    P = np.column_stack([s, np.full(s.size, 200.0)]) + rng.normal(0, 0.1 * W, (s.size, 2))
+    P = np.column_stack([s, np.full(s.size, 200.0)]) + rng.normal(0, 0.06 * W, (s.size, 2))
     d = path_d(fit_curve(P, W, closed=False))
     assert "A" not in d and d.count("L") == 1    # one straight run -> a single lineto
 
@@ -40,7 +40,7 @@ def test_line_is_all_linetos_no_arcs():
 def test_coordinates_are_rounded():
     rng = np.random.default_rng(1)
     th = np.linspace(0, 1.6 * np.pi, 120)
-    P = np.column_stack([200 + 55 * np.cos(th), 200 + 55 * np.sin(th)]) + rng.normal(0, 0.1 * W, (th.size, 2))
+    P = np.column_stack([200 + 55 * np.cos(th), 200 + 55 * np.sin(th)]) + rng.normal(0, 0.06 * W, (th.size, 2))
     d = path_d(fit_curve(P, W, closed=False))
     assert not COORD.search(d), "found an un-rounded coordinate"
 

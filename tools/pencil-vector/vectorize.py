@@ -21,8 +21,9 @@ import growth
 import raster
 from embedding import containment, rotational_order
 from fit import fit_graph, path_d, reconstruct
-from graph import (absorb_rim_stubs, attach_edges_to_blobs, build,
-                   merge_close_junctions, resolve_continuity)
+from graph import (absorb_rim_stubs, attach_contact_splits, attach_edges_to_blobs,
+                   build, merge_close_junctions, resolve_continuity,
+                   split_edges_at_blob_contacts)
 from ink import Ink, ingest
 from model import BLOB, Graph, Node
 from stableid import assign
@@ -79,11 +80,15 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
                                             # -- a width-class cleanup, so it belongs with M2's blobs
                                             # and must run before the M3 topology freeze either way
     _trace_blobs(g, blob_masks, ink)                   # trace each blob's boundary + holes ONCE, from its final mask
+    split_edges_at_blob_contacts(g, blob_masks, ink.w)  # M2: separate a stroke that GRAZES a blob mid-edge at
+                                            # the contact (like absorb_rim_stubs, this is stroke<->blob geometry
+                                            # cleanup, so it precedes the M3 freeze -- not a reshape at M3)
 
     if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
         # (no spur-prune: the contact-aware skeleton already drops sub-pen twigs at the source, §6.2)
         assign(g)
         attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
+        attach_contact_splits(g)               # wire the graze-split incidence (endpoint attach can't see it)
     if milestone >= 5:                      # M5: junction resolution for continuity flood (§6.4)
         resolve_continuity(g)
     if milestone >= 6:                      # M6: planar embedding (§8)
