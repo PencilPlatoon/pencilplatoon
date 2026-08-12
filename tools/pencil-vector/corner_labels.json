@@ -1,0 +1,1808 @@
+[
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 2",
+     "x": 509,
+     "y": 236,
+     "label": "misplaced",
+     "cx": 510,
+     "cy": 237.3,
+     "angle_ok": "wrong",
+     "ray_r": [
+      0.0011,
+      -1
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 5",
+     "x": 1096,
+     "y": 196,
+     "label": "",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.1422,
+      -0.9898
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 5",
+     "x": 1054,
+     "y": 154,
+     "label": "corner",
+     "cx": 1056.3,
+     "cy": 152.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.5399,
+      0.8417
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 8",
+     "x": 507,
+     "y": 1106,
+     "label": "corner",
+     "cx": 506.8,
+     "cy": 1105.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.5453,
+      0.8383
+     ],
+     "ray_r": [
+      0.6233,
+      0.782
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 1",
+     "x": 473,
+     "y": 684,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6268,
+      -0.7792
+     ],
+     "ray_r": [
+      -0.7624,
+      -0.6471
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 8",
+     "x": 481,
+     "y": 1171,
+     "label": "misplaced",
+     "cx": 484.2,
+     "cy": 1174.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.6777,
+      -0.7353
+     ],
+     "ray_r": [
+      0.8235,
+      -0.5673
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 395,
+     "y": 330,
+     "label": "misplaced",
+     "cx": 398.1,
+     "cy": 334.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.3512,
+      0.9363
+     ],
+     "ray_r": [
+      -0.6402,
+      -0.7682
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 3",
+     "x": 476,
+     "y": 936,
+     "label": "misplaced",
+     "cx": 472,
+     "cy": 936.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.961,
+      -0.2764
+     ],
+     "ray_r": [
+      0.4197,
+      0.9076
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 3",
+     "x": 468,
+     "y": 944,
+     "label": "misplaced",
+     "cx": 476.8,
+     "cy": 939.9,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9963,
+      -0.0862
+     ],
+     "ray_r": [
+      -0.7234,
+      0.6904
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 451,
+     "y": 192,
+     "label": "corner",
+     "cx": 450.6,
+     "cy": 192.2,
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 631,
+     "y": 227,
+     "label": "misplaced",
+     "cx": 629.2,
+     "cy": 233.5
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 2",
+     "x": 335,
+     "y": 2,
+     "label": "corner",
+     "cx": 334.6,
+     "cy": 2.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9983,
+      0.0588
+     ],
+     "ray_r": [
+      -0.1083,
+      0.9941
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 1",
+     "x": 340,
+     "y": 241,
+     "label": "corner",
+     "cx": 340.6,
+     "cy": 240.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.992,
+      -0.126
+     ],
+     "ray_r": [
+      0.336,
+      0.9419
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 1",
+     "x": 603,
+     "y": 297,
+     "label": "misplaced",
+     "cx": 598.7,
+     "cy": 300.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6616,
+      -0.7498
+     ],
+     "ray_r": [
+      -0.953,
+      -0.303
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 15",
+     "x": 413,
+     "y": 248,
+     "label": "misplaced",
+     "cx": 414.4,
+     "cy": 251.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.2459,
+      -0.9693
+     ],
+     "ray_r": [
+      0.9664,
+      0.257
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 1",
+     "x": 498,
+     "y": 366,
+     "label": "misplaced",
+     "cx": 496.8,
+     "cy": 365,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.0401,
+      -0.9992
+     ],
+     "ray_r": [
+      0.8702,
+      -0.4928
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 478,
+     "y": 1449,
+     "label": "corner",
+     "cx": 478.3,
+     "cy": 1449.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.7378,
+      -0.675
+     ],
+     "ray_r": [
+      0.5362,
+      -0.8441
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 5",
+     "x": 476,
+     "y": 1106,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.2806,
+      -0.9598
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 505,
+     "y": 1391,
+     "label": "misplaced",
+     "cx": 508.1,
+     "cy": 1387.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0128,
+      -0.9999
+     ],
+     "ray_r": [
+      -0.7454,
+      0.6667
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 1",
+     "x": 423,
+     "y": 78,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 21",
+     "x": 744,
+     "y": 366,
+     "label": "misplaced",
+     "cx": 740.8,
+     "cy": 355.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.2903,
+      0.9569
+     ],
+     "ray_r": [
+      -0.9691,
+      -0.2468
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 344,
+     "y": 104,
+     "label": "corner",
+     "cx": 344.4,
+     "cy": 102.5,
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 7",
+     "x": 519,
+     "y": 1102,
+     "label": "corner",
+     "cx": 518.3,
+     "cy": 1100.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.2667,
+      -0.9638
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 7",
+     "x": 490,
+     "y": 1118,
+     "label": "corner",
+     "cx": 489.8,
+     "cy": 1117.4,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.515,
+      -0.8572
+     ],
+     "ray_r": [
+      -0.9546,
+      -0.2979
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 324,
+     "y": 256,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 8",
+     "x": 498,
+     "y": 1171,
+     "label": "misplaced",
+     "cx": 495.6,
+     "cy": 1168.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9354,
+      0.3535
+     ],
+     "ray_r": [
+      0.2821,
+      0.9594
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 369,
+     "y": 348,
+     "label": "misplaced",
+     "cx": 363.6,
+     "cy": 345.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.9851,
+      0.172
+     ],
+     "ray_r": [
+      -0.2486,
+      -0.9686
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 538,
+     "y": 286,
+     "label": "misplaced",
+     "cx": 541,
+     "cy": 283.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.0009,
+      -1
+     ],
+     "ray_r": [
+      -1,
+      0.0066
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 444,
+     "y": 424,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.9982,
+      0.0592
+     ],
+     "ray_r": [
+      -0.6659,
+      -0.7461
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 5",
+     "x": 1085,
+     "y": 230,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.3449,
+      0.9386
+     ],
+     "ray_r": [
+      -0.8818,
+      0.4715
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 2",
+     "x": 485,
+     "y": 108,
+     "label": "corner",
+     "cx": 484.7,
+     "cy": 107,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.1762,
+      -0.9844
+     ],
+     "ray_r": [
+      -0.9338,
+      -0.3578
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 8",
+     "x": 478,
+     "y": 1204,
+     "label": "misplaced",
+     "cx": 482.1,
+     "cy": 1204.4,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6176,
+      -0.7865
+     ],
+     "ray_r": [
+      -0.9764,
+      -0.216
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 359,
+     "y": 292,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.3797,
+      -0.9251
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 478,
+     "y": 1204,
+     "label": "misplaced",
+     "cx": 481.6,
+     "cy": 1204.2,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9962,
+      -0.0871
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "seg 28",
+     "x": 379,
+     "y": 210,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.1424,
+      -0.9898
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 247,
+     "y": 209,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0167,
+      0.9999
+     ],
+     "ray_r": [
+      0.7541,
+      -0.6568
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 3",
+     "x": 969,
+     "y": 279,
+     "label": "misplaced",
+     "cx": 973.5,
+     "cy": 278.2,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.8976,
+      0.4408
+     ],
+     "ray_r": [
+      0.7447,
+      0.6674
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 2",
+     "x": 468,
+     "y": 75,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.7218,
+      0.6921
+     ],
+     "ray_r": [
+      0.9973,
+      -0.0741
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 4",
+     "x": 521,
+     "y": 1008,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.7384,
+      -0.6744
+     ],
+     "ray_r": [
+      -0.9978,
+      -0.0659
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 1",
+     "x": 480,
+     "y": 316,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 1",
+     "x": 323,
+     "y": 209,
+     "label": "corner",
+     "cx": 322.2,
+     "cy": 208.8
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 1",
+     "x": 527,
+     "y": 278,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 487,
+     "y": 1431,
+     "label": "corner",
+     "cx": 486.4,
+     "cy": 1430.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.1862,
+      0.9825
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 4",
+     "x": 656,
+     "y": 543,
+     "label": "misplaced",
+     "cx": 654.4,
+     "cy": 538.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.3677,
+      0.9299
+     ],
+     "ray_r": [
+      0.5042,
+      -0.8636
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 11",
+     "x": 163,
+     "y": 192,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 2",
+     "x": 480,
+     "y": 747,
+     "label": "corner",
+     "cx": 479.2,
+     "cy": 746.8,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.5338,
+      0.8456
+     ],
+     "ray_r": [
+      -0.8451,
+      -0.5346
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 383,
+     "y": 334,
+     "label": "misplaced",
+     "cx": 382,
+     "cy": 330.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.3833,
+      0.9236
+     ],
+     "ray_r": [
+      1,
+      0.0056
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 5",
+     "x": 1132,
+     "y": 279,
+     "label": "misplaced",
+     "cx": 1139.1,
+     "cy": 270.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0164,
+      -0.9999
+     ],
+     "ray_r": [
+      -0.6137,
+      0.7895
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 3",
+     "x": 207,
+     "y": 275,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9375,
+      -0.348
+     ],
+     "ray_r": [
+      0.2768,
+      0.9609
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 3",
+     "x": 200,
+     "y": 302,
+     "label": "corner",
+     "cx": 199.5,
+     "cy": 300.6,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6715,
+      -0.741
+     ],
+     "ray_r": [
+      -0.9868,
+      -0.162
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 19",
+     "x": 368,
+     "y": 308,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 1",
+     "x": 434,
+     "y": 73,
+     "label": "misplaced",
+     "cx": 425.7,
+     "cy": 69.2,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0437,
+      -0.999
+     ],
+     "ray_r": [
+      0.8909,
+      0.4542
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 5",
+     "x": 246,
+     "y": 190,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "seg 33",
+     "x": 245,
+     "y": 175,
+     "label": "corner",
+     "cx": 244,
+     "cy": 175.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9954,
+      0.0962
+     ],
+     "ray_r": [
+      0.5115,
+      0.8593
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 3",
+     "x": 477,
+     "y": 857,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.5478,
+      -0.8366
+     ],
+     "ray_r": [
+      0.6348,
+      -0.7727
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 45",
+     "x": 379,
+     "y": 346,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 313,
+     "y": 248,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 8",
+     "x": 355,
+     "y": 301,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 10",
+     "x": 934,
+     "y": 268,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 7",
+     "x": 498,
+     "y": 1094,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 8",
+     "x": 484,
+     "y": 1115,
+     "label": "misplaced",
+     "cx": 486.8,
+     "cy": 1114.3,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.8038,
+      0.5949
+     ],
+     "ray_r": [
+      0.8407,
+      0.5415
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 351,
+     "y": 238,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 476,
+     "y": 1484,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.9899,
+      0.142
+     ],
+     "ray_r": [
+      -0.656,
+      0.7547
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 9",
+     "x": 170,
+     "y": 178,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 566,
+     "y": 259,
+     "label": "misplaced",
+     "cx": 568.4,
+     "cy": 254.4,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.6886,
+      -0.7251
+     ],
+     "ray_r": [
+      -0.6797,
+      0.7335
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 1",
+     "x": 415,
+     "y": 54,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.5587,
+      0.8294
+     ],
+     "ray_r": [
+      0.2347,
+      -0.9721
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 22",
+     "x": 268,
+     "y": 506,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.2279,
+      -0.9737
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 516,
+     "y": 261,
+     "label": "corner",
+     "cx": 516.9,
+     "cy": 262.1,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0602,
+      0.9982
+     ],
+     "ray_r": [
+      -1,
+      0.005
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 1",
+     "x": 516,
+     "y": 320,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.9926,
+      0.1214
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 2",
+     "x": 585,
+     "y": 220,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 563,
+     "y": 248,
+     "label": "corner",
+     "cx": 563.8,
+     "cy": 247.5,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.8879,
+      -0.46
+     ],
+     "ray_r": [
+      0.5051,
+      0.8631
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 1",
+     "x": 285,
+     "y": 244,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 441,
+     "y": 1179,
+     "label": "corner",
+     "cx": 442.9,
+     "cy": 1176.3,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.0417,
+      0.9991
+     ],
+     "ray_r": [
+      0.999,
+      -0.0455
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 38",
+     "x": 44,
+     "y": 267,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 11",
+     "x": 288,
+     "y": 312,
+     "label": "misplaced",
+     "cx": 293.2,
+     "cy": 300.4,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.4052,
+      -0.9142
+     ],
+     "ray_r": [
+      -0.5022,
+      0.8647
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 415,
+     "y": 203,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.891,
+      0.454
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 27",
+     "x": 428,
+     "y": 485,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 7",
+     "x": 516,
+     "y": 1066,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "seg 50",
+     "x": 164,
+     "y": 309,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 4",
+     "x": 500,
+     "y": 963,
+     "label": "corner",
+     "cx": 499.6,
+     "cy": 962,
+     "angle_ok": "wrong",
+     "ray_r": [
+      0.8859,
+      -0.4638
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 44",
+     "x": 213,
+     "y": 358,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 453,
+     "y": 346,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 45",
+     "x": 378,
+     "y": 290,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 5",
+     "x": 1137,
+     "y": 178,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 9",
+     "x": 936,
+     "y": 231,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 472,
+     "y": 226,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 412,
+     "y": 347,
+     "label": "corner",
+     "cx": 411.5,
+     "cy": 346.2,
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.8411,
+      0.5409
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 2",
+     "x": 468,
+     "y": 241,
+     "label": "corner",
+     "cx": 469.5,
+     "cy": 240.3,
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.0098,
+      -1
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 326,
+     "y": 44,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.3929,
+      0.9196
+     ],
+     "ray_r": [
+      0.7265,
+      -0.6872
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 5",
+     "x": 458,
+     "y": 1088,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      0.0417,
+      -0.9991
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 2",
+     "x": 534,
+     "y": 239,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.466,
+      0.8848
+     ],
+     "ray_r": [
+      -0.9999,
+      -0.0142
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 26",
+     "x": 369,
+     "y": 507,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 22",
+     "x": 305,
+     "y": 513,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 25",
+     "x": 393,
+     "y": 442,
+     "label": "corner",
+     "cx": 392.5,
+     "cy": 441.4,
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.9829,
+      -0.1839
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 10",
+     "x": 205,
+     "y": 68,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6464,
+      -0.763
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 333,
+     "y": 215,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9661,
+      0.2583
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 47",
+     "x": 472,
+     "y": 198,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9162,
+      0.4006
+     ],
+     "ray_r": [
+      0.8644,
+      0.5027
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 464,
+     "y": 336,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6384,
+      -0.7697
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 357,
+     "y": 122,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -1,
+      0.0038
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 450,
+     "y": 241,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.3219,
+      0.9468
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 468,
+     "y": 168,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.9036,
+      0.4285
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 1",
+     "x": 544,
+     "y": 246,
+     "label": "misplaced",
+     "cx": 542.3,
+     "cy": 240.2,
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.6894,
+      -0.7244
+     ],
+     "ray_r": [
+      0.4529,
+      0.8916
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 21",
+     "x": 362,
+     "y": 428,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0055,
+      -1
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "blob 4",
+     "x": 270,
+     "y": 165,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      0.5021,
+      0.8648
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 1",
+     "x": 283,
+     "y": 204,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      0.9923,
+      0.1238
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 47",
+     "x": 437,
+     "y": 218,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.0499,
+      0.9988
+     ],
+     "ray_r": [
+      0.7614,
+      -0.6483
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 514,
+     "y": 1451,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 11",
+     "x": 178,
+     "y": 121,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.2346,
+      -0.9721
+     ],
+     "ray_r": [
+      0.7313,
+      0.6821
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 446,
+     "y": 255,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.205,
+      -0.9788
+     ],
+     "ray_r": [
+      0.5876,
+      0.8091
+     ]
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 2",
+     "x": 483,
+     "y": 776,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 509,
+     "y": 469,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.7661,
+      0.6427
+     ]
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 7",
+     "x": 226,
+     "y": 112,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "blob 1",
+     "x": 256,
+     "y": 234,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "blob 1",
+     "x": 381,
+     "y": 110,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.9898,
+      -0.1426
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "blob 1",
+     "x": 530,
+     "y": 476,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_r": [
+      -0.9993,
+      0.0369
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 3",
+     "x": 402,
+     "y": 30,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.9955,
+      0.0949
+     ],
+     "ray_r": [
+      -0.9463,
+      0.3234
+     ]
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 7",
+     "x": 210,
+     "y": 22,
+     "label": "not",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.9782,
+      -0.2077
+     ],
+     "ray_r": [
+      -0.7962,
+      0.605
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 6",
+     "x": 411,
+     "y": 148,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 68",
+     "x": 1120,
+     "y": 287,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 37",
+     "x": 188,
+     "y": 640,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 5",
+     "x": 271,
+     "y": 22,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 16",
+     "x": 499,
+     "y": 256,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 18",
+     "x": 267,
+     "y": 453,
+     "label": "corner",
+     "angle_ok": "wrong",
+     "ray_l": [
+      0.0073,
+      -1
+     ]
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 19",
+     "x": 434,
+     "y": 470,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 1",
+     "x": 483,
+     "y": 145,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 11",
+     "x": 209,
+     "y": 314,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 9",
+     "x": 259,
+     "y": 123,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 22",
+     "x": 304,
+     "y": 435,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 37",
+     "x": 206,
+     "y": 676,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 29",
+     "x": 743,
+     "y": 547,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 34",
+     "x": 623,
+     "y": 684,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 26",
+     "x": 31,
+     "y": 495,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 22",
+     "x": 299,
+     "y": 449,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 34",
+     "x": 651,
+     "y": 674,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 16",
+     "x": 299,
+     "y": 299,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 10",
+     "x": 374,
+     "y": 150,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 6",
+     "x": 532,
+     "y": 1202,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "blob 11",
+     "x": 209,
+     "y": 206,
+     "label": "not",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Capture flag",
+     "comp": "seg 93",
+     "x": 515,
+     "y": 1042,
+     "label": "corner",
+     "cx": 514.6,
+     "cy": 1042,
+     "angle_ok": "wrong",
+     "ray_l": [
+      -0.0373,
+      -0.9993
+     ],
+     "ray_r": [
+      -0.8902,
+      0.4556
+     ]
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 29",
+     "x": 675,
+     "y": 445,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 35",
+     "x": 215,
+     "y": 251,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Mounted MG",
+     "comp": "seg 65",
+     "x": 1088,
+     "y": 266,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 21",
+     "x": 141,
+     "y": 381,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Gunner’s SMG",
+     "comp": "seg 5",
+     "x": 363,
+     "y": 154,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Wheeled cannon",
+     "comp": "seg 45",
+     "x": 184,
+     "y": 759,
+     "label": "corner",
+     "angle_ok": "good"
+    },
+    {
+     "scan": "Hit soldier",
+     "comp": "seg 15",
+     "x": 455,
+     "y": 262,
+     "label": "corner",
+     "angle_ok": "good"
+    }
+   ]

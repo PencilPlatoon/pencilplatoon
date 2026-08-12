@@ -1,8 +1,8 @@
 # generated artifacts
 out/
-cleanup.html
-cleanup_test.html
-pipeline_stages.html
+# generated inspectors (published as claude.ai artifacts, not tracked); keep the hand-authored template
+*.html
+!cleanup_template.html
 .venv/
 venv/
 __pycache__/

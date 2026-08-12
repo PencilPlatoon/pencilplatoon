@@ -1,5 +1,5 @@
 """Pipeline Stages study page: per subject, the original SCAN next to a tab strip stepping through the
-pipeline stages that each visibly change the diagram -- skeleton, grow, absorb, fit, arcs (named for
+pipeline stages that each visibly change the diagram -- skeleton, grow, absorb, fit (named for
 what they do, not by milestone number; see stage_graphs). Tabs are radio-driven (pure CSS) and clone
 into the zoom, so they work zoomed and non-zoomed (the pencil-vector study-page pattern). Selecting a
 stage in any cell syncs every cell on the page. Published as artifact bab2a5a5 ("Pencil Vector —
@@ -161,19 +161,16 @@ def stage_graphs(key):
       skeleton  contact-aware stroke skeleton: endpoints disciplined, 2D regions carved out (classify)
       grow      2D regions grown from their stroke contacts into networks + kept fills (pre-absorb)
       absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
-      fit       strokes + fill edges idealized to straight/arc geometry (milestone 7)
-      arcs      the idealized geometry emitted as real arc primitives (milestone 8)"""
-    fitted = vectorize(ISO % key, milestone=8)            # fit and arcs are the SAME graph (m7==m8
-    return [                                              # compute); only the SVG emit (prim) differs
+      fit       strokes + fill edges idealized to line/arc/clothoid geometry (milestone 8, spline)"""
+    return [
         ("skeleton", pre_grow(key),                     False),
         ("grow",     build_pre_absorb(key),             False),
         ("absorb",   vectorize(ISO % key, milestone=2), False),
-        ("fit",      fitted,                            False),
-        ("arcs",     fitted,                            True),
+        ("fit",      vectorize(ISO % key, milestone=8), False),
     ]
 
 
-STAGE_STRIP = "skeleton · grow · absorb · fit · arcs"
+STAGE_STRIP = "skeleton · grow · absorb · fit"
 rows = ""
 for key, name, note in SUBJECTS:
     ink = ingest(np.asarray(Image.open(ISO % key).convert("RGB")))
@@ -183,7 +180,7 @@ for key, name, note in SUBJECTS:
         panels.append((label, svg)); wh = (w, h); counts[label] = len(g.edges)
     w, h = wh
     pv = pv_cell(key, panels, default=0)             # default tab = skeleton (the raw starting point)
-    meta = "skeleton %d segments · arcs %d" % (counts["skeleton"], counts["arcs"])
+    meta = "skeleton %d segments · fit %d" % (counts["skeleton"], counts["fit"])
     cells = (tile("scan", "scan", scan_cell(key, w, h), "the drawing")
              + tile("pv", STAGE_STRIP, pv, meta))
     rows += ('<div class="row" style="--ar:%d/%d"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
