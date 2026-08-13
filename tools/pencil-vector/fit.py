@@ -108,49 +108,61 @@ class Fit:
 
 # ---------------------------------------------------------------- resample / turning
 
-def resample(P: np.ndarray, step: float, closed: bool, w: float = 0.0) -> np.ndarray:
-    """Arc-length-uniform resample of a polyline (deduped). Closed curves repeat no endpoint.
-
-    When w>0, additionally PRESERVE corners the uniform step would chord across: a small sharp feature (< ~2w)
-    whose vertices don't land on samples gets rounded below the corner threshold before detection ever sees it.
-    Fix at the source -- detect corners on a finer resample, and insert (only) the ones the uniform pass missed.
-    Uniform samples stay put, so already-well-localized corners are untouched (position is preserved)."""
+def _arclen(P: np.ndarray, closed: bool):
+    """Deduped polyline and its cumulative arc length. Returns (P, s); s is None if the curve is degenerate."""
     P = np.asarray(P, float)
     if closed and (len(P) < 2 or not np.allclose(P[0], P[-1])):
         P = np.vstack([P, P[:1]])
-    seg = np.hypot(*np.diff(P, axis=0).T)
-    keep = np.concatenate([[True], seg > 1e-9])
-    P = P[keep]
+    P = P[np.concatenate([[True], np.hypot(*np.diff(P, axis=0).T) > 1e-9])]
     if len(P) < 2:
+        return P, None
+    return P, np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+
+
+def _interp_at(P: np.ndarray, s: np.ndarray, su: np.ndarray, closed: bool) -> np.ndarray:
+    out = np.column_stack([np.interp(su, s, P[:, 0]), np.interp(su, s, P[:, 1])])
+    return out[:-1] if closed else out                       # a closed curve repeats no endpoint
+
+
+def resample(P: np.ndarray, step: float, closed: bool) -> np.ndarray:
+    """Arc-length-uniform resample of a polyline (deduped). Closed curves repeat no endpoint."""
+    P, s = _arclen(P, closed)
+    if s is None:
         return P
-    s = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
+    n = max(2, int(round(s[-1] / step)))
+    return _interp_at(P, s, np.linspace(0, s[-1], n + 1 if closed else n), closed)
+
+
+def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
+    """Corner-preserving resample for the spline fit, returning BOTH the samples and the corners on them so the
+    caller never re-detects. A small sharp feature (< ~2w) whose vertices miss the uniform samples gets chorded
+    away before detection sees it; so detect on a finer resample and insert the ones the uniform pass missed.
+    Uniform samples stay put -- well-localized corners keep their position. Returns (S, corners: list[int])."""
+    P, s = _arclen(P, closed)
+    if s is None:
+        return P, []
     total = s[-1]
-
-    def sample(su):
-        out = np.column_stack([np.interp(su, s, P[:, 0]), np.interp(su, s, P[:, 1])])
-        return out[:-1] if closed else out
-
     n = max(2, int(round(total / step)))
     su_u = np.linspace(0, total, n + 1 if closed else n)
-    Su = sample(su_u)
-    if w <= 0 or total < 2 * step:
-        return Su
+    Su = _interp_at(P, s, su_u, closed)
+    if total < 2 * step:
+        return Su, _corners_v3(Su, w, step, closed)
     fstep = max(MIN_STEP, CORNER_FINE_W * w)                  # finer resample where detection is reliable
     suf = np.linspace(0, total, max(2, int(round(total / fstep))) + (1 if closed else 0))
-    Sf = sample(suf)
-    if len(Sf) < 6:
-        return Su
-    fine = _corners_v3(Sf, w, fstep, closed)
+    Sf = _interp_at(P, s, suf, closed)
+    fine = _corners_v3(Sf, w, fstep, closed) if len(Sf) >= 6 else []
+    std = _corners_v3(Su, w, step, closed)                    # corners the uniform pass gets == the cornerset if no inserts
     if not fine:
-        return Su
-    std_pts = [Su[c] for c in _corners_v3(Su, w, step, closed)]   # corners the uniform pass already gets
-    extra = [float(suf[c]) for c in fine                          # ...keep only the small features it missed
+        return Su, std
+    std_pts = [Su[c] for c in std]
+    extra = [float(suf[c]) for c in fine                      # ...keep only the small features the uniform pass missed
              if not std_pts or min(math.hypot(*(Sf[c] - q)) for q in std_pts) > w]
     if not extra:
-        return Su
+        return Su, std
     core = (su_u[:-1] if closed else su_u).tolist()
     su2 = sorted(set(core) | set(extra))
-    return sample(np.array(su2 + [total]) if closed else np.array(su2))       # drop the duplicated wrap sample
+    S = _interp_at(P, s, np.array(su2 + [total]) if closed else np.array(su2), closed)
+    return S, _corners_v3(S, w, step, closed)                 # detect on the densified samples (what _fit_spline used to)
 
 
 def _turning(P: np.ndarray, closed: bool):
@@ -699,7 +711,7 @@ def _hug_spans(C, pre, breaks, w):
     return out
 
 
-def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bool, r, anchors):
+def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bool, r, anchors, cornerset):
     """Local-support alternative to curv-fit. Instead of integrating kappa (global support -> the drift
     accumulates over arc length), fit x(s), y(s) DIRECTLY with a corner-aware curvature-smoothing penalty
     -- a discrete smoothing spline. Every point is pulled by its OWN sample (data term) and only coupled
@@ -709,7 +721,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     stay sharp. Primitives (line/arc/clothoid) are then classified off the smoothed curve for output."""
     M = len(S)
     s_arc = np.arange(M, dtype=float) * step
-    cornerset = set(_corners_v3(S, w, step, closed))
+    cornerset = set(cornerset)                            # detected once in resample_corners; reused, not recomputed
     anchor_ix = []
     for ax, ay in (anchors or []):                        # blob attachments: pin exactly, never smooth across
         k = _nearest_index(S, ax, ay)
@@ -955,7 +967,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
     are (x,y) points the fit must pass through exactly (a blob boundary's stroke-attachment points),
     so idealizing the boundary never pulls it away from a stroke that ends on it (the rebuild gap fix)."""
     step = max(MIN_STEP, RESAMPLE_W * w)
-    S = resample(P, step, closed, w if STRATEGY == "spline" else 0.0)   # corner-preserving only on the spline path
+    S = resample(P, step, closed)
     M = len(S)
     if M < 2:
         return None
@@ -967,7 +979,8 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
     if STRATEGY == "curvfit":                              # Option A: curvature-domain fit + integration
         return _fit_curvfit(S, P, w, step, closed, r, anchors)
     if STRATEGY == "spline":                               # local-support alternative: position-domain
-        return _fit_spline(S, P, w, step, closed, r, anchors)  # smoothing spline, no integration drift
+        Ssp, corners = resample_corners(P, step, closed, w)   # corner-preserving samples + their corners, once
+        return _fit_spline(Ssp, P, w, step, closed, r, anchors, corners)  # smoothing spline, no integration drift
     s_arc = np.arange(M, dtype=float) * step
     # curvature in rad/px (turning-per-sample / step). baseline lightly gaussian-blurs it (blurs
     # corners too); the plan (sec 9) calls for a TV/L1 prior instead -- kills wobble, keeps steps.

@@ -7,7 +7,7 @@ warnings.filterwarnings("ignore")
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import numpy as np
 import fit
-from fit import resample, _line_params, RESAMPLE_W, MIN_STEP, CORNER_STRAIGHT_W, CORNER_WIN2_W
+from fit import resample_corners, _line_params, RESAMPLE_W, MIN_STEP, CORNER_STRAIGHT_W, CORNER_WIN2_W
 from vectorize import vectorize
 from model import BLOB
 
@@ -199,7 +199,7 @@ for key, sname in SUBJECTS:
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 5:
             comps.append(("blob", dn.get(("blob", nd.id), 0), np.asarray(nd.ann.get("traced", nd.boundary), float), True))
     for kind, eid, P, closed in comps:
-        S = resample(P, step, closed, g.w); M = len(S)     # corner-preserving, exactly as production sees it
+        S = resample_corners(P, step, closed, g.w)[0]; M = len(S)   # corner-preserving, exactly as production sees it
         cs = candidates(S, g.w, step, closed)
         if not cs:
             continue

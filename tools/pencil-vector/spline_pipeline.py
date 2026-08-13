@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from skimage.restoration import denoise_tv_chambolle
 from PIL import Image
 import fit
-from fit import (resample, _turning, _corners_v3, _Prefix, RESAMPLE_W, MIN_STEP, TV_KAPPA_W)
+from fit import (resample_corners, _turning, _Prefix, RESAMPLE_W, MIN_STEP, TV_KAPPA_W)
 from vectorize import vectorize
 from ink import ingest
 from model import BLOB
@@ -37,7 +37,7 @@ def trace_base(P, w, closed, anchors):
     """Everything the λ-fixed stages need (resample, corners, smoothed curve C, its curvature), plus the
     _Prefix and break set the Pieces stage reuses to re-fit hugging primitives at any tolerance."""
     step = max(MIN_STEP, RESAMPLE_W * w)
-    S = resample(np.asarray(P, float), step, closed, w); M = len(S)   # corner-preserving (matches production)
+    S, corners_v = resample_corners(np.asarray(P, float), step, closed, w); M = len(S)   # corner-preserving (matches production)
     if M < 2:
         return None
     s_arc = np.arange(M, dtype=float) * step
@@ -45,7 +45,7 @@ def trace_base(P, w, closed, anchors):
         C = S.copy()
         return dict(S=S, C=C, step=step, closed=closed, arclen=float(s_arc[-1]), kap=np.zeros(M),
                     cands=[], jumps={}, anchors=[], cornerset=set(), pre=_Prefix(C), breaks=[])
-    cornerset = set(_corners_v3(S, w, step, closed))
+    cornerset = set(corners_v)                             # reuse the corners resample_corners already detected
     anchor_ix = []
     for ax, ay in (anchors or []):
         k = int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
