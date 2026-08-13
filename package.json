@@ -13,7 +13,7 @@
     "release": "npm run build && ./deploy-ftp.sh",
     "deploy": "./deploy-ftp.sh",
     "boxcrop": "python3 tools/pencil-vector/boxcrop.py",
-    "boxcrop:setup": "python3 -m pip install -r tools/pencil-vector/requirements.txt",
+    "python-tool-setup": "python3 -m pip install -r tools/pencil-vector/requirements.txt",
     "vector-server": "python3 tools/pencil-vector/server.py"
   },
   "dependencies": {
