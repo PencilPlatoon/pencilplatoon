@@ -83,7 +83,7 @@ async function loadScan(name){
     ov.setAttribute("viewBox", `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
     LBL = Math.max(10, Math.round(img.naturalHeight / 45));
     $("#drop").hidden = true; $("#imgwrap").hidden = false;
-    boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}));
+    boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1, saved:true}));
     seq = Math.max(0, ...boxes.map(b => { const m = /^box(\d+)$/.exec(b.name); return m ? +m[1] : 0; }));
     render();
   };
@@ -123,10 +123,12 @@ ov.addEventListener("pointerup", () => {
 });
 
 function vectorizeAndOpen(b){
+  const go = () => { location.href = `/cleanup?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`; };
+  if(b.saved){ go(); return; }                                   // already vectorized + unchanged -> just open, no re-vectorize
   $("#status").textContent = `vectorizing ${b.name}…`;
   fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({scan: scanName, boxes: [{name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}]})})
-    .then(() => { location.href = `/cleanup?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`; })
+    .then(() => { b.saved = true; go(); })
     .catch(() => { $("#status").textContent = "vectorize failed (is the server running?)"; });
 }
 
@@ -147,7 +149,7 @@ function render(){
   boxes.forEach((b, i) => {
     const li = document.createElement("li");
     const inp = document.createElement("input"); inp.value = b.name;
-    inp.oninput = () => { b.name = inp.value; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
+    inp.oninput = () => { b.name = inp.value; b.saved = false; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
     const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
     del.onclick = () => { boxes.splice(i,1); render(); };
     li.append(inp, del); list.appendChild(li);
