@@ -95,15 +95,6 @@ def _interp_at(P: np.ndarray, s: np.ndarray, su: np.ndarray, closed: bool) -> np
     return out[:-1] if closed else out                       # a closed curve repeats no endpoint
 
 
-def resample(P: np.ndarray, step: float, closed: bool) -> np.ndarray:
-    """Arc-length-uniform resample of a polyline (deduped). Closed curves repeat no endpoint."""
-    P, s = _arclen(P, closed)
-    if s is None:
-        return P
-    n = max(2, int(round(s[-1] / step)))
-    return _interp_at(P, s, np.linspace(0, s[-1], n + 1 if closed else n), closed)
-
-
 def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
     """Corner-preserving resample for the spline fit, returning BOTH the samples and the corners on them so the
     caller never re-detects. A small sharp feature (< ~2w) whose vertices miss the uniform samples gets chorded
@@ -116,8 +107,8 @@ def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
     n = max(2, int(round(total / step)))
     su_u = np.linspace(0, total, n + 1 if closed else n)
     Su = _interp_at(P, s, su_u, closed)
-    if total < 2 * step:
-        return Su, _corners_v3(Su, w, step, closed)
+    if len(Su) < MIN_SEG + 1:                                 # too short to segment -- fit_curve one-lines it
+        return Su, []
     fstep = max(MIN_STEP, CORNER_FINE_W * w)                  # finer resample where detection is reliable
     suf = np.linspace(0, total, max(2, int(round(total / fstep))) + (1 if closed else 0))
     Sf = _interp_at(P, s, suf, closed)
@@ -207,9 +198,6 @@ class _Prefix:
 
 
 # ---------------------------------------------------------------- segmentation (MDL DP)
-
-ENV_K = 16              # points sampled along a span for the envelope test (keeps it O(1) per span)
-
 
 def _at(p: int, dirn: int, s: int, closed: bool, M: int):
     """The s-th index from p in direction dirn (+-1); None once it runs past the end of an open curve."""
@@ -438,7 +426,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
         spans = _hug_spans(C, pre, seg_breaks, w)
     else:
         kappa = denoise_tv_chambolle(_turning(C, closed), weight=TV_KAPPA_W * w * step) / step
-        spans = _segment(C, pre, kappa, s_arc, closed, w, seg_breaks)
+        spans = _segment(C, pre, kappa, s_arc, w, seg_breaks)
     prims = []
     for i, j, (kind, par) in spans:
         seg = C[i:j]
@@ -454,8 +442,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     return Fit(closed=closed, samples=S, prims=prims, resid=S - C, width=_width(P, r, w, M))
 
 
-def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray,
-             closed: bool, w: float, breaks=None):
+def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray, w: float, breaks):
     """Shortest-path partition of [0, M) into line/arc/clothoid spans by description length.
 
     Segment cost = geometric SSE + a fixed per-segment penalty (the description-length term that keeps a
@@ -570,9 +557,9 @@ def _rms(a, b):
 def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None, anchors=None) -> Fit | None:
     """Fit one polyline to primitives; returns a Fit (annotations) or None if too short. `anchors`
     are (x,y) points the fit must pass through exactly (a blob boundary's stroke-attachment points),
-    so idealizing the boundary never pulls it away from a stroke that ends on it (the rebuild gap fix)."""
+    so idealizing the boundary never pulls it away from a stroke that ends on it (the cross-element gap fix)."""
     step = max(MIN_STEP, RESAMPLE_W * w)
-    S = resample(P, step, closed)
+    S, corners = resample_corners(P, step, closed, w)      # corner-preserving samples + their corners, once
     M = len(S)
     if M < 2:
         return None
@@ -581,8 +568,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
         cl = _clean_line(S, p0, dr)
         prim = Primitive("line", 0, M, {"p0": p0.tolist(), "dir": dr.tolist()}, _rms(S, cl))
         return Fit(closed=closed, samples=S, prims=[prim], resid=S - cl)
-    Ssp, corners = resample_corners(P, step, closed, w)   # corner-preserving samples + their corners, once
-    return _fit_spline(Ssp, P, w, step, closed, r, anchors, corners)  # smoothing spline, no integration drift
+    return _fit_spline(S, P, w, step, closed, r, anchors, corners)  # smoothing spline, no integration drift
 
 
 def path_d(fit: Fit) -> str:
