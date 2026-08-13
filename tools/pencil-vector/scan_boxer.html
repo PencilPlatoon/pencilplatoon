@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pencil Vector · Scan Boxer</title>
+<style>
+  :root{--bg:#16171b;--panel:#1e2026;--hair:#31333c;--ink:#e9e7e0;--muted:#9a978d;
+    --blue:#5878e6;--red:#e8402f;--green:#37b26a;
+    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;}
+  *{box-sizing:border-box} html,body{margin:0;height:100%}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
+  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--hair)}
+  header h1{font-size:15px;margin:0;font-weight:600} header .sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  header input[type=file]{font:inherit;font-size:12px;color:var(--muted);max-width:240px}
+  header button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  header button:hover{border-color:var(--blue)}
+  header button.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  header .count{margin-left:auto;font-family:var(--mono);font-size:12px;color:var(--muted)} header .count b{color:var(--blue)}
+  .stage{flex:1;display:flex;min-height:0}
+  .canvas{flex:1;display:grid;place-items:center;padding:16px;overflow:auto;position:relative}
+  .drop{color:var(--muted);font-size:14px;text-align:center;padding:48px 32px;border:2px dashed var(--hair);border-radius:12px;max-width:420px}
+  .imgwrap{position:relative;line-height:0;box-shadow:0 12px 40px -16px #000;border-radius:4px}
+  .imgwrap img{display:block;max-width:100%;max-height:calc(100vh - 130px);border-radius:4px}
+  .imgwrap svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
+  .box{fill:rgba(88,120,230,.12);stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke}
+  .lbl{fill:var(--blue);font-family:var(--mono);font-weight:600}
+  aside{width:236px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+  aside h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  #boxlist{margin:0;padding:8px 12px;list-style:none;overflow:auto;flex:1;display:flex;flex-direction:column;gap:6px}
+  #boxlist li{display:flex;align-items:center;gap:6px;background:var(--panel);border:1px solid var(--hair);border-radius:7px;padding:5px 7px}
+  #boxlist input{flex:1;min-width:0;font:inherit;font-size:12px;font-family:var(--mono);background:var(--bg);
+    border:1px solid var(--hair);border-radius:5px;color:var(--ink);padding:4px 6px}
+  #boxlist input:focus{outline:none;border-color:var(--blue)}
+  #boxlist .del{cursor:pointer;color:var(--muted);border:none;background:none;font-size:15px;line-height:1;padding:0 4px}
+  #boxlist .del:hover{color:var(--red)}
+  #boxlist .empty{color:var(--muted);font-size:12px;padding:8px}
+  .hint{padding:9px 16px;border-top:1px solid var(--hair);font-family:var(--mono);font-size:11px;color:var(--muted);line-height:1.5}
+</style>
+</head>
+<body>
+<header>
+  <h1>Pencil&nbsp;Vector <span class="sub">· scan boxer</span></h1>
+  <input id="file" type="file" accept="image/*">
+  <button id="exp" class="primary">Export boxes…</button>
+  <span class="count">Boxes <b id="cnt">0</b></span>
+</header>
+<div class="stage">
+  <div class="canvas" id="canvas">
+    <div class="drop" id="drop">Open a scan (or drop one here), then drag a box around each subject.</div>
+    <div class="imgwrap" id="imgwrap" hidden>
+      <img id="scan" alt="scan">
+      <svg id="ov" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+  </div>
+  <aside>
+    <h3>Boxes</h3>
+    <ol id="boxlist"><li class="empty">none yet</li></ol>
+    <div class="hint">drag = new box · rename each · Export writes boxes.json for boxcrop.py</div>
+  </aside>
+</div>
+<script>
+const $ = s => document.querySelector(s);
+const SVGNS = "http://www.w3.org/2000/svg";
+const ov = $("#ov"), img = $("#scan");
+let scanName = null, boxes = [], seq = 0, LBL = 14;
+
+$("#file").addEventListener("change", e => { if(e.target.files[0]) loadScan(e.target.files[0]); });
+window.addEventListener("dragover", e => e.preventDefault());
+window.addEventListener("drop", e => { e.preventDefault();
+  const f = [...(e.dataTransfer.files||[])].find(f => f.type.startsWith("image/")); if(f) loadScan(f); });
+
+function loadScan(file){
+  scanName = file.name;
+  img.onload = () => {
+    ov.setAttribute("viewBox", `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
+    LBL = Math.max(10, Math.round(img.naturalHeight / 45));
+    $("#drop").hidden = true; $("#imgwrap").hidden = false;
+    boxes = []; seq = 0; render();
+  };
+  img.src = URL.createObjectURL(file);
+}
+
+function toImg(ev){                                       // client coords -> scan-pixel coords
+  const p = ov.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+  const u = p.matrixTransform(ov.getScreenCTM().inverse());
+  return {x: u.x, y: u.y};
+}
+function norm(a, b){ return {x0:Math.round(Math.min(a.x,b.x)), y0:Math.round(Math.min(a.y,b.y)),
+                             x1:Math.round(Math.max(a.x,b.x)), y1:Math.round(Math.max(a.y,b.y))}; }
+
+let start=null, cur=null, live=null;
+ov.addEventListener("pointerdown", e => {
+  if(e.button!==0) return;
+  start = toImg(e); cur = null; ov.setPointerCapture(e.pointerId);
+  live = document.createElementNS(SVGNS,"rect"); live.setAttribute("class","box"); ov.appendChild(live);
+});
+ov.addEventListener("pointermove", e => {
+  if(!start) return;
+  cur = toImg(e); const r = norm(start, cur);
+  live.setAttribute("x", r.x0); live.setAttribute("y", r.y0);
+  live.setAttribute("width", r.x1-r.x0); live.setAttribute("height", r.y1-r.y0);
+});
+ov.addEventListener("pointerup", () => {
+  if(start && cur){ const r = norm(start, cur);
+    if(r.x1-r.x0 > 4 && r.y1-r.y0 > 4) boxes.push({name:"box"+(++seq), ...r}); }
+  if(live){ live.remove(); live = null; }
+  start = cur = null; render();
+});
+
+function render(){
+  [...ov.querySelectorAll(".drawn")].forEach(n => n.remove());
+  for(const b of boxes){
+    const g = document.createElementNS(SVGNS,"g"); g.setAttribute("class","drawn");
+    const r = document.createElementNS(SVGNS,"rect"); r.setAttribute("class","box");
+    r.setAttribute("x",b.x0); r.setAttribute("y",b.y0); r.setAttribute("width",b.x1-b.x0); r.setAttribute("height",b.y1-b.y0);
+    const t = document.createElementNS(SVGNS,"text"); t.setAttribute("class","lbl");
+    t.setAttribute("x", b.x0+LBL*0.3); t.setAttribute("y", b.y0+LBL); t.setAttribute("font-size", LBL);
+    t.textContent = b.name;
+    g.append(r, t); ov.appendChild(g);
+  }
+  $("#cnt").textContent = boxes.length;
+  const list = $("#boxlist");
+  list.innerHTML = boxes.length ? "" : '<li class="empty">none yet</li>';
+  boxes.forEach((b, i) => {
+    const li = document.createElement("li");
+    const inp = document.createElement("input"); inp.value = b.name;
+    inp.oninput = () => { b.name = inp.value; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
+    const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
+    del.onclick = () => { boxes.splice(i,1); render(); };
+    li.append(inp, del); list.appendChild(li);
+  });
+}
+
+$("#exp").onclick = () => {
+  if(!scanName){ alert("Open a scan first."); return; }
+  if(!boxes.length){ alert("Draw at least one box."); return; }
+  const data = { scan: scanName, boxes: boxes.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1})) };
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([JSON.stringify(data,null,2)], {type:"application/json"}));
+  a.download = "boxes.json"; a.click(); URL.revokeObjectURL(a.href);
+};
+</script>
+</body>
+</html>
