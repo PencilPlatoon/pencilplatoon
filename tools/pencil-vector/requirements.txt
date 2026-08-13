@@ -4,3 +4,4 @@ scikit-image==0.24.0
 pillow==11.3.0
 networkx==3.2.1
 shapely==2.0.6
+flask==3.0.3
