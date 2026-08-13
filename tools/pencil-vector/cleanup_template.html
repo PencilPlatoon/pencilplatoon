@@ -69,7 +69,7 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="hint">click = toggle · drag = box-select (shift = deselect) · shift-click = fill / anti-fill · ctrl-click = select stroke · Del = mask</span>
+  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = flood-fill · ⇧⌘-click = flood-delete · ⌥-click = select stroke · ⌘A all · ⇧⌘A none · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -264,11 +264,12 @@ function wireCanvas(){
     if(justMarqueed){ justMarqueed = false; return; }            // a drag just finished -- swallow the click
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
-    if(e.ctrlKey || e.metaKey){                                  // select one continuity stroke
-      for(const s of strokeChain(sid)) selected.add(s);
-    } else if(e.shiftKey || floodMode){                          // fill / anti-fill the component
+    if(e.metaKey && e.shiftKey){ floodDelete(sid); return; }     // flood-delete: mask the whole component (self-renders)
+    if(e.metaKey || floodMode){                                  // flood fill / anti-fill the component
       const comp = floodFrom(sid), on = selected.has(sid);       // clicked already selected -> anti-fill
       for(const s of comp) on ? selected.delete(s) : selected.add(s);
+    } else if(e.altKey){                                         // select one continuity stroke
+      for(const s of strokeChain(sid)) selected.add(s);
     } else {                                                     // toggle one segment
       selected.has(sid) ? selected.delete(sid) : selected.add(sid);
     }
@@ -282,6 +283,15 @@ function selectAll(){                                            // every un-mas
   for(const b of model.blobs) if(!masked.has(b.sid)) selected.add(b.sid);
   for(const e of model.edges) if(!masked.has(e.sid)) selected.add(e.sid);
   render();
+}
+
+function clearSelection(){ selected.clear(); render(); }
+
+function floodDelete(sid){                                       // mask the whole connected component at once
+  const comp = floodFrom(sid).filter(s => !masked.has(s));
+  if(!comp.length) return;
+  for(const s of comp){ masked.add(s); selected.delete(s); }
+  log.push({op:"delete", sids:comp}); render(); renderLog();
 }
 
 function deleteSelected(){
@@ -320,12 +330,12 @@ $("#floodBtn").onclick = e => { floodMode=!floodMode;
   e.target.classList.toggle("on", floodMode); e.target.textContent = "Flood-select: " + (floodMode?"on":"off"); };
 $("#delBtn").onclick = deleteSelected;
 $("#expBtn").onclick = exportSelection;
-$("#clrBtn").onclick = () => { selected.clear(); render(); };
+$("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 $("#dlLog").onclick = () => download(`${model.subject}_edits.json`,
   JSON.stringify({subject:model.subject, edits:log}, null, 2), "application/json");
 document.addEventListener("keydown", e => {
-  if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); selectAll(); }
+  if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); e.shiftKey ? clearSelection() : selectAll(); }
   else if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
 });
 
