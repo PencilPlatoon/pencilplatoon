@@ -24,14 +24,12 @@ import os
 from flask import Flask, Response, abort, jsonify, request, send_file
 from PIL import Image
 
-from export_model import _scan_b64, model_dict
-from vectorize import LATEST, vectorize
+from boxcrop import load_boxes, save_boxes, vectorize_box
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCANS = os.path.abspath(os.path.join(HERE, "..", "..", "artwork-scans"))
 OUT = os.path.join(HERE, "out")
 SVGDIR = os.path.join(OUT, "svg")
-BOXES = os.path.join(OUT, "boxes.json")
 PORT = 8000
 
 app = Flask(__name__)
@@ -39,15 +37,6 @@ app = Flask(__name__)
 
 def _page(name: str) -> Response:
     return Response(open(os.path.join(HERE, name), encoding="utf-8").read(), mimetype="text/html")
-
-
-def _load_boxes() -> dict:
-    return json.load(open(BOXES)) if os.path.exists(BOXES) else {"boxes": [], "exports": []}
-
-
-def _save_boxes(d: dict) -> None:
-    os.makedirs(OUT, exist_ok=True)
-    json.dump(d, open(BOXES, "w"), indent=2)
 
 
 def _now() -> str:
@@ -93,27 +82,11 @@ def do_vectorize():
     req = request.get_json(force=True)
     scan_name, boxes = req["scan"], req["boxes"]
     img = Image.open(os.path.join(SCANS, scan_name)).convert("RGB")
-    os.makedirs(OUT, exist_ok=True)
-    bx = _load_boxes()
-    by_name = {b["name"]: b for b in bx["boxes"]}
-    results = []
-    for b in boxes:
-        crop = img.crop((b["x0"], b["y0"], b["x1"], b["y1"]))
-        crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
-        crop.save(crop_path)
-        d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop))
-        d["box"] = {"scan": scan_name, "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]}
-        json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
-        rec = by_name.get(b["name"], {"exports": []})
-        rec.update({"name": b["name"], "scan": scan_name,
-                    "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]})
-        rec.setdefault("exports", [])
-        by_name[b["name"]] = rec
-        results.append({"name": b["name"], "nodes": len(d["nodes"]),
-                        "edges": len(d["edges"]), "blobs": len(d["blobs"])})
-        print(f"vectorized {b['name']}: nodes={len(d['nodes'])} edges={len(d['edges'])} blobs={len(d['blobs'])}", flush=True)
-    bx["boxes"] = list(by_name.values())
-    _save_boxes(bx)
+    bx = load_boxes()
+    results = [vectorize_box(img, scan_name, b, bx) for b in boxes]
+    save_boxes(bx)
+    for r in results:
+        print(f"vectorized {r['name']}: nodes={r['nodes']} edges={r['edges']} blobs={r['blobs']}", flush=True)
     return jsonify(results)
 
 
@@ -124,14 +97,14 @@ def do_export():
     os.makedirs(SVGDIR, exist_ok=True)
     path = os.path.join(SVGDIR, f"{name}.svg")
     open(path, "w").write(svg)
-    bx = _load_boxes()
+    bx = load_boxes()
     entry = {"asset": f"{name}.svg", "at": _now()}
     box = next((b for b in bx["boxes"] if b.get("name") == subject), None)
     if box is not None:
         box.setdefault("exports", []).append(entry)
     else:                                              # a subject with no box (e.g. a demo) -- record loosely
         bx.setdefault("exports", []).append({"subject": subject, **entry})
-    _save_boxes(bx)
+    save_boxes(bx)
     rel = os.path.relpath(path, HERE)
     print(f"exported {subject} -> {rel}  (audit -> out/boxes.json)", flush=True)
     return jsonify({"ok": True, "path": rel})

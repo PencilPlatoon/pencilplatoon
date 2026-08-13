@@ -3,10 +3,11 @@
 Companion to scan_boxer.html: that tool writes a boxes.json --
   {"scan": "jf-battles-4.png", "boxes": [{"name": "gunner", "x0":.., "y0":.., "x1":.., "y1":..}, ...]}
 in scan-pixel coordinates. This script crops each box from the scan, runs the pipeline on the crop,
-and writes out/<name>_model.json (the same shape export_model emits), then rebuilds cleanup.html so
-the boxed subjects show up there. Clean them and Export asset from the cleanup tool.
+and writes out/<name>_model.json (with box provenance + a scan thumbnail) plus records the boxes in
+out/boxes.json. The pencil-vector server (npm run vector-server) then serves these models live to the
+cleanup tool -- this is the headless CLI over the same code path as the server's /vectorize endpoint.
 
-  python3 boxcrop.py boxes.json [--scan=PATH] [--no-build]
+  python3 boxcrop.py boxes.json [--scan=PATH]
 
 The scan is resolved from artwork-scans/<scan> unless --scan overrides it. The box IS the isolation:
 the crop is fed straight to vectorize(), whose ink threshold pulls the pencil off the paper.
@@ -36,30 +37,56 @@ def resolve_scan(name: str, override: str | None) -> str:
     return p
 
 
-def process(boxes_path: str, scan_override: str | None, do_build: bool) -> None:
+BOXES = os.path.join(OUT, "boxes.json")
+
+
+def load_boxes() -> dict:
+    return json.load(open(BOXES)) if os.path.exists(BOXES) else {"boxes": [], "exports": []}
+
+
+def save_boxes(d: dict) -> None:
+    os.makedirs(OUT, exist_ok=True)
+    json.dump(d, open(BOXES, "w"), indent=2)
+
+
+def vectorize_box(img, scan_name: str, b: dict, bx: dict) -> dict:
+    """Crop box b from img, vectorize, write out/<name>_model.json (box provenance + scan thumb), and
+    record/refresh the box in bx (a load_boxes() dict). Returns a node/edge/blob summary. Shared by the
+    boxcrop CLI and the server's /vectorize so both stay in lockstep."""
+    crop = img.crop((b["x0"], b["y0"], b["x1"], b["y1"]))
+    crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
+    crop.save(crop_path)
+    d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop))
+    d["box"] = {"scan": scan_name, "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]}
+    json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
+    by = {r["name"]: r for r in bx["boxes"]}
+    rec = by.get(b["name"], {"exports": []})
+    rec.update({"name": b["name"], "scan": scan_name,
+                "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]})
+    rec.setdefault("exports", [])
+    by[b["name"]] = rec
+    bx["boxes"] = list(by.values())
+    return {"name": b["name"], "nodes": len(d["nodes"]), "edges": len(d["edges"]), "blobs": len(d["blobs"])}
+
+
+def process(boxes_path: str, scan_override: str | None) -> None:
     data = json.load(open(boxes_path))
     scan_path = resolve_scan(data["scan"], scan_override)
     print(f"scan   {scan_path}", flush=True)
     img = Image.open(scan_path).convert("RGB")
     os.makedirs(OUT, exist_ok=True)
+    bx = load_boxes()
     boxes = data["boxes"]
     n = len(boxes)
     print(f"boxes  {n} to vectorize", flush=True)
     for i, b in enumerate(boxes, 1):
         w, h = b["x1"] - b["x0"], b["y1"] - b["y0"]
         print(f"[{i}/{n}] {b['name']:16} crop {w}x{h} @ ({b['x0']},{b['y0']}) -- vectorizing...", flush=True)
-        crop = img.crop((b["x0"], b["y0"], b["x1"], b["y1"]))
-        crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
-        crop.save(crop_path)
-        d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop))
-        json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
-        print(f"       done: nodes={len(d['nodes'])} edges={len(d['edges'])} blobs={len(d['blobs'])}"
+        r = vectorize_box(img, data["scan"], b, bx)
+        print(f"       done: nodes={r['nodes']} edges={r['edges']} blobs={r['blobs']}"
               f"  ->  out/{b['name']}_model.json", flush=True)
-    if do_build:
-        print("build  regenerating cleanup.html...", flush=True)
-        import build_cleanup
-        build_cleanup.main()
-    print("done.", flush=True)
+    save_boxes(bx)
+    print("done. start the server (npm run vector-server) and open /cleanup", flush=True)
 
 
 def main(argv):
@@ -68,7 +95,7 @@ def main(argv):
     if not pos:
         print(__doc__)
         return 2
-    process(pos[0], scan_override, "--no-build" not in argv)
+    process(pos[0], scan_override)
     return 0
 
 
