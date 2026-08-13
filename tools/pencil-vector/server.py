@@ -10,6 +10,7 @@ and read/write real files (no baking, no downloads, a real audit trail):
   POST /vectorize   -> {scan, boxes:[{name,x0,y0,x1,y1}]} : crop + vectorize each, save out/<name>_model.json
                        (with box provenance + scan thumbnail), record the boxes in out/boxes.json
   GET  /models      -> every current out/*_model.json (the cleanup tool loads these live)
+  GET  /boxes       -> data/boxes.json (box defs + audit) so the boxer can pre-load a scan's boxes
   POST /export      -> {subject, name, svg} : write out/svg/<name>.svg AND append the export to the
                        subject's box in out/boxes.json -- the audit trail
 
@@ -75,6 +76,11 @@ def get_models():
     out = [json.load(open(os.path.join(OUT, f)))
            for f in sorted(os.listdir(OUT)) if f.endswith("_model.json")]
     return jsonify(out)
+
+
+@app.get("/boxes")
+def get_boxes():                                       # box defs (+ audit) so the boxer can pre-load a scan's boxes
+    return jsonify(load_boxes())
 
 
 @app.post("/vectorize")

@@ -72,13 +72,17 @@ fetch("/scans").then(r => r.json()).then(list => {
 }).catch(() => { $("#status").textContent = "no server — run: npm run vector-server"; });
 $("#scanpick").onchange = e => { if(e.target.value) loadScan(e.target.value); };
 
-function loadScan(name){
+async function loadScan(name){
   scanName = name;
+  const all = await (await fetch("/boxes")).json();              // pre-load boxes already marked on this scan
+  const mine = (all.boxes || []).filter(b => b.scan === name);
   img.onload = () => {
     ov.setAttribute("viewBox", `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
     LBL = Math.max(10, Math.round(img.naturalHeight / 45));
     $("#drop").hidden = true; $("#imgwrap").hidden = false;
-    boxes = []; seq = 0; render();
+    boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}));
+    seq = Math.max(0, ...boxes.map(b => { const m = /^box(\d+)$/.exec(b.name); return m ? +m[1] : 0; }));
+    render();
   };
   img.src = "/scan/" + encodeURIComponent(name);
 }
