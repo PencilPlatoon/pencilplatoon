@@ -1,4 +1,4 @@
-"""Growth-based blob resolution (§6.4 successor to resolve.py's justification pass).
+"""Growth-based blob resolution (§6.4 successor to the earlier justification-resolution pass).
 
 A 2D region is one of two things: a real *fill* (a head, a wheel -- a pen-uncovered bulge), or a
 *junction* where strokes cross (all its ink is swept by the strokes). We decide per region by
