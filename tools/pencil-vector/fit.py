@@ -607,8 +607,8 @@ def _fit_curvfit(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bo
     corners = set(cands)
     recon = _kabsch(build(prm), S)
     for ax, ay in (anchors or []):                        # keep the boundary on its trace at attachments
-        k = int(np.hypot(S[:, 0]-ax, S[:, 1]-ay).argmin())
-        lo, hi = max(0, k-1), min(M, k+2); recon[lo:hi] = S[lo:hi]
+        k = _nearest_index(S, ax, ay)
+        _pin(recon, S, k)
 
     prims, cornerset, idx = [], set(corners), 0
     for (i, j, _, _) in pieces:
@@ -626,12 +626,7 @@ def _fit_curvfit(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bo
         p.corner_in = i in cornerset
         prims.append(p)
 
-    width = None
-    if r is not None and len(r) >= 2:
-        s0 = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
-        rr = np.interp(np.linspace(0, s0[-1], M), s0, np.asarray(r, float))
-        width = denoise_tv_chambolle(rr, weight=TV_RADIUS * w)
-    return Fit(closed=closed, samples=S, prims=prims, resid=S - recon, width=width)
+    return Fit(closed=closed, samples=S, prims=prims, resid=S - recon, width=_width(P, r, w, M))
 
 
 def _width(P, r, w, M):
@@ -640,6 +635,17 @@ def _width(P, r, w, M):
     s0 = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
     rr = np.interp(np.linspace(0, s0[-1], M), s0, np.asarray(r, float))
     return denoise_tv_chambolle(rr, weight=TV_RADIUS * w)
+
+
+def _nearest_index(S, ax, ay):
+    """Index of the resample sample closest to an anchor point (ax, ay)."""
+    return int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
+
+
+def _pin(C, S, k):
+    """Overwrite C at k+-1 with the raw samples S, so an anchored point stays exactly on the trace."""
+    lo, hi = max(0, k - 1), min(len(S), k + 2)
+    C[lo:hi] = S[lo:hi]
 
 
 def _line_dev(seg):
@@ -706,7 +712,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     cornerset = set(_corners_v3(S, w, step, closed))
     anchor_ix = []
     for ax, ay in (anchors or []):                        # blob attachments: pin exactly, never smooth across
-        k = int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
+        k = _nearest_index(S, ax, ay)
         if 0 <= k < M:
             anchor_ix.append(k)
     smooth_breaks = cornerset | set(anchor_ix)
@@ -723,7 +729,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     D = np.array(d_rows) if d_rows else np.zeros((0, M))
     C = np.linalg.solve(np.eye(M) + SPLINE_LAMBDA * (D.T @ D), S)
     for k in anchor_ix:                                   # keep the boundary exactly on its trace at joins
-        lo, hi = max(0, k - 1), min(M, k + 2); C[lo:hi] = S[lo:hi]
+        _pin(C, S, k)
 
     # classify the smoothed curve into primitives; geometry rendered stays C (resid = S - C), so joins are
     # as smooth as C itself -- the primitives are labels + params, not a re-fit that could reintroduce kinks.
@@ -983,7 +989,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
             (_corners(ang) if STRATEGY == "corner" else None)
     if STRATEGY in ("rebuild", "css", "wtmm"):
         for ax, ay in (anchors or []):                     # pin the boundary at each stroke attachment
-            k = int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
+            k = _nearest_index(S, ax, ay)
             if MIN_SEG <= k <= M - MIN_SEG:
                 anchor_ix.append(k)
         breaks = sorted(set(breaks or []) | set(anchor_ix))
@@ -1016,17 +1022,10 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
             cos = np.clip(t0 @ t1 / (np.hypot(*t0) * np.hypot(*t1)), -1, 1)
             b.corner_in = np.degrees(np.arccos(cos)) > CORNER_DEG
 
-    for k in anchor_ix:                                        # keep the boundary on its raw trace at
-        lo, hi = max(0, k - 1), min(M, k + 2)                  # each attachment so the stroke stays joined
-        cleaned[lo:hi] = S[lo:hi]
+    for k in anchor_ix:                                        # keep the boundary on its raw trace at each
+        _pin(cleaned, S, k)                                    # attachment so the stroke stays joined
 
-    width = None
-    if r is not None and len(r) >= 2:
-        s0 = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
-        rr = np.interp(np.linspace(0, s0[-1], M), s0, np.asarray(r, float))
-        width = denoise_tv_chambolle(rr, weight=TV_RADIUS * w)
-
-    return Fit(closed=closed, samples=S, prims=prims, resid=S - cleaned, width=width)
+    return Fit(closed=closed, samples=S, prims=prims, resid=S - cleaned, width=_width(P, r, w, M))
 
 
 def path_d(fit: Fit) -> str:
