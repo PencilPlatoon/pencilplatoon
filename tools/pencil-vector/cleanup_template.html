@@ -43,8 +43,8 @@
   .el.hover .edge,.el.hover .blob{stroke:var(--red)}
   .el.hover .blob{fill:var(--red)}
   .el.sel .edge{stroke:var(--blue)} .el.sel .blob{fill:var(--blue)}
-  .el.masked{opacity:.12}
-  .el.masked .hit{pointer-events:none}
+  .el.hidden{opacity:.12}
+  .el.hidden .hit{pointer-events:none}
   .marquee{fill:rgba(88,120,230,.10);stroke:var(--blue);stroke-width:1.4;stroke-dasharray:6 4;
     vector-effect:non-scaling-stroke;pointer-events:none}
 </style>
@@ -55,13 +55,12 @@
   <div class="subjects" id="subjects"></div>
 </header>
 <div class="toolbar">
-  <button id="floodBtn">Flood-select: off</button>
-  <button id="delBtn">Delete → mask</button>
+  <button id="delBtn">Delete → hide</button>
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="count">Selected <b id="selN">0</b> · Masked <b id="maskN">0</b></span>
-  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = mask</span>
+  <span class="count">Selected <b id="selN">0</b> · Hidden <b id="hidN">0</b></span>
+  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = hide</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -71,7 +70,7 @@ const MODELS = __MODELS__;
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = s => document.querySelector(s);
 
-let model, adj, selected, masked, floodMode = false;
+let model, adj, selected, hidden;
 
 function buildAdjacency(m){
   // hub key -> [edge sid]. A hub is a skeleton node ("n"+id) OR a blob sid, so a
@@ -88,11 +87,11 @@ function buildAdjacency(m){
 function floodFrom(startSid){
   // everything reachable through shared nodes AND blob attachments; returns the
   // sids of both edges and blobs in the connected component. Works from either.
-  // masked (deleted) elements cut connectivity -- flood neither enters nor crosses them
+  // hidden (deleted) elements cut connectivity -- flood neither enters nor crosses them
   const out = new Set(), seenE = new Set(), seenB = new Set(), q = [];
-  const takeBlob = bs => { if(seenB.has(bs) || masked.has(bs)) return; seenB.add(bs); out.add(bs);
-    for(const es of (adj.blob.get(bs).edges||[])) if(!seenE.has(es) && !masked.has(es)){ seenE.add(es); q.push(es); } };
-  const takeEdge = es => { if(!seenE.has(es) && !masked.has(es)){ seenE.add(es); q.push(es); } };
+  const takeBlob = bs => { if(seenB.has(bs) || hidden.has(bs)) return; seenB.add(bs); out.add(bs);
+    for(const es of (adj.blob.get(bs).edges||[])) if(!seenE.has(es) && !hidden.has(es)){ seenE.add(es); q.push(es); } };
+  const takeEdge = es => { if(!seenE.has(es) && !hidden.has(es)){ seenE.add(es); q.push(es); } };
   adj.blob.has(startSid) ? takeBlob(startSid) : takeEdge(startSid);
   while(q.length){
     const e = adj.edge.get(q.pop()); out.add(e.sid);
@@ -117,7 +116,7 @@ function strokeChain(startSid){
   while(q.length){
     const e = adj.edge.get(q.pop());
     for(const nid of [e.a, e.b]){ const p = (e.cont||{})[nid];
-      if(p && !out.has(p) && !masked.has(p)){ out.add(p); q.push(p); } }
+      if(p && !out.has(p) && !hidden.has(p)){ out.add(p); q.push(p); } }
   }
   return out;
 }
@@ -127,11 +126,11 @@ function elFor(sid){ return $(`.el[data-sid="${CSS.escape(sid)}"]`); }
 function render(){
   for(const el of document.querySelectorAll(".el")){
     const sid = el.dataset.sid;
-    el.classList.toggle("sel", selected.has(sid) && !masked.has(sid));
-    el.classList.toggle("masked", masked.has(sid));
+    el.classList.toggle("sel", selected.has(sid) && !hidden.has(sid));
+    el.classList.toggle("hidden", hidden.has(sid));
   }
-  $("#selN").textContent = [...selected].filter(s => !masked.has(s)).length;
-  $("#maskN").textContent = masked.size;
+  $("#selN").textContent = [...selected].filter(s => !hidden.has(s)).length;
+  $("#hidN").textContent = hidden.size;
 }
 
 function draw(){
@@ -158,7 +157,7 @@ function draw(){
 
 function loadSubject(name){
   model = MODELS[name]; adj = buildAdjacency(model);
-  selected = new Set(); masked = new Set();
+  selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
   draw(); render(); wireCanvas();
 }
@@ -191,9 +190,9 @@ function ptInPoly(x, y, pts){                                    // ray cast -- 
 function marqueeSelect(r, subtract){                            // plain drag adds touched elements; shift-drag removes them
   const apply = sid => subtract ? selected.delete(sid) : selected.add(sid);
   for(const b of model.blobs)                                   // a blob: boundary crosses the box, OR the box sits inside its fill
-    if(!masked.has(b.sid) && (polyHitsRect(b.boundary, r, true) || ptInPoly(r.x0, r.y0, b.boundary))) apply(b.sid);
+    if(!hidden.has(b.sid) && (polyHitsRect(b.boundary, r, true) || ptInPoly(r.x0, r.y0, b.boundary))) apply(b.sid);
   for(const e of model.edges)
-    if(!masked.has(e.sid) && polyHitsRect(e.pts, r, false)) apply(e.sid);
+    if(!hidden.has(e.sid) && polyHitsRect(e.pts, r, false)) apply(e.sid);
   render();
 }
 
@@ -206,7 +205,7 @@ function wireCanvas(){
     const u = p.matrixTransform(svg.getScreenCTM().inverse()); return {x:u.x, y:u.y};
   };
   svg.addEventListener("mouseover", e => {
-    const el = e.target.closest(".el"); if(el && !el.classList.contains("masked")){
+    const el = e.target.closest(".el"); if(el && !el.classList.contains("hidden")){
       el.classList.add("hover"); badge.textContent = "#" + el.dataset.num; badge.style.display = "flex";
     }
   });
@@ -236,9 +235,9 @@ function wireCanvas(){
   });
   svg.addEventListener("click", e => {
     if(justMarqueed){ justMarqueed = false; return; }            // a drag just finished -- swallow the click
-    const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
+    const el = e.target.closest(".el"); if(!el || hidden.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
-    if(e.metaKey || floodMode){                                  // flood the connected component
+    if(e.metaKey){                                               // flood the connected component
       const comp = floodFrom(sid), remove = e.shiftKey;          // ⇧⌘ = anti-fill (remove); ⌘ = fill (add)
       for(const s of comp) remove ? selected.delete(s) : selected.add(s);
     } else if(e.altKey){                                         // select one continuity stroke (through crossings)
@@ -250,11 +249,11 @@ function wireCanvas(){
   });
 }
 
-function activeSel(){ return [...selected].filter(s => !masked.has(s)); }
+function activeSel(){ return [...selected].filter(s => !hidden.has(s)); }
 
-function selectAll(){                                            // every un-masked element in the drawing
-  for(const b of model.blobs) if(!masked.has(b.sid)) selected.add(b.sid);
-  for(const e of model.edges) if(!masked.has(e.sid)) selected.add(e.sid);
+function selectAll(){                                            // every un-hidden element in the drawing
+  for(const b of model.blobs) if(!hidden.has(b.sid)) selected.add(b.sid);
+  for(const e of model.edges) if(!hidden.has(e.sid)) selected.add(e.sid);
   render();
 }
 
@@ -262,7 +261,7 @@ function clearSelection(){ selected.clear(); render(); }
 
 function deleteSelected(){
   const s = activeSel(); if(!s.length) return;
-  for(const sid of s) masked.add(sid);
+  for(const sid of s) hidden.add(sid);
   selected.clear();
   render();
 }
@@ -291,8 +290,6 @@ function download(fname, text, mime){
 }
 
 // wire toolbar
-$("#floodBtn").onclick = e => { floodMode=!floodMode;
-  e.target.classList.toggle("on", floodMode); e.target.textContent = "Flood-select: " + (floodMode?"on":"off"); };
 $("#delBtn").onclick = deleteSelected;
 $("#expBtn").onclick = exportSelection;
 $("#clrBtn").onclick = clearSelection;
