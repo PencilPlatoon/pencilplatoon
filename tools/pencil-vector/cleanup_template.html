@@ -24,6 +24,8 @@
     background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
   .toolbar button:hover{border-color:var(--blue)}
   .toolbar button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .toolbar .count{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:10px}
+  .toolbar .count b{color:var(--blue);font-weight:600}
   .toolbar .hint{font-size:11.5px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
   .stage{flex:1;display:flex;min-height:0}
   .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;position:relative}
@@ -32,17 +34,6 @@
     padding:0 9px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px #000}
   .canvas svg{background:var(--paper);border-radius:8px;max-width:100%;max-height:100%;
     box-shadow:0 12px 40px -16px #000}
-  aside{width:290px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
-  aside .sel{padding:12px 16px;border-bottom:1px solid var(--hair);font-family:var(--mono);font-size:12px}
-  aside .sel b{color:var(--blue)}
-  aside h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
-  #log{margin:0;padding:0 16px;list-style:none;overflow:auto;flex:1;font-family:var(--mono);font-size:11.5px}
-  #log li{padding:6px 0;border-bottom:1px solid var(--hair);color:var(--ink)}
-  #log li .k{color:var(--green)} #log li .n{color:var(--muted)}
-  #log .empty{color:var(--muted);padding:10px 0}
-  aside .foot{padding:12px 16px;border-top:1px solid var(--hair);display:flex;gap:8px}
-  aside .foot button{flex:1;font:inherit;font-size:12px;padding:7px;border-radius:7px;cursor:pointer;
-    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
 
   /* drawing elements */
   .edge{fill:none;stroke:#141414;stroke-linecap:round;stroke-linejoin:round}
@@ -69,25 +60,18 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
+  <span class="count">Selected <b id="selN">0</b> · Masked <b id="maskN">0</b></span>
   <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
-  <aside>
-    <div class="sel">Selected: <b id="selN">0</b> &nbsp; Masked: <span id="maskN">0</span></div>
-    <h3>Edit log <span class="n" id="logN"></span></h3>
-    <ol id="log"><li class="empty">no edits yet</li></ol>
-    <div class="foot">
-      <button id="dlLog">Download log</button>
-    </div>
-  </aside>
 </div>
 <script>
 const MODELS = __MODELS__;
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = s => document.querySelector(s);
 
-let model, adj, selected, masked, log, floodMode = false;
+let model, adj, selected, masked, floodMode = false;
 
 function buildAdjacency(m){
   // hub key -> [edge sid]. A hub is a skeleton node ("n"+id) OR a blob sid, so a
@@ -150,16 +134,6 @@ function render(){
   $("#maskN").textContent = masked.size;
 }
 
-function renderLog(){
-  const ol = $("#log");
-  if(!log.length){ ol.innerHTML = '<li class="empty">no edits yet</li>'; $("#logN").textContent=""; return; }
-  $("#logN").textContent = `(${log.length})`;
-  ol.innerHTML = log.map((o,i) =>
-    `<li><span class="k">${o.op}</span> ${o.asset?('"'+o.asset+'" '):''}<span class="n">×${o.sids.length}</span></li>`
-  ).join("");
-  ol.scrollTop = ol.scrollHeight;
-}
-
 function draw(){
   const m = model, sw = Math.max(1, m.w); let n = 0;
   // number blobs first, then edges -- same order as the comparison page's tabs
@@ -184,9 +158,9 @@ function draw(){
 
 function loadSubject(name){
   model = MODELS[name]; adj = buildAdjacency(model);
-  selected = new Set(); masked = new Set(); log = [];
+  selected = new Set(); masked = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
-  draw(); render(); renderLog(); wireCanvas();
+  draw(); render(); wireCanvas();
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
@@ -290,7 +264,7 @@ function deleteSelected(){
   const s = activeSel(); if(!s.length) return;
   for(const sid of s) masked.add(sid);
   selected.clear();
-  log.push({op:"delete", sids:s}); render(); renderLog();
+  render();
 }
 
 function exportSelection(){
@@ -308,7 +282,6 @@ function exportSelection(){
     out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
   out.push("</g></svg>");
   download(`${m.subject}_${name}.svg`, out.join(""), "image/svg+xml");
-  log.push({op:"export", asset:name, sids:s}); renderLog();
 }
 
 function download(fname, text, mime){
@@ -324,8 +297,6 @@ $("#delBtn").onclick = deleteSelected;
 $("#expBtn").onclick = exportSelection;
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
-$("#dlLog").onclick = () => download(`${model.subject}_edits.json`,
-  JSON.stringify({subject:model.subject, edits:log}, null, 2), "application/json");
 document.addEventListener("keydown", e => {
   if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); e.shiftKey ? clearSelection() : selectAll(); }
   else if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
