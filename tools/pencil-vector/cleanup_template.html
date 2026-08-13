@@ -43,19 +43,19 @@
     align-items:center;gap:10px;padding:2px 0}
   .rotcol output{font:600 11px var(--mono);color:var(--ink)}
   .rotcol input[type=range]{-webkit-appearance:none;appearance:none;writing-mode:vertical-lr;
-    width:18px;flex:1;min-height:60px;background:transparent;cursor:pointer;margin:0}
-  .rotcol input[type=range]::-webkit-slider-runnable-track{background:transparent}
-  .rotcol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:15px;height:15px;
-    border-radius:50%;background:#e9e7e0;border:1px solid var(--hair);box-shadow:0 1px 3px rgba(0,0,0,.5)}
-  .rotcol input[type=range]::-moz-range-track{background:transparent}
-  .rotcol input[type=range]::-moz-range-thumb{width:15px;height:15px;border-radius:50%;background:#e9e7e0;border:1px solid var(--hair)}
+    width:16px;flex:1;min-height:60px;background:transparent;cursor:pointer;margin:0}
+  .rotcol input[type=range]::-webkit-slider-runnable-track{background:#fff;border:1px solid var(--hair);border-radius:8px}
+  .rotcol input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:14px;height:14px;
+    border-radius:50%;background:var(--blue);border:none;box-shadow:0 1px 2px rgba(0,0,0,.35)}
+  .rotcol input[type=range]::-moz-range-track{background:#fff;border:1px solid var(--hair);border-radius:8px}
+  .rotcol input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--blue);border:none}
   .rotcol .flips{display:flex;flex-direction:column;gap:6px;width:100%;padding:0 3px}
   .rotcol .flips button{font-size:14px;line-height:1;padding:6px 0;border-radius:6px;cursor:pointer;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
   .rotcol .flips button:hover{border-color:var(--blue)}
   .rotcol .flips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
-  .canvas{flex:1;display:grid;place-items:center;padding:20px 20px 20px 56px;overflow:auto;position:relative}
-  #numbadge{position:absolute;top:26px;left:64px;z-index:6;background:var(--red);color:#fff;
+  .canvas{flex:1;display:grid;place-items:center;padding:20px 56px 20px 20px;overflow:auto;position:relative}
+  #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
     font-family:var(--mono);font-weight:700;font-size:15px;min-width:22px;height:26px;border-radius:13px;
     padding:0 9px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px #000}
   .canvas svg{background:var(--paper);border-radius:8px;max-width:100%;max-height:100%;
@@ -235,7 +235,7 @@ function placeRotcol(){                                            // pin the ro
   const s = svg.getBoundingClientRect(), c = canvas.getBoundingClientRect();
   col.style.top = (s.top - c.top) + "px";
   col.style.height = s.height + "px";
-  col.style.left = (s.left - c.left - col.offsetWidth) + "px";
+  col.style.left = (s.right - c.left) + "px";
 }
 function reflow(){ alignName(); placeRotcol(); }
 function refresh(){ draw(); render(); wireCanvas(); reflow(); }
