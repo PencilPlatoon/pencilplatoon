@@ -211,6 +211,14 @@ class _Prefix:
 ENV_K = 16              # points sampled along a span for the envelope test (keeps it O(1) per span)
 
 
+def _at(p: int, dirn: int, s: int, closed: bool, M: int):
+    """The s-th index from p in direction dirn (+-1); None once it runs past the end of an open curve."""
+    k = p + dirn * s
+    if not closed and (k < 0 or k >= M):
+        return None
+    return k % M
+
+
 def _wdir(S: np.ndarray, p: int, dirn: int, piv, tau: float, closed: bool, M: int) -> np.ndarray:
     """Arclength-weighted principal direction of the side leaving p (dirn=+-1), oriented outward from piv.
     Weight decays exp(-arclength/tau), so nearby samples dominate and a boundary that curls back near the
@@ -218,10 +226,10 @@ def _wdir(S: np.ndarray, p: int, dirn: int, piv, tau: float, closed: bool, M: in
     a = b = c = rx = ry = arc = 0.0
     prev = S[p % M]
     for s in range(400):
-        k = p + dirn * s
-        if not closed and (k < 0 or k >= M):
+        k = _at(p, dirn, s, closed, M)
+        if k is None:
             break
-        k %= M; cur = S[k]; vx, vy = cur[0] - piv[0], cur[1] - piv[1]
+        cur = S[k]; vx, vy = cur[0] - piv[0], cur[1] - piv[1]
         if s > 0:
             arc += math.hypot(cur[0] - prev[0], cur[1] - prev[1]); prev = cur
         if s > 2 and arc > 8 * tau:
@@ -251,14 +259,15 @@ def _turn_wt(S: np.ndarray, i: int, tau: float, closed: bool, M: int):
 
 
 def _win_arc(S: np.ndarray, i: int, closed: bool, M: int, half: float) -> list:
+    """Indices within `half` arc length of i on both sides (i itself included)."""
     out = [i % M]
     for dirn in (-1, 1):
-        acc, j = 0.0, i % M
+        acc, prev, s = 0.0, i % M, 1
         while acc < half:
-            nj = (j + dirn) % M if closed else j + dirn
-            if not closed and (nj < 0 or nj >= M):
+            k = _at(i, dirn, s, closed, M)
+            if k is None:
                 break
-            acc += math.hypot(*(S[nj % M] - S[j % M])); out.append(nj % M); j = nj
+            acc += math.hypot(*(S[k] - S[prev])); out.append(k); prev = k; s += 1
     return out
 
 
