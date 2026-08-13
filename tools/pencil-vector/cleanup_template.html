@@ -69,7 +69,7 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = flood-fill · ⇧⌘-click = flood-delete · ⌥-click = select stroke · ⌘A all · ⇧⌘A none · Del = mask</span>
+  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -264,13 +264,12 @@ function wireCanvas(){
     if(justMarqueed){ justMarqueed = false; return; }            // a drag just finished -- swallow the click
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
-    if(e.metaKey && e.shiftKey){ floodDelete(sid); return; }     // flood-delete: mask the whole component (self-renders)
-    if(e.metaKey || floodMode){                                  // flood fill / anti-fill the component
-      const comp = floodFrom(sid), on = selected.has(sid);       // clicked already selected -> anti-fill
-      for(const s of comp) on ? selected.delete(s) : selected.add(s);
-    } else if(e.altKey){                                         // select one continuity stroke
+    if(e.metaKey || floodMode){                                  // flood the connected component
+      const comp = floodFrom(sid), remove = e.shiftKey;          // ⇧⌘ = anti-fill (remove); ⌘ = fill (add)
+      for(const s of comp) remove ? selected.delete(s) : selected.add(s);
+    } else if(e.altKey){                                         // select one continuity stroke (through crossings)
       for(const s of strokeChain(sid)) selected.add(s);
-    } else {                                                     // toggle one segment
+    } else {                                                     // toggle one element
       selected.has(sid) ? selected.delete(sid) : selected.add(sid);
     }
     render();
@@ -286,13 +285,6 @@ function selectAll(){                                            // every un-mas
 }
 
 function clearSelection(){ selected.clear(); render(); }
-
-function floodDelete(sid){                                       // mask the whole connected component at once
-  const comp = floodFrom(sid).filter(s => !masked.has(s));
-  if(!comp.length) return;
-  for(const s of comp){ masked.add(s); selected.delete(s); }
-  log.push({op:"delete", sids:comp}); render(); renderLog();
-}
 
 function deleteSelected(){
   const s = activeSel(); if(!s.length) return;
