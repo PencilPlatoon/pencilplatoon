@@ -1,6 +1,6 @@
 """Hug vs arcs: the spline fit rendered two ways, side by side, for every scan --
   hug   = the idealized geometry SAMPLED (dump/render primitives=False -> reconstruct); it hugs the curve
-  arcs  = the compact line/arc/clothoid primitives (primitives=True -> path_d); fewer data points, but the
+  arcs  = the compact line/arc primitives (primitives=True -> path_d); fewer data points, but the
           chords/arcs can pull off the smooth curve.
 Each panel shows the asset raster with a deviation overlay (orange = drawn past the ink, purple = missed
 ink), plus the data-point count and total pixels-off. Generated -> hug_compare.html (a new artifact)."""
@@ -107,8 +107,8 @@ HTML = '''<title>Pencil Vector — hug vs arcs</title>
 <input id="cov" type="checkbox" hidden checked>
 <h1>Hugging vs. arcs</h1>
 <p class="dek">The same spline fit, emitted three ways. <b>Sampled</b> samples the idealized curve densely —
-it sits on the ink but is heavy. <b>Loose arcs</b> emit line/arc/clothoid primitives — far fewer data points,
-but the chords/arcs (and sampled clothoids) can pull off the smooth curve. <b>Hugging arcs</b> is the
+it sits on the ink but is heavy. <b>Loose arcs</b> emit line/arc primitives — far fewer data points,
+but the chords/arcs can pull off the smooth curve. <b>Hugging arcs</b> is the
 prototype: emit only line/arc pieces, and subdivide wherever one bows off the curve by more than ~a pixel —
 so it's compact <em>and</em> faithful. Toggle the overlay to see where each deviates from the scan.</p>
 <label class="tog"><input type="checkbox" checked onclick="document.getElementById('cov').checked=this.checked">

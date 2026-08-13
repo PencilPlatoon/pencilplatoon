@@ -161,7 +161,7 @@ def stage_graphs(key):
       skeleton  contact-aware stroke skeleton: endpoints disciplined, 2D regions carved out (classify)
       grow      2D regions grown from their stroke contacts into networks + kept fills (pre-absorb)
       absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
-      fit       strokes + fill edges idealized to line/arc/clothoid geometry (milestone 8, spline)"""
+      fit       strokes + fill edges idealized to line/arc geometry (milestone 8, spline)"""
     return [
         ("skeleton", pre_grow(key),                     False),
         ("grow",     build_pre_absorb(key),             False),

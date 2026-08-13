@@ -129,7 +129,7 @@ print("wrote counts; VMAX_KAP=%.3f" % VMAX_KAP)
 
 # ---- rendering helpers ----
 DIV_NEG, DIV_MID, DIV_POS = (40, 90, 205), (240, 150, 40), (200, 30, 30)
-KCOL = {"line": "#2f6fb0", "arc": "#2e9e4e", "clothoid": "#e08020"}
+KCOL = {"line": "#2f6fb0", "arc": "#2e9e4e"}
 TICK_HALF = 4.0
 
 

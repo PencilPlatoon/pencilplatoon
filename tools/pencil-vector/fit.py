@@ -1,19 +1,17 @@
 """Stage 8 -- geometry fitting (plan §9).
 
 Idealize each traced polyline -- stroke centerlines AND blob boundaries alike, the
-one uniform step promised at M2/M6 -- by working in the **turning function**, not in
-x/y. A wobbly-but-straight line is a tangent angle noisy with near-zero drift; an
-intended circle is roughly constant curvature; a corner is a step. Smoothing x/y would
-kill corners along with wobble; denoising curvature does not.
+one uniform step promised at M2/M6 -- so a wobbly-but-straight line reads as a line, an
+intended circle as one arc, and a corner stays a corner. Smoothing x/y naively would kill
+corners along with wobble; the fit keeps them as knots where it is free to bend.
 
 Pipeline per curve:
-  1. resample to uniform arc length,
-  2. turning function theta(s) and curvature kappa(s); TV-denoise both kappa and the
-     half-width r(s) with an L1 prior (noise oscillates around a mean; intent is a
-     sustained excursion),
-  3. segment into primitives -- line, arc, clothoid, corner -- as a shortest path over
-     candidate spans, chosen by description length (so a distorted circle becomes ONE
-     arc, not forty segments),
+  1. corner-preserving resample to ~uniform arc length (small sharp features kept as knots),
+  2. a smoothing spline on x(s), y(s) with a curvature penalty that is DROPPED at corners and
+     stroke attachments -- wobble is removed with no drift; corners and joins stay sharp,
+  3. segment the smoothed curve into primitives -- line, arc, corner -- as a shortest path over
+     candidate spans, chosen by description length (so a distorted circle becomes ONE arc, not
+     forty segments),
   4. record {kind, params, residual} as ANNOTATIONS; the raw points are never replaced.
 
 The residual (each sample's signed normal offset from its primitive) is kept so a tunable
@@ -33,7 +31,6 @@ TV_RADIUS = 0.8         # TV weight on r(s)
 SPLIT_PEN_W = 0.35      # per-segment description-length penalty, as (SPLIT_PEN_W*w)^2 of SSE
 ARC_EXTRA_W = 0.15      # an arc costs this much (in the same SSE units) more than a line
 MIN_SEG = 4             # a primitive spans at least this many samples
-TV_KAPPA_W = 0.30       # TV/L1 denoise weight on kappa(s), in units of w (plan sec 9)
 # corner detector: arclength-weighted local-turn peaks + apex localization. Tuned on hand labels
 # (recall ~0.90, position median ~0.5px). See _corners_v3.
 CORNER_TAU_W = 0.33     # arclength decay of the side-direction fit, in w -- nearby samples dominate the turn
@@ -52,7 +49,6 @@ CORNER_END_MARGIN = 1   # on an open edge, keep corners this many samples in fro
 CORNER_FINE_W = 0.25    # corner-preserving resample: detect on a resample this fine (in w) to catch small
                         # sharp features the 0.5w step would chord across, then insert the ones it missed
 
-CLOTHOID_MIN_DK = 0.15  # a clothoid must sweep at least this many rad of curvature over the span
 SPLINE_LAMBDA = 5.0      # spline: weight of the position-domain curvature-smoothing penalty (local support)
 HUG_PRIMITIVES = False   # spline: emit line/arc pieces that each HUG the smoothed curve (subdivide where a
 HUG_TOL_W = 0.12         # chord/arc bows off by more than HUG_TOL_W*w) -- fidelity at a few more data points
@@ -60,10 +56,10 @@ HUG_TOL_W = 0.12         # chord/arc bows off by more than HUG_TOL_W*w) -- fidel
 
 @dataclass
 class Primitive:
-    kind: str                       # 'line' | 'arc' | 'clothoid'
+    kind: str                       # 'line' | 'arc'
     i: int                          # [i, j] sample span on the resampled curve
     j: int
-    params: dict                    # line: {p0,dir}; arc: {center,radius}; clothoid: {k0,dk,...}
+    params: dict                    # line: {p0,dir}; arc: {center,radius}
     residual: float                 # RMS geometric residual (px)
     corner_in: bool = False         # a C0 break precedes this primitive
 
@@ -125,18 +121,6 @@ def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
     su2 = sorted(set(core) | set(extra))
     S = _interp_at(P, s, np.array(su2 + [total]) if closed else np.array(su2), closed)
     return S, _corners_v3(S, w, step, closed)                 # detect on the densified samples (what _fit_spline used to)
-
-
-def _turning(P: np.ndarray, closed: bool):
-    """Signed curvature per sample (rad per step) from the tangent-angle increments."""
-    d = np.diff(np.vstack([P, P[:1]]) if closed else P, axis=0)
-    ang = np.arctan2(d[:, 1], d[:, 0])
-    dth = np.diff(np.concatenate([ang[-1:], ang]) if closed else ang)
-    dth = (dth + np.pi) % (2 * np.pi) - np.pi                 # wrap to (-pi, pi]
-    # place the turn at the shared vertex; pad ends of an open curve with zero curvature
-    if closed:
-        return dth
-    return np.concatenate([[0.0], dth, [0.0]])
 
 
 # ---------------------------------------------------------------- O(1) span residuals
@@ -389,9 +373,8 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     to immediate neighbours (2nd-difference penalty); the inverse of that banded system has exponentially
     decaying entries, so a control point's influence dies with distance (the Bezier/B-spline property) and
     wobble is removed with NO error accumulation. Corners are knots where the penalty is dropped, so they
-    stay sharp. Primitives (line/arc/clothoid) are then classified off the smoothed curve for output."""
+    stay sharp. Primitives (line/arc) are then classified off the smoothed curve for output."""
     M = len(S)
-    s_arc = np.arange(M, dtype=float) * step
     cornerset = set(cornerset)                            # detected once in resample_corners; reused, not recomputed
     anchor_ix = []
     for ax, ay in (anchors or []):                        # blob attachments: pin exactly, never smooth across
@@ -425,35 +408,29 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     if HUG_PRIMITIVES:                                     # subdivide so the emitted primitives hug C
         spans = _hug_spans(C, pre, seg_breaks, w)
     else:
-        kappa = denoise_tv_chambolle(_turning(C, closed), weight=TV_KAPPA_W * w * step) / step
-        spans = _segment(C, pre, kappa, s_arc, w, seg_breaks)
+        spans = _segment(C, pre, w, seg_breaks)
     prims = []
     for i, j, (kind, par) in spans:
         seg = C[i:j]
         if kind == "line":
             p0, dr = _line_params(seg); params = {"p0": p0.tolist(), "dir": dr.tolist()}
-        elif kind == "arc":
+        else:                                             # arc
             c, R = par; params = {"center": [float(c[0]), float(c[1])], "radius": float(R)}
-        else:
-            params = par
         p = Primitive(kind, i, j, params, _rms(S[i:j], seg))
         p.corner_in = i in cornerset
         prims.append(p)
     return Fit(closed=closed, samples=S, prims=prims, resid=S - C, width=_width(P, r, w, M))
 
 
-def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray, w: float, breaks):
-    """Shortest-path partition of [0, M) into line/arc/clothoid spans by description length.
+def _segment(P: np.ndarray, pre: _Prefix, w: float, breaks):
+    """Shortest-path partition of [0, M) into line/arc spans by description length.
 
     Segment cost = geometric SSE + a fixed per-segment penalty (the description-length term that keeps a
     wobbly circle one arc); arcs pay a little more than lines so a straight run resolves to the cheaper
-    primitive. A clothoid competes only where the curvature is convincingly LINEAR in arc length (an Euler
-    spiral) -- so one clothoid beats a fan of arcs -- and its geometry is integrated only then, keeping the
-    DP fast."""
+    primitive."""
     M = len(P)
     pen = (SPLIT_PEN_W * w) ** 2 * MIN_SEG * 2.0     # opening a new segment costs this SSE
     arc_extra = (ARC_EXTRA_W * w) ** 2 * MIN_SEG
-    cl_extra = 2 * arc_extra                         # a clothoid carries one more parameter
     brk = np.zeros(M + 1, bool)                      # forced segment boundaries (real corners)
     kept = []                                        # keep them >= MIN_SEG apart and interior so every
     for b in sorted(set(breaks or [])):              # inter-break gap can still hold one segment
@@ -463,39 +440,12 @@ def _segment(P: np.ndarray, pre: _Prefix, kappa: np.ndarray, s_arc: np.ndarray, 
         brk[np.asarray(kept, int)] = True
     brk_cum = np.cumsum(brk)                         # a segment [i,j) may not straddle a forced break
 
-    def cs(v):                                       # prefix sums for the O(1) kappa(s) ~ a + b s regression
-        return np.concatenate([[0.0], np.cumsum(v)])
-    Sk, Ssk, Ss, Ss2, Sk2 = cs(kappa), cs(s_arc * kappa), cs(s_arc), cs(s_arc * s_arc), cs(kappa * kappa)
-
-    def clothoid_cost(i, j):
-        n = j - i
-        if n < 2 * MIN_SEG:
-            return None
-        sk, ssk, ss, ss2, sk2 = Sk[j]-Sk[i], Ssk[j]-Ssk[i], Ss[j]-Ss[i], Ss2[j]-Ss2[i], Sk2[j]-Sk2[i]
-        den = n * ss2 - ss * ss
-        if abs(den) < 1e-9:
-            return None
-        b = (n * ssk - ss * sk) / den
-        a = (sk - b * ss) / n
-        var = sk2 - sk * sk / n                              # total curvature variance
-        res = sk2 - a * sk - b * ssk                         # residual of the linear kappa fit
-        sweep = abs(b) * (s_arc[j - 1] - s_arc[i])          # curvature change across the span (1/px)
-        if sweep < CLOTHOID_MIN_DK / w or res > 0.35 * max(var, 1e-9):
-            return None                                     # not convincingly a spiral
-        k0 = a + b * s_arc[i]
-        cpts, par = _clothoid(P[i:j], s_arc[i:j], k0, b)
-        sse = float(np.sum((P[i:j] - cpts) ** 2))
-        return sse + cl_extra, ("clothoid", par)
-
     def seg_cost(i, j):
         lr = pre.line(i, j)
         cr, c, R = pre.circle(i, j)
         best = (lr + pen, ("line", None))
         if c is not None and cr + arc_extra < lr:
             best = (cr + arc_extra + pen, ("arc", (c, R)))
-        cl = clothoid_cost(i, j)
-        if cl is not None and cl[0] + pen < best[0]:
-            best = (cl[0] + pen, cl[1])
         return best
 
     dp = np.full(M + 1, np.inf)
@@ -532,22 +482,6 @@ def _line_params(seg):
     return p0, vt[0]                # centroid, principal direction
 
 
-def _clothoid(seg, s, k0, dk):
-    """Integrate the Euler spiral kappa(s)=k0+dk*s to a canonical shape, then rigidly
-    (rotation + translation, Kabsch) align it onto the span's points -- so the residual is
-    the honest geometric distance, not an artefact of where we anchored the integration."""
-    u = s - s[0]
-    phi = k0 * u + 0.5 * dk * u * u
-    ds = np.gradient(s) if len(s) > 1 else np.array([1.0])
-    Q = np.cumsum(np.column_stack([np.cos(phi), np.sin(phi)]) * ds[:, None], axis=0)
-    qc, pc = Q.mean(0), seg.mean(0)
-    H = (Q - qc).T @ (seg - pc)
-    U, _, Vt = np.linalg.svd(H)
-    d = np.sign(np.linalg.det(Vt.T @ U.T))
-    Rm = Vt.T @ np.diag([1.0, d]) @ U.T
-    return (Q - qc) @ Rm.T + pc, {"k0": float(k0), "dk": float(dk)}
-
-
 def _rms(a, b):
     return float(np.sqrt(np.mean(np.sum((a - b) ** 2, axis=1)))) if len(a) else 0.0
 
@@ -573,9 +507,9 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
 
 def path_d(fit: Fit) -> str:
     """Emit the fitted primitives as a real SVG path (M8, §11): `L` for a line, an `A`
-    arc command for an arc (large-arc/sweep read off the swept angle), sampled `L`s for a
-    clothoid. One arc command replaces a whole sampled polyline -- the biggest size win
-    after centerline strokes. Crisp geometry only; the charm layer samples instead."""
+    arc command for an arc (large-arc/sweep read off the swept angle). One arc command
+    replaces a whole sampled polyline -- the biggest size win after centerline strokes.
+    Crisp geometry only; the charm layer samples instead."""
     S = fit.samples                                            # the endpoints sit on the graph
     cl = S - fit.resid                                         # nodes -- anchor the render to them
     M = len(cl)
@@ -585,17 +519,13 @@ def path_d(fit: Fit) -> str:
         end = (S[0] if fit.closed else S[-1]) if last else cl[min(p.j - 1, M - 1)]
         if p.kind == "line":
             out.append("L%.1f %.1f" % (end[0], end[1]))
-        elif p.kind == "arc":
+        else:                                                  # arc
             c, r = p.params["center"], p.params["radius"]
             seg = cl[p.i:p.j]
             ang = np.unwrap(np.arctan2(seg[:, 1] - c[1], seg[:, 0] - c[0]))
             delta = ang[-1] - ang[0]
             out.append("A%.1f %.1f 0 %d %d %.1f %.1f"
                        % (r, r, 1 if abs(delta) > np.pi else 0, 1 if delta > 0 else 0, end[0], end[1]))
-        else:                                                  # clothoid: sample, end anchored
-            for q in cl[p.i + 1:p.j - 1]:
-                out.append("L%.1f %.1f" % (q[0], q[1]))
-            out.append("L%.1f %.1f" % (end[0], end[1]))
     if fit.closed:
         out.append("Z")
     return "".join(out)
