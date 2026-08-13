@@ -50,8 +50,6 @@ CORNER_FINE_W = 0.25    # corner-preserving resample: detect on a resample this 
                         # sharp features the 0.5w step would chord across, then insert the ones it missed
 
 SPLINE_LAMBDA = 5.0      # spline: weight of the position-domain curvature-smoothing penalty (local support)
-HUG_PRIMITIVES = False   # spline: emit line/arc pieces that each HUG the smoothed curve (subdivide where a
-HUG_TOL_W = 0.12         # chord/arc bows off by more than HUG_TOL_W*w) -- fidelity at a few more data points
 
 
 @dataclass
@@ -315,57 +313,6 @@ def _pin(C, S, k):
     C[lo:hi] = S[lo:hi]
 
 
-def _line_dev(seg):
-    """Max perpendicular distance of a polyline to the chord through its ends (and the local index of it)."""
-    d = seg[-1] - seg[0]; L = math.hypot(d[0], d[1])
-    if L < 1e-9:
-        rr = np.hypot(seg[:, 0] - seg[0, 0], seg[:, 1] - seg[0, 1])
-        return float(rr.max()), int(rr.argmax())
-    nrm = np.array([-d[1], d[0]]) / L
-    pd = np.abs((seg - seg[0]) @ nrm)
-    return float(pd.max()), int(pd.argmax())
-
-
-def _arc_dev(seg, pre, i, j):
-    """Max radial distance of C[i:j] from its best-fit circle (and the local index), plus (center, radius)."""
-    _cr, c, R = pre.circle(i, j)
-    if c is None or R <= 0:
-        return math.inf, 0, None, 0.0
-    dd = np.abs(np.hypot(seg[:, 0] - c[0], seg[:, 1] - c[1]) - R)
-    return float(dd.max()), int(dd.argmax()), c, float(R)
-
-
-def _hug_spans(C, pre, breaks, w):
-    """Partition each break-bounded run of the smoothed curve C into the FEWEST line/arc pieces that each
-    stay within HUG_TOL of C. Where C is a clean line/arc it stays one piece (compact); where it genuinely
-    bends more, it splits at the worst-deviating sample -- so path_d's emitted geometry HUGS C instead of
-    chording across it. Output matches _segment: [(i, j, (kind, par)), ...] contiguous over [0, M)."""
-    tol = HUG_TOL_W * w
-    M = len(C)
-    cuts = sorted(set([0, M] + [b for b in breaks if 0 < b < M]))
-    out = []
-
-    def refine(i, j):
-        seg = C[i:j]; n = j - i
-        if n < 3:
-            out.append((i, j, ("line", None))); return
-        ld, la = _line_dev(seg)
-        ad, aa, c, R = _arc_dev(seg, pre, i, j)
-        if ld <= tol and ld <= ad:
-            out.append((i, j, ("line", None))); return
-        if ad <= tol:
-            out.append((i, j, ("arc", (c, R)))); return
-        if n <= 2 * MIN_SEG:                               # too short to split -> keep the closer primitive
-            out.append((i, j, ("arc", (c, R)) if (c is not None and ad < ld) else ("line", None))); return
-        m = i + (aa if (c is not None and ad < ld) else la)   # split at the worst point of the better fit
-        m = max(i + MIN_SEG, min(j - MIN_SEG, m))
-        refine(i, m); refine(m, j)
-
-    for a, b in zip(cuts[:-1], cuts[1:]):
-        refine(a, b)
-    return out
-
-
 def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bool, r, anchors, cornerset):
     """Local-support alternative to curv-fit. Instead of integrating kappa (global support -> the drift
     accumulates over arc length), fit x(s), y(s) DIRECTLY with a corner-aware curvature-smoothing penalty
@@ -405,10 +352,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
     # can bow off it).
     seg_breaks = sorted(cornerset | {(k + 1) % M for k in anchor_ix})
     pre = _Prefix(C)
-    if HUG_PRIMITIVES:                                     # subdivide so the emitted primitives hug C
-        spans = _hug_spans(C, pre, seg_breaks, w)
-    else:
-        spans = _segment(C, pre, w, seg_breaks)
+    spans = _segment(C, pre, w, seg_breaks)
     prims = []
     for i, j, (kind, par) in spans:
         seg = C[i:j]
