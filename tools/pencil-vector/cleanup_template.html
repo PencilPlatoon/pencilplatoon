@@ -55,6 +55,9 @@
   .rotcol .flips button:hover{border-color:var(--blue)}
   .rotcol .flips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .canvas{flex:1;display:grid;place-items:center;padding:20px 56px 20px 20px;overflow:auto;position:relative}
+  .scanref{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;border-right:1px solid var(--hair)}
+  .scanref img{max-width:100%;max-height:calc(100vh - 130px);border-radius:4px;box-shadow:0 12px 40px -16px #000;background:var(--paper)}
+  .scanref[hidden]{display:none}
   #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
     font-family:var(--mono);font-weight:700;font-size:15px;min-width:22px;height:26px;border-radius:13px;
     padding:0 9px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px #000}
@@ -92,6 +95,7 @@
   <span class="fn" id="fnPreview"></span>
 </div>
 <div class="stage">
+  <div class="scanref" id="scanref"><img id="scanimg" alt="original scan"></div>
   <div class="canvas">
     <svg id="view" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="numbadge"></div>
@@ -246,6 +250,8 @@ function loadSubject(name){
   rot = 0; flipX = false; flipY = false;
   $("#rotSlider").value = 0; $("#rotOut").textContent = "0°";
   $("#flipXBtn").classList.remove("on"); $("#flipYBtn").classList.remove("on");
+  if(baseModel.scan){ $("#scanimg").src = "data:image/jpeg;base64,"+baseModel.scan; $("#scanref").hidden = false; }
+  else { $("#scanimg").removeAttribute("src"); $("#scanref").hidden = true; }
   selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
   applyTransform(); updateFn();

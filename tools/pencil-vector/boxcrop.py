@@ -19,7 +19,7 @@ import sys
 
 from PIL import Image
 
-from export_model import model_dict
+from export_model import model_dict, _scan_b64
 from vectorize import LATEST, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -51,7 +51,7 @@ def process(boxes_path: str, scan_override: str | None, do_build: bool) -> None:
         crop = img.crop((b["x0"], b["y0"], b["x1"], b["y1"]))
         crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
         crop.save(crop_path)
-        d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"])
+        d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop))
         json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
         print(f"       done: nodes={len(d['nodes'])} edges={len(d['edges'])} blobs={len(d['blobs'])}"
               f"  ->  out/{b['name']}_model.json", flush=True)
