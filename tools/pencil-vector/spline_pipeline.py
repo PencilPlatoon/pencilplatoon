@@ -30,7 +30,7 @@ SUBJECTS = [("dying", "Hit soldier"), ("soldier", "Gunner’s SMG"), ("cannon", 
 LAM = 5.0                                                  # smoothing is fixed now (was the old slider)
 TOL_VALUES = [0.40, 0.24, 0.16, 0.12, 0.08, 0.04]          # HUG_TOL_W: coarse (few pts) -> fine (many pts)
 DEFAULT_TI = 3
-fit.STRATEGY = "spline"; fit.SPLINE_LAMBDA = LAM
+fit.SPLINE_LAMBDA = LAM
 
 
 def trace_base(P, w, closed, anchors):

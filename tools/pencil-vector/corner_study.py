@@ -7,9 +7,12 @@ warnings.filterwarnings("ignore")
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import numpy as np
 import fit
-from fit import resample_corners, _line_params, RESAMPLE_W, MIN_STEP, CORNER_STRAIGHT_W, CORNER_WIN2_W
+from fit import resample_corners, _line_params, RESAMPLE_W, MIN_STEP
 from vectorize import vectorize
 from model import BLOB
+
+CORNER_WIN2_W = 2.5     # this study's own candidate detector: fit each side's line over +-this many w
+CORNER_STRAIGHT_W = 0.4 # ...and a side is "straight" within this*w (rms). (Was shared with the old fit v2.)
 
 ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
 OUT = os.path.join(HERE, "corner_study.html")
@@ -185,7 +188,6 @@ def ray_markup(card):
 
 cards = []
 for key, sname in SUBJECTS:
-    fit.STRATEGY = "spline"
     g = vectorize(ISO % key, milestone=8)
     step = max(MIN_STEP, RESAMPLE_W * g.w)
     num, dn = 0, {}

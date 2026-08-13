@@ -1,9 +1,9 @@
 """M7 acceptance tests -- geometry fitting (plan §9).
 
 Working in the turning function, a wobbly-but-straight run fits ONE line, a distorted
-circle ONE arc (not forty segments), a deliberate corner survives as a step, and a
-linear-curvature sweep is a clothoid. The fit is an annotation: the raw points are never
-replaced, and a tunable fraction of the residual reproduces the hand exactly at alpha=1.
+circle ONE arc (not forty segments), and a deliberate corner survives as a step. The fit
+is an annotation: the raw points are never replaced, and a tunable fraction of the residual
+reproduces the hand exactly at alpha=1.
 """
 import os
 from collections import Counter
@@ -11,7 +11,6 @@ from collections import Counter
 import numpy as np
 import pytest
 
-import fit
 from fit import fit_curve, reconstruct
 from model import BLOB
 from vectorize import vectorize
@@ -54,25 +53,6 @@ def test_corner_survives_as_a_step():
     f = fit_curve(np.vstack([a, b]) + _wobble(rng, 120, 0.06), W, closed=False)
     assert _kinds(f) == {"line": 2}, _kinds(f)
     assert sum(p.corner_in for p in f.prims) == 1             # exactly one C0 break
-
-
-def test_linear_curvature_is_a_clothoid():
-    # a clean Euler spiral (curvature linear in arc length) is one clothoid, not a fan of arcs. This is the
-    # curvature-domain classifier's job; the default 'spline' deliberately approximates it as a few arcs
-    # (more compact -- path_d samples clothoids but emits arcs as one command -- and the smoothed curve is
-    # still smooth), so pin the clothoid-capable strategy for this capability check.
-    rng = np.random.default_rng(2)
-    s = np.linspace(0, 300, 240)
-    th = 0.5 * 0.00035 * s * s
-    ds = s[1] - s[0]
-    P = np.cumsum(np.column_stack([np.cos(th), np.sin(th)]) * ds, 0) + [100, 300] + _wobble(rng, 240, 0.03)
-    saved = fit.STRATEGY
-    fit.STRATEGY = "baseline"
-    try:
-        f = fit_curve(P, W, closed=False)
-    finally:
-        fit.STRATEGY = saved
-    assert any(p.kind == "clothoid" for p in f.prims), _kinds(f)
 
 
 def test_charm_reproduces_the_hand_and_zero_is_crisp():

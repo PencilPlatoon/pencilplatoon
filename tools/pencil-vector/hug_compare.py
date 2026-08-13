@@ -15,7 +15,6 @@ from vectorize import vectorize
 from ink import ingest
 from svgdump import dump
 
-fit.STRATEGY = "spline"
 ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
 OUT = os.path.join(HERE, "hug_compare.html")
 SUBJECTS = [("dying", "Hit soldier"), ("soldier", "Gunner’s SMG"), ("cannon", "Wheeled cannon"),
