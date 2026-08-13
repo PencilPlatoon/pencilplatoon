@@ -37,6 +37,16 @@ def test_line_is_all_linetos_no_arcs():
     assert "A" not in d and d.count("L") == 1    # one straight run -> a single lineto
 
 
+def test_fit_emits_only_line_and_arc_kinds():
+    # post-clothoid the classifier yields 'line' or 'arc' only; path_d's binary line/else
+    # split relies on it -- an unhandled third kind would render silently as an arc, not error.
+    rng = np.random.default_rng(3)
+    th = np.linspace(0, 1.7 * np.pi, 140)
+    P = np.column_stack([200 + 60 * np.cos(th), 200 + 60 * np.sin(th)]) + rng.normal(0, 0.06 * W, (th.size, 2))
+    f = fit_curve(P, W, closed=False)
+    assert {p.kind for p in f.prims} <= {"line", "arc"}, {p.kind for p in f.prims}
+
+
 def test_coordinates_are_rounded():
     rng = np.random.default_rng(1)
     th = np.linspace(0, 1.6 * np.pi, 120)
@@ -60,6 +70,23 @@ def test_primitives_are_smaller_than_sampling_and_gated():
     assert emitted.count("A") > 10                # the cannon's arcs become A commands
     assert len(emitted) < 0.8 * len(sampled)      # and it's markedly smaller
     assert emitted.startswith("<svg") and emitted.rstrip().endswith("</svg>")
+
+
+@needs_iso
+def test_all_fitted_primitives_are_line_or_arc():
+    # the whole real subject -- strokes, blob boundaries, holes -- classifies to line/arc only
+    from model import BLOB
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
+    kinds = set()
+    for e in g.edges.values():
+        if "fit" in e.ann:
+            kinds |= {p.kind for p in e.ann["fit"].prims}
+    for nd in g.nodes.values():
+        if nd.kind == BLOB and "fit" in nd.ann:
+            kinds |= {p.kind for p in nd.ann["fit"].prims}
+            for hf in nd.ann.get("fit_holes", []):
+                kinds |= {p.kind for p in hf.prims}
+    assert kinds == {"line", "arc"}, f"the cannon should fit both kinds and nothing else, got {kinds}"
 
 
 @needs_iso
