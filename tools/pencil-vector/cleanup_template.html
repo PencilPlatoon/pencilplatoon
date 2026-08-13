@@ -265,19 +265,29 @@ function deleteSelected(){
   render();
 }
 
-function exportSelection(){
-  const s = activeSel(); if(!s.length){ alert("Select something to export first."); return; }
-  const name = prompt("Asset name:", "weapon"); if(!name) return;
-  const set = new Set(s), m = model, sw = Math.max(1, m.w);
-  const out = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
-  for(const b of m.blobs) if(set.has(b.sid)){
+function exportAsset(){                                          // export every non-hidden element, cropped to content
+  const m = model, sw = Math.max(1, m.w);
+  const blobs = m.blobs.filter(b => !hidden.has(b.sid));
+  const edges = m.edges.filter(e => !hidden.has(e.sid));
+  if(!blobs.length && !edges.length){ alert("Nothing to export — everything is hidden."); return; }
+  const name = prompt("Asset name:", "asset"); if(!name) return;
+
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;     // tight bounds over the kept geometry
+  const grow = (x,y) => { if(x<x0)x0=x; if(y<y0)y0=y; if(x>x1)x1=x; if(y>y1)y1=y; };
+  for(const b of blobs) for(const p of b.boundary) grow(p[0], p[1]);
+  for(const e of edges) for(const p of e.pts) grow(p[0], p[1]);
+  const pad = sw/2 + 1;                                          // keep stroke caps / fill edge off the crop
+  x0-=pad; y0-=pad; x1+=pad; y1+=pad;
+  const vb = `${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1-x0).toFixed(1)} ${(y1-y0).toFixed(1)}`;
+
+  const out = [`<svg viewBox="${vb}" xmlns="${SVGNS}">`];
+  for(const b of blobs){
     let d = "M"+b.boundary.map(p=>p.join(" ")).join("L")+"Z";
     for(const h of (b.holes||[])) d += " M"+h.map(p=>p.join(" ")).join("L")+"Z";
     out.push(`<path d="${d}" fill="#141414" fill-rule="evenodd"/>`);
   }
   out.push(`<g fill="none" stroke="#141414" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
-  for(const e of m.edges) if(set.has(e.sid))
-    out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
+  for(const e of edges) out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
   out.push("</g></svg>");
   download(`${m.subject}_${name}.svg`, out.join(""), "image/svg+xml");
 }
@@ -289,7 +299,7 @@ function download(fname, text, mime){
 }
 
 // wire toolbar
-$("#expBtn").onclick = exportSelection;
+$("#expBtn").onclick = exportAsset;
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
