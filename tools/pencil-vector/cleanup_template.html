@@ -54,6 +54,8 @@
   .el.sel .edge{stroke:var(--blue)} .el.sel .blob{fill:var(--blue)}
   .el.masked{opacity:.12}
   .el.masked .hit{pointer-events:none}
+  .marquee{fill:rgba(88,120,230,.10);stroke:var(--blue);stroke-width:1.4;stroke-dasharray:6 4;
+    vector-effect:non-scaling-stroke;pointer-events:none}
 </style>
 </head>
 <body>
@@ -67,7 +69,7 @@
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
-  <span class="hint">click = toggle · shift-click = fill / anti-fill · ctrl-click = select stroke · Del = mask</span>
+  <span class="hint">click = toggle · drag = box-select (shift = deselect) · shift-click = fill / anti-fill · ctrl-click = select stroke · Del = mask</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -187,9 +189,48 @@ function loadSubject(name){
   draw(); render(); renderLog(); wireCanvas();
 }
 
+// ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
+function rectFrom(a, b){ return {x0:Math.min(a.x,b.x), y0:Math.min(a.y,b.y), x1:Math.max(a.x,b.x), y1:Math.max(a.y,b.y)}; }
+function ptInRect(x, y, r){ return x>=r.x0 && x<=r.x1 && y>=r.y0 && y<=r.y1; }
+function ccw(ax,ay,bx,by,cx,cy){ return (cy-ay)*(bx-ax) > (by-ay)*(cx-ax); }
+function segInt(ax,ay,bx,by,cx,cy,dx,dy){                        // do segments ab and cd cross?
+  return ccw(ax,ay,cx,cy,dx,dy)!==ccw(bx,by,cx,cy,dx,dy) && ccw(ax,ay,bx,by,cx,cy)!==ccw(ax,ay,bx,by,dx,dy);
+}
+function segHitsRect(ax,ay,bx,by,r){
+  if(ptInRect(ax,ay,r) || ptInRect(bx,by,r)) return true;       // an endpoint lands inside the box
+  return segInt(ax,ay,bx,by, r.x0,r.y0, r.x1,r.y0) || segInt(ax,ay,bx,by, r.x1,r.y0, r.x1,r.y1)
+      || segInt(ax,ay,bx,by, r.x1,r.y1, r.x0,r.y1) || segInt(ax,ay,bx,by, r.x0,r.y1, r.x0,r.y0);
+}
+function polyHitsRect(pts, r, closed){
+  const n = pts.length, lim = closed ? n : n-1;
+  for(let i=0;i<lim;i++){ const a=pts[i], b=pts[(i+1)%n]; if(segHitsRect(a[0],a[1],b[0],b[1],r)) return true; }
+  return false;
+}
+function ptInPoly(x, y, pts){                                    // ray cast -- is (x,y) inside the ring?
+  let inside=false;
+  for(let i=0,j=pts.length-1;i<pts.length;j=i++){
+    const xi=pts[i][0], yi=pts[i][1], xj=pts[j][0], yj=pts[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) inside=!inside;
+  }
+  return inside;
+}
+function marqueeSelect(r, subtract){                            // plain drag adds touched elements; shift-drag removes them
+  const apply = sid => subtract ? selected.delete(sid) : selected.add(sid);
+  for(const b of model.blobs)                                   // a blob: boundary crosses the box, OR the box sits inside its fill
+    if(!masked.has(b.sid) && (polyHitsRect(b.boundary, r, true) || ptInPoly(r.x0, r.y0, b.boundary))) apply(b.sid);
+  for(const e of model.edges)
+    if(!masked.has(e.sid) && polyHitsRect(e.pts, r, false)) apply(e.sid);
+  render();
+}
+
 function wireCanvas(){
   const svg = $("#view");
   const badge = $("#numbadge");
+  let mqStart=null, mqStartC=null, mqMoved=false, mqBox=null, justMarqueed=false;
+  const toUser = ev => {
+    const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
+    const u = p.matrixTransform(svg.getScreenCTM().inverse()); return {x:u.x, y:u.y};
+  };
   svg.addEventListener("mouseover", e => {
     const el = e.target.closest(".el"); if(el && !el.classList.contains("masked")){
       el.classList.add("hover"); badge.textContent = "#" + el.dataset.num; badge.style.display = "flex";
@@ -198,7 +239,29 @@ function wireCanvas(){
   svg.addEventListener("mouseout", e => {
     const el = e.target.closest(".el"); if(el){ el.classList.remove("hover"); badge.style.display = "none"; }
   });
+  svg.addEventListener("pointerdown", e => {
+    if(e.button!==0) return;
+    justMarqueed = false; mqStart = toUser(e); mqStartC = {x:e.clientX, y:e.clientY}; mqMoved = false;
+  });
+  svg.addEventListener("pointermove", e => {
+    if(!mqStart) return;
+    if(!mqMoved){
+      if(Math.hypot(e.clientX-mqStartC.x, e.clientY-mqStartC.y) < 4) return;   // ignore click jitter
+      mqMoved = true;
+      mqBox = document.createElementNS(SVGNS, "rect"); mqBox.setAttribute("class", "marquee");
+      svg.appendChild(mqBox); try{ svg.setPointerCapture(e.pointerId); }catch(_){}
+    }
+    const r = rectFrom(mqStart, toUser(e));
+    mqBox.setAttribute("x", r.x0); mqBox.setAttribute("y", r.y0);
+    mqBox.setAttribute("width", r.x1-r.x0); mqBox.setAttribute("height", r.y1-r.y0);
+  });
+  svg.addEventListener("pointerup", e => {
+    if(mqBox){ mqBox.remove(); mqBox = null; }
+    if(mqStart && mqMoved){ marqueeSelect(rectFrom(mqStart, toUser(e)), e.shiftKey); justMarqueed = true; }
+    mqStart = null; mqMoved = false;
+  });
   svg.addEventListener("click", e => {
+    if(justMarqueed){ justMarqueed = false; return; }            // a drag just finished -- swallow the click
     const el = e.target.closest(".el"); if(!el || masked.has(el.dataset.sid)) return;
     const sid = el.dataset.sid;
     if(e.ctrlKey || e.metaKey){                                  // select one continuity stroke
