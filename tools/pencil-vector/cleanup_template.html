@@ -27,6 +27,12 @@
   .toolbar .count{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:10px}
   .toolbar .count b{color:var(--blue);font-weight:600}
   .toolbar .hint{font-size:11.5px;color:var(--muted);margin-left:auto;font-family:var(--mono)}
+  .namebar{display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid var(--hair)}
+  .namebar label{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+  .namebar input{font-size:13px;font-family:var(--mono);padding:6px 10px;border-radius:6px;min-width:220px;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  .namebar input:focus{outline:none;border-color:var(--blue)}
+  .namebar .fn{font-family:var(--mono);font-size:12px;color:var(--muted)}
   .stage{flex:1;display:flex;min-height:0}
   .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;position:relative}
   #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
@@ -60,6 +66,11 @@
   <button id="resetBtn">Reset drawing</button>
   <span class="count">Selected <b id="selN">0</b> · Hidden <b id="hidN">0</b></span>
   <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = hide · ⌘S = export</span>
+</div>
+<div class="namebar">
+  <label for="assetName">Asset name</label>
+  <input id="assetName" type="text" value="asset" spellcheck="false" autocomplete="off">
+  <span class="fn" id="fnPreview"></span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -158,7 +169,7 @@ function loadSubject(name){
   model = MODELS[name]; adj = buildAdjacency(model);
   selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
-  draw(); render(); wireCanvas();
+  draw(); render(); wireCanvas(); updateFn();
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
@@ -265,12 +276,15 @@ function deleteSelected(){
   render();
 }
 
+function assetName(){ return (($("#assetName").value||"").trim().replace(/[\\/]+/g,"-")) || "asset"; }
+function updateFn(){ $("#fnPreview").textContent = model ? `→ ${model.subject}_${assetName()}.svg` : ""; }
+
 function exportAsset(){                                          // export every non-hidden element, cropped to content
   const m = model, sw = Math.max(1, m.w);
   const blobs = m.blobs.filter(b => !hidden.has(b.sid));
   const edges = m.edges.filter(e => !hidden.has(e.sid));
   if(!blobs.length && !edges.length){ alert("Nothing to export — everything is hidden."); return; }
-  const name = prompt("Asset name:", "asset"); if(!name) return;
+  const name = assetName();
 
   let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;     // tight bounds over the kept geometry
   const grow = (x,y) => { if(x<x0)x0=x; if(y<y0)y0=y; if(x>x1)x1=x; if(y>y1)y1=y; };
@@ -300,6 +314,7 @@ function download(fname, text, mime){
 
 // wire toolbar
 $("#expBtn").onclick = exportAsset;
+$("#assetName").oninput = updateFn;
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
