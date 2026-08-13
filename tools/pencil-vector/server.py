@@ -13,7 +13,7 @@ and read/write real files (no baking, no downloads, a real audit trail):
   POST /export      -> {subject, name, svg} : write out/svg/<name>.svg AND append the export to the
                        subject's box in out/boxes.json -- the audit trail
 
-  python3 server.py            (or: npm run vector-server)  ->  http://localhost:8000
+  python3 server.py            (or: npm run vector-server)  ->  http://localhost:8889
 """
 from __future__ import annotations
 
@@ -30,7 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 SCANS = os.path.abspath(os.path.join(HERE, "..", "..", "artwork-scans"))
 OUT = os.path.join(HERE, "out")
 SVGDIR = os.path.join(OUT, "svg")
-PORT = 8000
+PORT = 8889
 
 app = Flask(__name__)
 
