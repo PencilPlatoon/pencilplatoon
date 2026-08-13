@@ -411,6 +411,21 @@ function exportAsset(){                                          // export every
 // wire toolbar
 $("#expBtn").onclick = exportAsset;
 $("#assetName").oninput = updateFn;
+$("#assetName").onchange = async () => {                          // committing a new name renames the box everywhere
+  const nn = assetName();
+  if(!model || nn === model.subject) return;
+  const old = model.subject;
+  $("#status").textContent = `renaming ${old} → ${nn}…`;
+  await fetch("/rename", {method:"POST", headers:{"Content-Type":"application/json"},
+                          body: JSON.stringify({old, new: nn})});
+  await loadModels();
+  const boxData = await (await fetch("/boxes")).json();
+  SCANBOXES = SCAN ? (boxData.boxes || []).filter(b => b.scan === SCAN) : Object.keys(MODELS).map(n => ({name:n}));
+  renderTabs();
+  $("#status").textContent = "";
+  if(SCAN) history.replaceState(null, "", `/cleanup?scan=${encodeURIComponent(SCAN)}&subject=${encodeURIComponent(nn)}`);
+  selectBox(nn);
+};
 window.addEventListener("resize", reflow);
 $("#rotSlider").oninput = e => { rot = +e.target.value; $("#rotOut").textContent = rot + "°"; applyTransform(); };
 $("#flipXBtn").onclick = e => { flipX = !flipX; e.currentTarget.classList.toggle("on", flipX); applyTransform(); };
