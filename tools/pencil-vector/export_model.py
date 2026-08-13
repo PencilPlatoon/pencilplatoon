@@ -10,6 +10,7 @@ import json
 import os
 import sys
 
+from fit import reconstruct
 from model import BLOB
 from vectorize import LATEST, vectorize
 
@@ -18,20 +19,28 @@ def _pts(a):
     return [[round(float(x), 1), round(float(y), 1)] for x, y in a]
 
 
+def _ideal(ann, raw):
+    """The idealized geometry the pipeline actually renders (reconstruct at alpha=0), so the cleanup
+    tool shows the same smooth output as the asset rather than the raw trace the fit annotates. Falls
+    back to the raw points if the element was never fitted (mirrors how holes are already exported)."""
+    f = ann.get("fit")
+    return _pts(reconstruct(f, 0.0)) if f is not None else _pts(raw)
+
+
 def model_dict(g, subject: str) -> dict:
     nodes, blobs = [], []
     for nd in g.nodes.values():
         if nd.kind == BLOB:
             blobs.append({"id": nd.id, "sid": nd.sid,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)],
-                          "boundary": _pts(nd.boundary),
+                          "boundary": _ideal(nd.ann, nd.boundary),
                           "holes": [_pts(h) for h in nd.ann.get("holes", [])],  # §6.2
                           "edges": nd.ann.get("edges", []),     # incident strokes (§6.3)
                           "z": nd.ann.get("z", 0)})             # paint order (§8 containment)
         else:
             nodes.append({"id": nd.id, "sid": nd.sid, "kind": nd.kind,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)]})
-    edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _pts(e.pts),
+    edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _ideal(e.ann, e.pts),
               "blobs": e.ann.get("blobs", []),
               "cont": e.ann.get("cont", {})}   # node id -> continuity-partner sid (§6.4)
              for e in g.edges.values()]
