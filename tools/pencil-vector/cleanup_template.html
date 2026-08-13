@@ -19,6 +19,10 @@
   .subjects button{font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
   .subjects button.on{background:var(--blue);border-color:var(--blue);color:#fff}
+  .subjects button.pending{opacity:.5;border-style:dashed}
+  .back{font-size:12px;color:var(--blue);text-decoration:none;padding:5px 11px;border:1px solid var(--hair);border-radius:16px;white-space:nowrap}
+  .back:hover{border-color:var(--blue)}
+  .status{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:12px}
   .toolbar{display:flex;align-items:center;gap:8px;padding:9px 18px;border-bottom:1px solid var(--hair);flex-wrap:wrap}
   .toolbar button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
@@ -81,7 +85,9 @@
 <body>
 <header>
   <h1>Pencil&nbsp;Vector <span class="sub">· cleanup tool</span></h1>
+  <a id="backscan" class="back" href="/">←&nbsp;scan</a>
   <div class="subjects" id="subjects"></div>
+  <span id="status" class="status"></span>
 </header>
 <div class="toolbar">
   <button id="expBtn">Export asset…</button>
@@ -122,7 +128,7 @@
   </aside>
 </div>
 <script>
-let MODELS = {};
+let MODELS = {}, SCAN = null, SCANBOXES = [];
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = s => document.querySelector(s);
 
@@ -419,14 +425,42 @@ document.addEventListener("keydown", e => {
 // subject buttons -- full titles for the demo subjects; boxed subjects use their box name
 const TITLES = {flag:"Capture flag", cannon:"Wheeled cannon", soldier:"Gunner’s SMG",
                 mg:"Mounted MG", dying:"Hit soldier"};
-async function boot(){
-  const list = await (await fetch("/models")).json();          // load subjects live from the server
+async function loadModels(){
+  const list = await (await fetch("/models")).json();
   MODELS = Object.fromEntries(list.map(m => [m.subject, m]));
-  const names = Object.keys(MODELS);
-  if(!names.length){ $("#subjects").innerHTML = '<span style="color:var(--muted);font-size:12px">no subjects yet — box a scan first</span>'; return; }
-  $("#subjects").innerHTML = names.map(n=>`<button data-name="${n}">${TITLES[n]||n}</button>`).join("");
-  for(const b of document.querySelectorAll(".subjects button")) b.onclick = () => loadSubject(b.dataset.name);
-  loadSubject(names.includes("cannon") ? "cannon" : names[0]);
+}
+function renderTabs(){                                          // tabs = the current scan's boxes
+  $("#subjects").innerHTML = SCANBOXES.map(b =>
+    `<button data-name="${b.name}" class="${MODELS[b.name] ? '' : 'pending'}">${TITLES[b.name] || b.name}</button>`).join("");
+  for(const btn of document.querySelectorAll(".subjects button")) btn.onclick = () => selectBox(btn.dataset.name);
+}
+async function selectBox(name){
+  if(!MODELS[name]){                                            // this box isn't vectorized yet -- do it on demand
+    const box = SCANBOXES.find(b => b.name === name);
+    $("#status").textContent = `vectorizing ${name}…`;
+    await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+                               body: JSON.stringify({scan: SCAN, boxes: [box]})});
+    await loadModels(); renderTabs();
+    $("#status").textContent = "";
+  }
+  loadSubject(name);
+}
+async function boot(){
+  const p = new URLSearchParams(location.search);
+  SCAN = p.get("scan"); const want = p.get("subject");
+  await loadModels();
+  const boxData = await (await fetch("/boxes")).json();
+  if(SCAN){
+    SCANBOXES = (boxData.boxes || []).filter(b => b.scan === SCAN);
+    $("#backscan").href = "/?scan=" + encodeURIComponent(SCAN);
+  } else {                                                      // no scan context: show every vectorized subject
+    SCANBOXES = Object.keys(MODELS).map(n => ({name: n}));
+    $("#backscan").style.display = "none";
+  }
+  if(!SCANBOXES.length){ $("#subjects").innerHTML = '<span style="color:var(--muted);font-size:12px">no boxes — mark some in the scan view</span>'; return; }
+  renderTabs();
+  const names = SCANBOXES.map(b => b.name);
+  selectBox((want && names.includes(want)) ? want : names[0]);
 }
 boot();
 </script>

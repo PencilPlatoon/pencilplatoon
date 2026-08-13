@@ -25,6 +25,7 @@
   .imgwrap img{display:block;max-width:100%;max-height:calc(100vh - 130px);border-radius:4px}
   .imgwrap svg{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair}
   .box{fill:rgba(88,120,230,.12);stroke:var(--blue);stroke-width:2;vector-effect:non-scaling-stroke}
+  .drawn{cursor:pointer} .drawn:hover .box{fill:rgba(88,120,230,.22)}
   .lbl{fill:var(--blue);font-family:var(--mono);font-weight:600}
   aside{width:236px;border-left:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
   aside h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
@@ -58,7 +59,7 @@
   <aside>
     <h3>Boxes</h3>
     <ol id="boxlist"><li class="empty">none yet</li></ol>
-    <div class="hint">drag = new box · rename each · Vectorize sends them to the pipeline, then open cleanup</div>
+    <div class="hint">drag = new box · click a box = vectorize it &amp; open cleanup · rename in the list</div>
   </aside>
 </div>
 <script>
@@ -69,6 +70,8 @@ let scanName = null, boxes = [], seq = 0, LBL = 14;
 
 fetch("/scans").then(r => r.json()).then(list => {
   $("#scanpick").innerHTML = '<option value="">Choose a scan…</option>' + list.map(n => `<option>${n}</option>`).join("");
+  const want = new URLSearchParams(location.search).get("scan");   // came back from cleanup -> reopen that scan
+  if(want && list.includes(want)){ $("#scanpick").value = want; loadScan(want); }
 }).catch(() => { $("#status").textContent = "no server — run: npm run vector-server"; });
 $("#scanpick").onchange = e => { if(e.target.value) loadScan(e.target.value); };
 
@@ -108,11 +111,24 @@ ov.addEventListener("pointermove", e => {
   live.setAttribute("width", r.x1-r.x0); live.setAttribute("height", r.y1-r.y0);
 });
 ov.addEventListener("pointerup", () => {
+  const clickPt = start; let dragged = false;
   if(start && cur){ const r = norm(start, cur);
-    if(r.x1-r.x0 > 4 && r.y1-r.y0 > 4) boxes.push({name:"box"+(++seq), ...r}); }
+    if(r.x1-r.x0 > 4 && r.y1-r.y0 > 4){ boxes.push({name:"box"+(++seq), ...r}); dragged = true; } }
   if(live){ live.remove(); live = null; }
   start = cur = null; render();
+  if(!dragged && clickPt){                                        // a click on an existing box -> vectorize just it, open cleanup
+    const b = boxes.find(x => clickPt.x>=x.x0 && clickPt.x<=x.x1 && clickPt.y>=x.y0 && clickPt.y<=x.y1);
+    if(b) vectorizeAndOpen(b);
+  }
 });
+
+function vectorizeAndOpen(b){
+  $("#status").textContent = `vectorizing ${b.name}…`;
+  fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+    body: JSON.stringify({scan: scanName, boxes: [{name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}]})})
+    .then(() => { location.href = `/cleanup?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`; })
+    .catch(() => { $("#status").textContent = "vectorize failed (is the server running?)"; });
+}
 
 function render(){
   [...ov.querySelectorAll(".drawn")].forEach(n => n.remove());
@@ -145,7 +161,7 @@ $("#vec").onclick = () => {
   fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({scan: scanName, boxes: boxes.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}))})})
     .then(r => r.json())
-    .then(res => { st.innerHTML = `vectorized ${res.length} box(es) — <a href="/cleanup">open cleanup →</a>`; })
+    .then(res => { st.innerHTML = `vectorized ${res.length} — <a href="/cleanup?scan=${encodeURIComponent(scanName)}">open cleanup →</a>`; })
     .catch(() => { st.textContent = "vectorize failed (is the server running?)"; });
 };
 </script>
