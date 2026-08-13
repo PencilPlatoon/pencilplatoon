@@ -12,7 +12,8 @@
     "test:coverage": "vitest run --coverage",
     "release": "npm run build && ./deploy-ftp.sh",
     "deploy": "./deploy-ftp.sh",
-    "boxcrop": "python3 tools/pencil-vector/boxcrop.py"
+    "boxcrop": "python3 tools/pencil-vector/boxcrop.py",
+    "boxcrop:setup": "python3 -m pip install --user -r tools/pencil-vector/requirements.txt"
   },
   "dependencies": {
     "@fontsource/inter": "^5.2.5",
