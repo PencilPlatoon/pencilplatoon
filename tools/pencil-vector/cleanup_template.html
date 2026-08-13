@@ -278,6 +278,12 @@ function wireCanvas(){
 
 function activeSel(){ return [...selected].filter(s => !masked.has(s)); }
 
+function selectAll(){                                            // every un-masked element in the drawing
+  for(const b of model.blobs) if(!masked.has(b.sid)) selected.add(b.sid);
+  for(const e of model.edges) if(!masked.has(e.sid)) selected.add(e.sid);
+  render();
+}
+
 function deleteSelected(){
   const s = activeSel(); if(!s.length) return;
   for(const sid of s) masked.add(sid);
@@ -319,7 +325,8 @@ $("#resetBtn").onclick = () => loadSubject(model.subject);
 $("#dlLog").onclick = () => download(`${model.subject}_edits.json`,
   JSON.stringify({subject:model.subject, edits:log}, null, 2), "application/json");
 document.addEventListener("keydown", e => {
-  if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
+  if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); selectAll(); }
+  else if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
 });
 
 // subject buttons -- full titles matching the comparison page
