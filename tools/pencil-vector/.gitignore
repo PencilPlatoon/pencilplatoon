@@ -1,5 +1,7 @@
 # generated artifacts
 out/
+# local box defs + export audit (server-owned, persists across out/ cleanups)
+data/
 # generated inspectors (published as claude.ai artifacts, not tracked); keep the hand-authored template
 *.html
 !cleanup_template.html

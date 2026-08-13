@@ -25,7 +25,8 @@ from vectorize import LATEST, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCANS = os.path.abspath(os.path.join(HERE, "..", "..", "artwork-scans"))
-OUT = os.path.join(HERE, "out")
+OUT = os.path.join(HERE, "out")             # generated intermediates (crops, models) -- regeneratable
+DATA = os.path.join(HERE, "data")           # source-of-truth: box defs + export audit, survives out/ cleanups
 
 
 def resolve_scan(name: str, override: str | None) -> str:
@@ -37,7 +38,7 @@ def resolve_scan(name: str, override: str | None) -> str:
     return p
 
 
-BOXES = os.path.join(OUT, "boxes.json")
+BOXES = os.path.join(DATA, "boxes.json")
 
 
 def load_boxes() -> dict:
@@ -45,7 +46,7 @@ def load_boxes() -> dict:
 
 
 def save_boxes(d: dict) -> None:
-    os.makedirs(OUT, exist_ok=True)
+    os.makedirs(DATA, exist_ok=True)
     json.dump(d, open(BOXES, "w"), indent=2)
 
 
@@ -53,6 +54,7 @@ def vectorize_box(img, scan_name: str, b: dict, bx: dict) -> dict:
     """Crop box b from img, vectorize, write out/<name>_model.json (box provenance + scan thumb), and
     record/refresh the box in bx (a load_boxes() dict). Returns a node/edge/blob summary. Shared by the
     boxcrop CLI and the server's /vectorize so both stay in lockstep."""
+    os.makedirs(OUT, exist_ok=True)
     crop = img.crop((b["x0"], b["y0"], b["x1"], b["y1"]))
     crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
     crop.save(crop_path)
