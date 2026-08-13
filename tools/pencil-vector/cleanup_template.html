@@ -59,7 +59,7 @@
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
   <span class="count">Selected <b id="selN">0</b> · Hidden <b id="hidN">0</b></span>
-  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = hide</span>
+  <span class="hint">click = toggle · drag = box (⇧ deselect) · ⌘-click = +fill · ⇧⌘-click = −fill · ⌥-click = whole stroke · ⌘A all · ⇧⌘A none · Del = hide · ⌘S = export</span>
 </div>
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
@@ -304,6 +304,7 @@ $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
   if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); e.shiftKey ? clearSelection() : selectAll(); }
+  else if((e.metaKey || e.ctrlKey) && (e.key==="s" || e.key==="S")){ e.preventDefault(); exportAsset(); }
   else if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
 });
 
