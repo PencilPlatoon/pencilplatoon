@@ -10,7 +10,7 @@ from scipy.ndimage import gaussian_filter1d
 from skimage.restoration import denoise_tv_chambolle
 from PIL import Image
 import fit
-from fit import (resample_corners, _turning, _Prefix, RESAMPLE_W, MIN_STEP, TV_KAPPA_W)
+from fit import (resample_corners, _Prefix, RESAMPLE_W, MIN_STEP)
 from vectorize import vectorize
 from ink import ingest
 from model import BLOB
@@ -31,6 +31,21 @@ LAM = 5.0                                                  # smoothing is fixed 
 TOL_VALUES = [0.40, 0.24, 0.16, 0.12, 0.08, 0.04]          # HUG_TOL_W: coarse (few pts) -> fine (many pts)
 DEFAULT_TI = 3
 fit.SPLINE_LAMBDA = LAM
+
+
+TV_KAPPA_W = 0.30                                         # TV/L1 denoise weight on kappa(s), in units of w
+
+
+def _turning(P, closed):
+    """Signed curvature per sample (rad per step) from the tangent-angle increments -- for the
+    curvature readout only; the production fit (fit.py) no longer computes a turning function."""
+    d = np.diff(np.vstack([P, P[:1]]) if closed else P, axis=0)
+    ang = np.arctan2(d[:, 1], d[:, 0])
+    dth = np.diff(np.concatenate([ang[-1:], ang]) if closed else ang)
+    dth = (dth + np.pi) % (2 * np.pi) - np.pi             # wrap to (-pi, pi]
+    if closed:
+        return dth
+    return np.concatenate([[0.0], dth, [0.0]])
 
 
 def trace_base(P, w, closed, anchors):
