@@ -7,6 +7,7 @@ and read/write real files (no baking, no downloads, a real audit trail):
   GET  /cleanup     -> cleanup tool
   GET  /scans       -> list scans in artwork-scans/
   GET  /scan/<name> -> serve a scan image
+  GET  /svg/<name>  -> serve an exported asset SVG (cleanup exports thumbnails)
   POST /vectorize   -> {scan, boxes:[{name,x0,y0,x1,y1}]} : crop + vectorize each, save out/<name>_model.json
                        (with box provenance + scan thumbnail), record the boxes in out/boxes.json
   GET  /models      -> every current out/*_model.json (the cleanup tool loads these live)
@@ -68,6 +69,14 @@ def get_scan(name):
     if not p.startswith(SCANS) or not os.path.isfile(p):
         abort(404)
     return send_file(p)
+
+
+@app.get("/svg/<path:name>")
+def get_svg(name):                                     # an exported asset, for the cleanup exports thumbnails
+    p = os.path.abspath(os.path.join(SVGDIR, name))
+    if not p.startswith(SVGDIR) or not os.path.isfile(p):
+        abort(404)
+    return send_file(p, mimetype="image/svg+xml")
 
 
 @app.get("/models")

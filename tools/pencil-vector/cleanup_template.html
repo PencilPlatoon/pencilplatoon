@@ -43,6 +43,11 @@
   .guide td{padding:4px 0;vertical-align:top}
   .guide td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;padding-right:12px}
   .guide td.a{color:var(--muted)}
+  .guide .exports{display:flex;flex-direction:column;gap:8px;margin-top:4px}
+  .guide .exports .none{font-size:12px;color:var(--muted)}
+  .guide .exp{margin:0}
+  .guide .exp img{width:100%;background:var(--paper);border:1px solid var(--hair);border-radius:6px;display:block}
+  .guide .exp figcaption{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;word-break:break-all}
   .rotcol{position:absolute;box-sizing:border-box;width:40px;display:flex;flex-direction:column;
     align-items:center;gap:10px;padding:2px 0}
   .rotcol output{font:600 11px var(--mono);color:var(--ink)}
@@ -125,6 +130,8 @@
       <tr><td class="k">Del</td><td class="a">hide</td></tr>
       <tr><td class="k">⌘S</td><td class="a">export</td></tr>
     </table>
+    <h3>Exports</h3>
+    <div id="exports" class="exports"></div>
   </aside>
 </div>
 <script>
@@ -261,6 +268,7 @@ function loadSubject(name){
   selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
   $("#assetName").value = name;                                    // the box name is the asset name
+  renderExports(name);
   applyTransform(); updateFn();
 }
 
@@ -370,6 +378,13 @@ function deleteSelected(){
 
 function assetName(){ return (($("#assetName").value||"").trim().replace(/\s+/g,"_").replace(/[\\/]+/g,"-")) || "unnamed"; }
 function updateFn(){ $("#fnPreview").textContent = `→ ${assetName()}.svg`; }
+function renderExports(subject){                                  // thumbnails of each SVG saved from this box
+  const box = SCANBOXES.find(b => b.name === subject);
+  const assets = [...new Set(((box && box.exports) || []).map(e => e.asset))];
+  $("#exports").innerHTML = assets.length
+    ? assets.map(a => `<figure class="exp"><img src="/svg/${encodeURIComponent(a)}?t=${Date.now()}" alt="${a}"><figcaption>${a}</figcaption></figure>`).join("")
+    : '<div class="none">no exports yet</div>';
+}
 function alignName(){                                            // line the name control up with the centered drawing's left edge
   const svg = $("#view"), bar = $(".namebar");
   if(!svg || !bar) return;
@@ -404,7 +419,14 @@ function exportAsset(){                                          // export every
   fetch("/export", {method:"POST", headers:{"Content-Type":"application/json"},
                     body: JSON.stringify({subject: m.subject, name, svg: out.join("")})})
     .then(r => r.json())
-    .then(res => { $("#fnPreview").textContent = res.ok ? `saved ${res.path}` : "export failed"; })
+    .then(async res => {
+      $("#fnPreview").textContent = res.ok ? `saved ${res.path}` : "export failed";
+      if(res.ok){                                                // refresh this box's exports so the new thumbnail shows
+        const bd = await (await fetch("/boxes")).json();
+        if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
+        renderExports(m.subject);
+      }
+    })
     .catch(() => { $("#fnPreview").textContent = "export failed (is the server running?)"; });
 }
 
