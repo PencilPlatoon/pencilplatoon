@@ -39,6 +39,15 @@
   .guide td{padding:4px 0;vertical-align:top}
   .guide td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;padding-right:12px}
   .guide td.a{color:var(--muted)}
+  .guide .ctl{padding-bottom:14px;margin-bottom:14px;border-bottom:1px solid var(--hair)}
+  .guide .row{display:flex;justify-content:space-between;align-items:baseline;font-size:12px;color:var(--muted);margin-bottom:6px}
+  .guide .row output{font-family:var(--mono);color:var(--ink)}
+  .guide .slider{width:100%;margin:0 0 10px;accent-color:var(--blue)}
+  .guide .flips{display:flex;gap:6px}
+  .guide .flips button{flex:1;font:inherit;font-size:12px;padding:6px;border-radius:6px;cursor:pointer;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  .guide .flips button:hover{border-color:var(--blue)}
+  .guide .flips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .canvas{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;position:relative}
   #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
     font-family:var(--mono);font-weight:700;font-size:15px;min-width:22px;height:26px;border-radius:13px;
@@ -79,6 +88,12 @@
 <div class="stage">
   <div class="canvas"><svg id="view" xmlns="http://www.w3.org/2000/svg"></svg><div id="numbadge"></div></div>
   <aside class="guide">
+    <div class="ctl">
+      <h3>Transform</h3>
+      <div class="row"><span>Rotate</span><output id="rotOut">0°</output></div>
+      <input id="rotSlider" class="slider" type="range" min="-180" max="180" value="0" step="1">
+      <div class="flips"><button id="flipXBtn">Flip H</button><button id="flipYBtn">Flip V</button></div>
+    </div>
     <h3>Shortcuts</h3>
     <table>
       <tr><td class="k">click</td><td class="a">toggle</td></tr>
@@ -99,7 +114,7 @@ const MODELS = __MODELS__;
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = s => document.querySelector(s);
 
-let model, adj, selected, hidden;
+let model, baseModel, adj, selected, hidden, rot = 0, flipX = false, flipY = false;
 
 function buildAdjacency(m){
   // hub key -> [edge sid]. A hub is a skeleton node ("n"+id) OR a blob sid, so a
@@ -184,11 +199,39 @@ function draw(){
   $("#view").replaceWith(svg);
 }
 
+function transformModel(base, rotDeg, fx, fy){        // rigid rotate + flip about the content centre, re-cropped to fit
+  const th = rotDeg*Math.PI/180, cos = Math.cos(th), sin = Math.sin(th);
+  const sx = fx ? -1 : 1, sy = fy ? -1 : 1;
+  let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;                 // base content bounds -> centre
+  const g0=(x,y)=>{if(x<a)a=x;if(y<b)b=y;if(x>c)c=x;if(y>d)d=y;};
+  for(const bl of base.blobs) for(const p of bl.boundary) g0(p[0],p[1]);
+  for(const e of base.edges) for(const p of e.pts) g0(p[0],p[1]);
+  const cx=(a+c)/2, cy=(b+d)/2;
+  const pre = (x,y)=>{ const dx=(x-cx)*sx, dy=(y-cy)*sy; return [dx*cos - dy*sin, dx*sin + dy*cos]; };
+  let a2=Infinity,b2=Infinity,c2=-Infinity,d2=-Infinity;            // bounds AFTER transform -> grows to fit the rotation
+  const g1=(x,y)=>{if(x<a2)a2=x;if(y<b2)b2=y;if(x>c2)c2=x;if(y>d2)d2=y;};
+  for(const bl of base.blobs) for(const p of bl.boundary){ const q=pre(p[0],p[1]); g1(q[0],q[1]); }
+  for(const e of base.edges) for(const p of e.pts){ const q=pre(p[0],p[1]); g1(q[0],q[1]); }
+  const PAD = Math.max(2, base.w || 1);                             // keep stroke caps off the crop
+  const ox = PAD - a2, oy = PAD - b2;
+  const T = pts => pts.map(p => { const q=pre(p[0],p[1]); return [ +(q[0]+ox).toFixed(1), +(q[1]+oy).toFixed(1) ]; });
+  return { ...base,
+    blobs: base.blobs.map(bl => ({ ...bl, boundary: T(bl.boundary), holes: (bl.holes||[]).map(T) })),
+    edges: base.edges.map(e => ({ ...e, pts: T(e.pts) })),
+    size: [ +(c2-a2+2*PAD).toFixed(1), +(d2-b2+2*PAD).toFixed(1) ] };
+}
+
+function refresh(){ draw(); render(); wireCanvas(); alignName(); }
+function applyTransform(){ model = transformModel(baseModel, rot, flipX, flipY); refresh(); }
+
 function loadSubject(name){
-  model = MODELS[name]; adj = buildAdjacency(model);
+  baseModel = MODELS[name]; adj = buildAdjacency(baseModel);        // adjacency is sid-based, transform-independent
+  rot = 0; flipX = false; flipY = false;
+  $("#rotSlider").value = 0; $("#rotOut").textContent = "0°";
+  $("#flipXBtn").classList.remove("on"); $("#flipYBtn").classList.remove("on");
   selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
-  draw(); render(); wireCanvas(); updateFn(); alignName();
+  applyTransform(); updateFn();
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
@@ -341,6 +384,9 @@ function download(fname, text, mime){
 $("#expBtn").onclick = exportAsset;
 $("#assetName").oninput = updateFn;
 window.addEventListener("resize", alignName);
+$("#rotSlider").oninput = e => { rot = +e.target.value; $("#rotOut").textContent = rot + "°"; applyTransform(); };
+$("#flipXBtn").onclick = e => { flipX = !flipX; e.currentTarget.classList.toggle("on", flipX); applyTransform(); };
+$("#flipYBtn").onclick = e => { flipY = !flipY; e.currentTarget.classList.toggle("on", flipY); applyTransform(); };
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
