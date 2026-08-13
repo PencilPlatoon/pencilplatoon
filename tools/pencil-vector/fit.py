@@ -400,6 +400,25 @@ def _apex(S: np.ndarray, i: int, dl: np.ndarray, dr: np.ndarray, w: float, close
     return max(_win_arc(S, i, closed, M, CORNER_APEX_W * w), key=lambda k: float(S[k][0] * bx + S[k][1] * by))
 
 
+def _is_turn_peak(S: np.ndarray, theta: np.ndarray, i: int, nms: int, w: float, closed: bool, M: int) -> bool:
+    """Whether sample i is a corner: sharp enough (>= ACCEPT), the local turn maximum, sustained at the coarse
+    scale (not per-sample noise), and -- in the [ACCEPT, STRONG) ambiguity band -- a concentrated kink (short-
+    scale turn ~ long-scale turn), which an arc is not."""
+    if theta[i] < CORNER_ACCEPT:
+        return False
+    wnd = [theta[k % M] for k in range(i - nms, i + nms + 1)] if closed else \
+          [theta[k] for k in range(max(0, i - nms), min(M, i + nms + 1))]
+    if theta[i] < max(wnd) - 1e-9:                        # keep only the local-max sample of the turn peak
+        return False
+    thl = _turn_wt(S, i, CORNER_KINK_LW * w, closed, M)[0]
+    if thl < CORNER_SUSTAIN:                              # not sustained at the coarse scale -> per-sample noise
+        return False
+    if theta[i] < CORNER_STRONG:                          # ambiguity band: demand a concentrated kink
+        ths = _turn_wt(S, i, CORNER_KINK_SW * w, closed, M)[0]
+        return ths / max(thl, 1e-6) >= CORNER_KINK_MIN
+    return True
+
+
 def _corners_v3(S: np.ndarray, w: float, step: float, closed: bool) -> list:
     """Corners = arclength-weighted local-turn peaks, apex-localized. A real corner turns sharply within a
     short arc (high LOCAL turn); an arc spreads its turn out (low local turn) -- so the local turn angle is
@@ -415,22 +434,8 @@ def _corners_v3(S: np.ndarray, w: float, step: float, closed: bool) -> list:
         th, dl, dr = _turn_wt(S, i, tau, closed, M)
         theta[i] = th; DL[i] = dl; DR[i] = dr
     nms = max(1, int(round(CORNER_NMS3_W * w / step)))
-    cand = []
-    for i in range(M):
-        if theta[i] < CORNER_ACCEPT:
-            continue
-        wnd = [theta[k % M] for k in range(i - nms, i + nms + 1)] if closed else \
-              [theta[k] for k in range(max(0, i - nms), min(M, i + nms + 1))]
-        if theta[i] < max(wnd) - 1e-9:                    # keep only the local-max sample of each turn peak
-            continue
-        thl = _turn_wt(S, i, CORNER_KINK_LW * w, closed, M)[0]
-        if thl < CORNER_SUSTAIN:                          # not sustained at the coarse scale -> per-sample noise
-            continue
-        if theta[i] < CORNER_STRONG:                      # ambiguity band: demand a concentrated kink
-            ths = _turn_wt(S, i, CORNER_KINK_SW * w, closed, M)[0]
-            if ths / max(thl, 1e-6) < CORNER_KINK_MIN:
-                continue
-        cand.append((_apex(S, i, DL[i], DR[i], w, closed, M), theta[i]))
+    cand = [(_apex(S, i, DL[i], DR[i], w, closed, M), theta[i])
+            for i in range(M) if _is_turn_peak(S, theta, i, nms, w, closed, M)]
     out = []
     for j, th in sorted(cand, key=lambda t: -t[1]):       # strongest first; drop near-duplicate vertices
         if all(math.hypot(*(S[j] - S[k])) >= CORNER_DEDUP_W * w for k in out):
