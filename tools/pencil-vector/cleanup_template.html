@@ -55,7 +55,6 @@
   <div class="subjects" id="subjects"></div>
 </header>
 <div class="toolbar">
-  <button id="delBtn">Delete → hide</button>
   <button id="expBtn">Export asset…</button>
   <button id="clrBtn">Clear selection</button>
   <button id="resetBtn">Reset drawing</button>
@@ -290,7 +289,6 @@ function download(fname, text, mime){
 }
 
 // wire toolbar
-$("#delBtn").onclick = deleteSelected;
 $("#expBtn").onclick = exportSelection;
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
