@@ -11,6 +11,7 @@ and read/write real files (no baking, no downloads, a real audit trail):
                        (with box provenance + scan thumbnail), record the boxes in out/boxes.json
   GET  /models      -> every current out/*_model.json (the cleanup tool loads these live)
   GET  /boxes       -> data/boxes.json (box defs + audit) so the boxer can pre-load a scan's boxes
+  POST /rename      -> {old, new} : rename a box everywhere (model, crop, boxes.json)
   POST /export      -> {subject, name, svg} : write out/svg/<name>.svg AND append the export to the
                        subject's box in out/boxes.json -- the audit trail
 
@@ -81,6 +82,28 @@ def get_models():
 @app.get("/boxes")
 def get_boxes():                                       # box defs (+ audit) so the boxer can pre-load a scan's boxes
     return jsonify(load_boxes())
+
+
+@app.post("/rename")
+def do_rename():                                       # rename a box everywhere: model, crop, and boxes.json entry
+    req = request.get_json(force=True)
+    old, new = req["old"], req["new"]
+    if not new or new == old:
+        return jsonify({"ok": False})
+    om = os.path.join(OUT, f"{old}_model.json")
+    if os.path.exists(om):
+        d = json.load(open(om)); d["subject"] = new
+        json.dump(d, open(os.path.join(OUT, f"{new}_model.json"), "w")); os.remove(om)
+    oc = os.path.join(OUT, f"{old}_crop.png")
+    if os.path.exists(oc):
+        os.replace(oc, os.path.join(OUT, f"{new}_crop.png"))
+    bx = load_boxes()
+    for b in bx["boxes"]:
+        if b.get("name") == old:
+            b["name"] = new
+    save_boxes(bx)
+    print(f"renamed {old} -> {new}", flush=True)
+    return jsonify({"ok": True, "name": new})
 
 
 @app.post("/vectorize")

@@ -34,6 +34,8 @@
   #boxlist input{flex:1;min-width:0;font:inherit;font-size:12px;font-family:var(--mono);background:var(--bg);
     border:1px solid var(--hair);border-radius:5px;color:var(--ink);padding:4px 6px}
   #boxlist input:focus{outline:none;border-color:var(--blue)}
+  #boxlist .go{cursor:pointer;color:var(--blue);border:none;background:none;font-size:17px;line-height:1;padding:0 4px}
+  #boxlist .go:hover{color:#fff}
   #boxlist .del{cursor:pointer;color:var(--muted);border:none;background:none;font-size:15px;line-height:1;padding:0 4px}
   #boxlist .del:hover{color:var(--red)}
   #boxlist .empty{color:var(--muted);font-size:12px;padding:8px}
@@ -44,7 +46,6 @@
 <header>
   <h1>Pencil&nbsp;Vector <span class="sub">· scan boxer</span></h1>
   <select id="scanpick"></select>
-  <button id="vec">Vectorize →</button>
   <span class="count">Boxes <b id="cnt">0</b></span>
   <span id="status" class="status"></span>
 </header>
@@ -83,7 +84,7 @@ async function loadScan(name){
     ov.setAttribute("viewBox", `0 0 ${img.naturalWidth} ${img.naturalHeight}`);
     LBL = Math.max(10, Math.round(img.naturalHeight / 45));
     $("#drop").hidden = true; $("#imgwrap").hidden = false;
-    boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1, saved:true}));
+    boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1, saved:true, serverName:b.name}));
     seq = Math.max(0, ...boxes.map(b => { const m = /^box(\d+)$/.exec(b.name); return m ? +m[1] : 0; }));
     render();
   };
@@ -124,12 +125,18 @@ ov.addEventListener("pointerup", () => {
 
 function vectorizeAndOpen(b){
   const go = () => { location.href = `/cleanup?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`; };
-  if(b.saved){ go(); return; }                                   // already vectorized + unchanged -> just open, no re-vectorize
-  $("#status").textContent = `vectorizing ${b.name}…`;
-  fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({scan: scanName, boxes: [{name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}]})})
-    .then(() => { b.saved = true; go(); })
-    .catch(() => { $("#status").textContent = "vectorize failed (is the server running?)"; });
+  let action = Promise.resolve();
+  if(!b.saved){                                                  // never vectorized -> do it once
+    $("#status").textContent = `vectorizing ${b.name}…`;
+    action = fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({scan: scanName, boxes: [{name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}]})})
+      .then(() => { b.saved = true; b.serverName = b.name; });
+  } else if(b.serverName && b.name !== b.serverName){            // renamed since -> propagate first, no re-vectorize
+    $("#status").textContent = `renaming → ${b.name}…`;
+    action = fetch("/rename", {method:"POST", headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({old:b.serverName, new:b.name})}).then(() => { b.serverName = b.name; });
+  }
+  action.then(go).catch(() => { $("#status").textContent = "failed (is the server running?)"; });
 }
 
 function render(){
@@ -149,23 +156,20 @@ function render(){
   boxes.forEach((b, i) => {
     const li = document.createElement("li");
     const inp = document.createElement("input"); inp.value = b.name;
-    inp.oninput = () => { b.name = inp.value; b.saved = false; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
+    inp.oninput = () => { b.name = inp.value; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
+    inp.onchange = () => {                                        // commit a rename -> propagate to the server if already vectorized
+      if(b.saved && b.serverName && b.name && b.name !== b.serverName)
+        fetch("/rename", {method:"POST", headers:{"Content-Type":"application/json"},
+          body: JSON.stringify({old:b.serverName, new:b.name})}).then(() => { b.serverName = b.name; });
+    };
+    const go = document.createElement("button"); go.className = "go"; go.textContent = "→"; go.title = "vectorize + open in cleanup";
+    go.onclick = () => vectorizeAndOpen(b);
     const del = document.createElement("button"); del.className = "del"; del.textContent = "✕";
     del.onclick = () => { boxes.splice(i,1); render(); };
-    li.append(inp, del); list.appendChild(li);
+    li.append(inp, go, del); list.appendChild(li);
   });
 }
 
-$("#vec").onclick = () => {
-  if(!scanName){ alert("Choose a scan first."); return; }
-  if(!boxes.length){ alert("Draw at least one box."); return; }
-  const st = $("#status"); st.textContent = "vectorizing…";
-  fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({scan: scanName, boxes: boxes.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1}))})})
-    .then(r => r.json())
-    .then(res => { st.innerHTML = `vectorized ${res.length} — <a href="/cleanup?scan=${encodeURIComponent(scanName)}">open cleanup →</a>`; })
-    .catch(() => { st.textContent = "vectorize failed (is the server running?)"; });
-};
 </script>
 </body>
 </html>

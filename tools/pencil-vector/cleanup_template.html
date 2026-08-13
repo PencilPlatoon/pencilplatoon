@@ -260,6 +260,7 @@ function loadSubject(name){
   else { $("#scanimg").removeAttribute("src"); $("#scanref").hidden = true; }
   selected = new Set(); hidden = new Set();
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
+  $("#assetName").value = name;                                    // the box name is the asset name
   applyTransform(); updateFn();
 }
 
