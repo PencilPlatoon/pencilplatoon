@@ -16,10 +16,12 @@
   header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
   header .sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
   .subjects{display:flex;gap:6px;margin-left:auto}
-  .subjects button{font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
+  .subjects button{position:relative;font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
     background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
   .subjects button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .subjects button.pending{opacity:.5;border-style:dashed}
+  .chk{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;background:var(--green);
+    color:#fff;font:700 10px/15px var(--sans);text-align:center;box-shadow:0 0 0 2px var(--bg)}
   .back{font-size:12px;color:var(--blue);text-decoration:none;padding:5px 11px;border:1px solid var(--hair);border-radius:16px;white-space:nowrap}
   .back:hover{border-color:var(--blue)}
   .status{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:12px}
@@ -416,7 +418,7 @@ function exportAsset(){                                          // export every
       if(res.ok){                                                // refresh this box's exports so the new thumbnail shows
         const bd = await (await fetch("/boxes")).json();
         if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
-        renderExports(m.subject);
+        renderTabs(); renderExports(m.subject);
       }
     })
     .catch(() => { $("#fnPreview").textContent = "export failed (is the server running?)"; });
@@ -444,10 +446,12 @@ async function loadModels(){
   const list = await (await fetch("/models")).json();
   MODELS = Object.fromEntries(list.map(m => [m.subject, m]));
 }
-function renderTabs(){                                          // tabs = the current scan's boxes
+function renderTabs(){                                          // tabs = the current scan's boxes (✓ = has an export)
   $("#subjects").innerHTML = SCANBOXES.map(b =>
-    `<button data-name="${b.name}" class="${MODELS[b.name] ? '' : 'pending'}">${TITLES[b.name] || b.name}</button>`).join("");
+    `<button data-name="${b.name}" class="${MODELS[b.name] ? '' : 'pending'}">${TITLES[b.name] || b.name}` +
+    `${(b.exports && b.exports.length) ? '<span class="chk">✓</span>' : ''}</button>`).join("");
   for(const btn of document.querySelectorAll(".subjects button")) btn.onclick = () => selectBox(btn.dataset.name);
+  if(model) document.querySelectorAll(".subjects button").forEach(b => b.classList.toggle("on", b.dataset.name === model.subject));
 }
 async function selectBox(name){
   if(!MODELS[name]){                                            // this box isn't vectorized yet -- do it on demand
