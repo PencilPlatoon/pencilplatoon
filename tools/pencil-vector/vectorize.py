@@ -198,13 +198,20 @@ def _blob_pieces(mask: np.ndarray, w: float):
     a non-nesting contour and get dropped, leaving real ink uncovered. Split on the same 4-connectivity
     the tracer sees so each piece is a faithful outline. Sub-blob-area crumbs are discarded (as tracing
     dropped them before), but a lone under-area piece is kept so a small legitimate blob never vanishes."""
-    closed = ndimage.binary_closing(mask, iterations=1)
+    sl = WC.bbox_slice(mask, pad=2)                       # window the blob out (pad 2 > the closing's 1px reach)
+    if sl is None:
+        return []
+    closed = ndimage.binary_closing(mask[sl], iterations=1)
     lab, n = ndimage.label(closed)                        # ndimage default: 4-connectivity, matches the tracer
+
+    def full(sub):                                        # place a window piece back into a full-frame mask
+        out = np.zeros(mask.shape, bool); out[sl] = sub; return out
+
     if n <= 1:
-        return [closed] if closed.any() else []
+        return [full(closed)] if closed.any() else []
     comps = [lab == i for i in range(1, n + 1)]
     big = [c for c in comps if c.sum() >= WC.MIN_BLOB_AREA_W2 * w * w]
-    return big if big else [max(comps, key=lambda c: c.sum())]
+    return [full(c) for c in (big if big else [max(comps, key=lambda c: c.sum())])]
 
 
 def _trace_blobs(g: Graph, blob_masks: dict, ink: Ink) -> None:

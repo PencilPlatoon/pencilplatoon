@@ -191,13 +191,18 @@ def _reclaim_rim_crumbs(wide: np.ndarray, ink: Ink) -> np.ndarray:
 
 def bbox_slice(mask: np.ndarray, pad: int = 1):
     """(y-slice, x-slice) of mask's true-pixel bounding box grown by `pad`, clamped to shape; None if
-    mask is empty. Lets a per-region EDT run on a small window instead of the full supersampled image."""
-    ys, xs = np.where(mask)
-    if len(ys) == 0:
+    mask is empty. Lets a per-region EDT run on a small window instead of the full supersampled image.
+    Reduce to a per-axis any() first (O(H+W) scan) rather than np.where'ing every true pixel -- this runs
+    once per blob, so on the full supersampled frame the difference is large."""
+    rows = np.any(mask, axis=1)
+    if not rows.any():
         return None
+    cols = np.any(mask, axis=0)
+    ys = np.where(rows)[0]
+    xs = np.where(cols)[0]
     H, W = mask.shape
-    return (slice(max(0, ys.min() - pad), min(H, ys.max() + 1 + pad)),
-            slice(max(0, xs.min() - pad), min(W, xs.max() + 1 + pad)))
+    return (slice(max(0, int(ys[0]) - pad), min(H, int(ys[-1]) + 1 + pad)),
+            slice(max(0, int(xs[0]) - pad), min(W, int(xs[-1]) + 1 + pad)))
 
 
 def _enforce_min_width(comp: np.ndarray, w: float) -> np.ndarray:

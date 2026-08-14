@@ -393,38 +393,46 @@ def fill_boundary(mask, w, holes_mask=None):
     already >~1.5 pen wide everywhere and can't pinch off. A hole the pen actually left open (`holes_mask`)
     must survive even when the closing SEALS its narrow mouth: any such hole `_boundaries` couldn't trace
     is re-added as its own even-odd contour. Only holes the closing FULLY sealed are re-added (`& closed`) --
-    a hole that survived closing is already in `holes`, and adding it twice would even-odd cancel it open."""
-    closed = ndimage.binary_closing(mask, iterations=1)
+    a hole that survived closing is already in `holes`, and adding it twice would even-odd cancel it open.
+
+    All of this runs in the blob's own bounding-box window, not the full supersampled frame -- one blob
+    touches a tiny fraction of it, so cropping keeps the per-blob morphology + tracing off the whole
+    image. Traced polygons are shifted back to full-frame coordinates on return."""
     # Each blob's outline is traced then decimated INWARD by up to POLY_TOL_W*w, so two abutting blobs
     # each recede from their shared border and leave a background sliver between them. Dilate the closure
-    # by that same tolerance first: neighbours now overlap by ~a pixel at the seam (drawn in node order,
-    # so it reads solid) instead of gapping. It grows real paper holes / the silhouette inward by the
-    # same hair, below the decimation's own error.
+    # by that same tolerance: neighbours now overlap by ~a pixel at the seam (drawn in node order, so it
+    # reads solid) instead of gapping. It grows real paper holes / the silhouette inward by the same hair,
+    # below the decimation's own error.
     grow = max(1, int(round(WC.POLY_TOL_W * w)))
-    closed = ndimage.binary_dilation(closed, iterations=grow)
+    sl = WC.bbox_slice(mask, pad=grow + 2)                  # window the blob out of the full frame
+    if sl is None:
+        return None, []
+    off = np.array([sl[1].start, sl[0].start], float)      # (x,y) shift back to full-frame coords
+    closed = ndimage.binary_dilation(ndimage.binary_closing(mask[sl], iterations=1), iterations=grow)
     # `_boundaries` traces this colour's closure and cuts a hole at every interior gap >= a pen wide --
     # so a blob is hollow wherever ANOTHER colour (or real paper) sits inside it (§5, §6.2). The other
     # colour's own blob fills that hole from beneath, so a wide multi-colour region still tiles solid;
     # but the blob no longer claims -- or hit-tests over -- area that isn't its colour.
-    outer, holes = WC._boundaries(closed, w)
-    if outer is None or holes_mask is None or not holes_mask.any():
-        return outer, holes
-    H, W = mask.shape
-    im = Image.new("1", (W, H), 0)
-    ImageDraw.Draw(im).polygon([(float(x), float(y)) for x, y in outer], fill=1)
-    enclosed = holes_mask & np.asarray(im, bool) & closed   # real holes closing sealed (not already traced)
-    lab, n = ndimage.label(enclosed)
-    for k in range(1, n + 1):
-        comp = lab == k
-        if comp.sum() < MIN_HOLE_W2 * w * w:
-            continue
-        cs = find_contours(comp.astype(float), 0.5)
-        if not cs:
-            continue
-        hpoly = approximate_polygon(max(cs, key=len), WC.POLY_TOL_W * w)
-        if len(hpoly) >= 3:
-            holes.append(np.column_stack([hpoly[:, 1], hpoly[:, 0]]))   # (row,col) -> (x,y)
-    return outer, holes
+    outer, holes = WC._boundaries(closed, w)               # in window coords
+    if outer is None:
+        return None, []
+    if holes_mask is not None and holes_mask[sl].any():
+        h, wd = closed.shape
+        im = Image.new("1", (wd, h), 0)
+        ImageDraw.Draw(im).polygon([(float(x), float(y)) for x, y in outer], fill=1)
+        enclosed = holes_mask[sl] & np.asarray(im, bool) & closed   # real holes closing sealed (not already traced)
+        lab, n = ndimage.label(enclosed)
+        for k in range(1, n + 1):
+            comp = lab == k
+            if comp.sum() < MIN_HOLE_W2 * w * w:
+                continue
+            cs = find_contours(comp.astype(float), 0.5)
+            if not cs:
+                continue
+            hpoly = approximate_polygon(max(cs, key=len), WC.POLY_TOL_W * w)
+            if len(hpoly) >= 3:
+                holes.append(np.column_stack([hpoly[:, 1], hpoly[:, 0]]))   # (row,col) -> (x,y)
+    return outer + off, [hp + off for hp in holes]
 
 
 # ----------------------------------------------------------------------------- fill-vs-junction
