@@ -104,6 +104,7 @@ def snap_overshoot(skel, grown, w):
     """A free end whose tail runs a few px PAST a region contact is an overshoot: trim it so the
     segment terminates AT the contact. Returns (skel, set of the contact endpoints it created)."""
     sk = skel.copy()
+    H, W = sk.shape
     gdil = ndimage.binary_dilation(grown)
     reach = max(2, int(round(1.5 * w)))
     snapped = set()
@@ -130,7 +131,8 @@ def snap_overshoot(skel, grown, w):
                     hit = len(path) - 1; break
             if hit >= MIN_OVERSHOOT:
                 contact = path[hit]; pathset = set(map(tuple, path))
-                cont = any(sk[contact[0] + dy, contact[1] + dx] and (contact[0] + dy, contact[1] + dx) not in pathset
+                cont = any(0 <= contact[0] + dy < H and 0 <= contact[1] + dx < W
+                           and sk[contact[0] + dy, contact[1] + dx] and (contact[0] + dy, contact[1] + dx) not in pathset
                            for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy or dx))
                 if cont:                                   # segment continues PAST the contact -> real overshoot
                     for py, px in path[:hit]:
