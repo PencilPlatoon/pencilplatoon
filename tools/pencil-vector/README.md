@@ -42,6 +42,21 @@ Prints the derived pen width `w` (the unit every downstream tolerance is
 measured in) and the node/edge counts, and writes an SVG where each collapsed
 graph edge is one centerline `<path>` at stroke-width `w`.
 
+## Server (box selector + asset tool)
+
+One Flask process serves the browser tools and owns the pipeline + files. From
+the **repo root**:
+
+```bash
+npm run python-tool-setup                 # once: pip install -r requirements.txt
+npm run vector-server                     # start the server
+```
+
+Serves `http://localhost:8889` — the **box selector** at `/` and the **asset
+tool** at `/asset`. Saving an asset writes a vector `out/svg/<asset>.svg` (the
+game asset); `out/<name>_crop.png` and `out/<name>_model.json` are display/data
+intermediates.
+
 ## Modules
 
 | file | role |
