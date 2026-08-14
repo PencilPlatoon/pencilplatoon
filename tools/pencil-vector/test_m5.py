@@ -14,7 +14,7 @@ from model import ENDPOINT, JUNCTION, Edge, Graph, Node
 from vectorize import vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 
 
 def _line(a, b, n=8):

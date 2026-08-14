@@ -6,8 +6,6 @@ design, and several stages will look over-engineered until you see what
 depends on them.
 
 The implementation of this plan is named **Pencil Vector** (`tools/pencil-vector/`).
-It is built as a *parallel* tool alongside the older `tools/scan-to-svg/`, which
-stays in place; the two are compared side by side on the fidelity study page.
 
 ---
 
@@ -461,9 +459,9 @@ accumulate rather than replace each other:
   earlier one. Keep each milestone's code path runnable so its render can be
   regenerated — do not delete or in-place-rewrite M(N−1)'s producer when adding
   M(N). (M1's `out/*_m1.svg` must still exist and rebuild once M2 lands.)
-- **Per-cell milestone tabs on the study page.** The comparison page
-  (`tools/scan-to-svg`) renders the Pencil Vector column as a tab strip — one
-  tab per milestone (M1, M2, …) over each subject's cell — showing one render at
+- **Per-cell milestone tabs on the study page.** The `pipeline_stages` study
+  page renders each subject's column as a tab strip — one tab per milestone
+  (M1, M2, …) over each subject's cell — showing one render at
   a time so you can flip through the approach's evolution. The tabs are
   data-driven off the retained `_m<N>.svg` files, so a new milestone's render
   adds its own tab with no page changes. This is a build-step / study-page

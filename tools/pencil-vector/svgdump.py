@@ -3,8 +3,7 @@
 Each stroke edge becomes one centerline `<path>` at stroke-width `w`; each blob a
 filled `<path>` -- the topology graph stays literally visible in the SVG.
 
-The markup mirrors the `scan-to-svg` hybrid's interactive structure so the
-comparison page's shared CSS drives it: every component is a
+The markup is an interactive hover-to-identify structure: every component is a
 `<g class="seg" data-num="N">` wrapping a `<g class="vis">` (what you see), a wide
 transparent `.hit` area (so thin strokes are easy to hover), and a `.corner`
 number bubble shown on hover. A trailing `<g class="nums">` overlays a numbered

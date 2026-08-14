@@ -14,7 +14,7 @@ from model import BLOB
 CORNER_WIN2_W = 2.5     # this study's own candidate detector: fit each side's line over +-this many w
 CORNER_STRAIGHT_W = 0.4 # ...and a side is "straight" within this*w (rms). (Was shared with the old fit v2.)
 
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
+ISO = os.path.join(HERE, "subjects", "%s_iso.png")
 OUT = os.path.join(HERE, "corner_study.html")
 SUBJECTS = [("dying", "Hit soldier"), ("soldier", "Gunner’s SMG"), ("cannon", "Wheeled cannon"),
             ("mg", "Mounted MG"), ("flag", "Capture flag")]

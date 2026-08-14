@@ -18,7 +18,7 @@ from ink import ingest
 from vectorize import vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 SUBJECTS = ["cannon", "mg", "soldier", "dying", "flag"]
 
 pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.png")),

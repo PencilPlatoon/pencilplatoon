@@ -14,7 +14,7 @@ from vectorize import vectorize
 from ink import ingest
 from model import BLOB
 
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
+ISO = os.path.join(HERE, "subjects", "%s_iso.png")
 OUT = os.path.join(HERE, "spline_pipeline.html")
 SUBJECTS = [("dying", "Hit soldier"), ("soldier", "Gunner’s SMG"), ("cannon", "Wheeled cannon"),
             ("mg", "Mounted MG"), ("flag", "Capture flag")]

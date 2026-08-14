@@ -69,7 +69,7 @@ def test_charm_reproduces_the_hand_and_zero_is_crisp():
 # ---- integration on the real pipeline (skip if the isolated subjects aren't present) ----
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 needs_iso = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
                                reason="isolated subjects not present")
 

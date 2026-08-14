@@ -16,7 +16,7 @@ from model import ENDPOINT, JUNCTION
 from svgdump import dump
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 
 # line-art subjects: w should read as a thin pen. (soldier/flag are fill-heavy
 # or fine-emblem, so their w is Stage-1's business, not M1's.)
@@ -24,7 +24,7 @@ LINE_ART = ["cannon", "mg", "dying"]
 
 pytestmark = pytest.mark.skipif(
     not os.path.isdir(ISO) or not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
-    reason="isolated subjects (../scan-to-svg/out/*_iso.png) not present",
+    reason="isolated subjects (subjects/*_iso.png) not present",
 )
 
 

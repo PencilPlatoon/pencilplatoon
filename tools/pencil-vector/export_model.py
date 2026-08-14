@@ -75,7 +75,7 @@ def main(argv):
     subjects = argv or ["flag", "cannon", "soldier", "mg", "dying"]
     os.makedirs("out", exist_ok=True)
     for s in subjects:
-        d = export(f"../scan-to-svg/out/{s}_iso.png", s, f"out/{s}_model.json")
+        d = export(f"subjects/{s}_iso.png", s, f"out/{s}_model.json")
         print("%-8s nodes=%d edges=%d blobs=%d -> out/%s_model.json"
               % (s, len(d["nodes"]), len(d["edges"]), len(d["blobs"]), s))
     return 0

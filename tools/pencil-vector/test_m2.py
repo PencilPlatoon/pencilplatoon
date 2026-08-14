@@ -17,11 +17,11 @@ from vectorize import vectorize
 from widthclass import segment
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 
 pytestmark = pytest.mark.skipif(
     not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
-    reason="isolated subjects (../scan-to-svg/out/*_iso.png) not present",
+    reason="isolated subjects (subjects/*_iso.png) not present",
 )
 
 

@@ -20,7 +20,7 @@ from scipy import ndimage as ndi
 import growth as G
 from ink import ingest
 
-ISO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "scan-to-svg", "out", "%s_iso.png")
+ISO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "subjects", "%s_iso.png")
 SUBJECTS = [("dying", "Hit soldier"), ("cannon", "Wheeled cannon"), ("soldier", "Gunner’s SMG"),
             ("mg", "Mounted MG"), ("flag", "Capture flag")]
 

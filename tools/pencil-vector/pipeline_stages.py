@@ -27,7 +27,7 @@ from model import Graph
 from svgdump import dump
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "pipeline_stages.html")
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out", "%s_iso.png")
+ISO = os.path.join(HERE, "subjects", "%s_iso.png")
 
 PAPER = (246, 241, 230)
 LAVENDER = (181, 126, 220)

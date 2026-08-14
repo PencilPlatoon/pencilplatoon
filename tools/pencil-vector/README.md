@@ -1,22 +1,21 @@
 # Pencil Vector
 
-A **parallel, from-scratch** implementation of the scan→SVG vectorizer, built
-to the architecture in [`../../vectorizer-implementation-plan.md`](../../vectorizer-implementation-plan.md).
-It exists alongside the older `../scan-to-svg/` tool, which stays untouched.
+A **from-scratch** scan→SVG vectorizer, built to the architecture in
+[`../../vectorizer-implementation-plan.md`](../../vectorizer-implementation-plan.md).
 
-The two differ fundamentally. `scan-to-svg` *substitutes* geometry as it goes
-(a run of points becomes a circle). This one is **model-based and
-annotation-first**: connectivity is frozen ground truth, every geometric fit is
-recorded *about* an edge rather than replacing it, and export decides which
-annotations to emit as geometry. See the plan's core principles (§2) and invariant
-hierarchy (§3).
+It is **model-based and annotation-first**: connectivity is frozen ground truth,
+every geometric fit is recorded *about* an edge rather than replacing it, and
+export decides which annotations to emit as geometry. See the plan's core
+principles (§2) and invariant hierarchy (§3).
+
+The 5 reference subjects it iterates on live in `subjects/` (`*_iso.png`).
 
 ## Build order
 
 Each milestone writes its own **retained** render, `out/<subject>_m<N>.svg` — a new
 milestone never overwrites a prior one, and each milestone's code path stays
-runnable. The comparison page (`../scan-to-svg`) turns those into a per-cell tab
-strip (M1, M2, …) so you can flip through the approach's progress on each subject.
+runnable. The `pipeline_stages` study page (below) turns those into a per-cell tab
+strip so you can flip through the approach's progress on each subject.
 
 Milestones follow the plan §12 — end-to-end early, depth later:
 
@@ -36,7 +35,7 @@ Milestones follow the plan §12 — end-to-end early, depth later:
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python vectorize.py ../scan-to-svg/out/cannon_iso.png out/cannon_m1.svg
+python vectorize.py subjects/cannon_iso.png out/cannon_m1.svg
 ```
 
 Prints the derived pen width `w` (the unit every downstream tolerance is

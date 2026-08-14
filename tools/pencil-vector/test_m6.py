@@ -14,7 +14,7 @@ from model import BLOB, Edge, Graph, Node
 from vectorize import vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-ISO = os.path.join(HERE, "..", "scan-to-svg", "out")
+ISO = os.path.join(HERE, "subjects")
 
 pytestmark = pytest.mark.skipif(
     not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
