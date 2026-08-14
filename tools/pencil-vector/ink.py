@@ -40,7 +40,10 @@ MIN_HOLE_W2 = 0.79      # keep an interior hole only if at least ~a pen width ac
 # factor is picked from the measured native width; every downstream tolerance is a multiple of the
 # resulting `w`, so the constants themselves carry no pixel scale (they track the pen at any DPI).
 TARGET_W = 13.0         # effective working pen width to supersample toward
-SCALE_MAX = 4           # never blow the image up by more than this
+SCALE_MAX = 3           # never blow the image up by more than this. 3x already carries the native pen
+                        # past TARGET_W (upscaling + re-thresholding fattens strokes ~2x), so a 4th step
+                        # only quadruples the per-op cost of a whole colour drawing for no visible gain
+                        # (a thin scan measured 18.4px at 4x vs 14.5px at 3x -- same vectorization, 2x slower)
 
 # Colour determination (§5, revised M1): a scan is drawn with a few discrete pencil/pen
 # colours, no gradients, and each pixel is exactly one colour (marks abut, never overlap).
