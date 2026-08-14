@@ -19,6 +19,7 @@ from skimage.morphology import skeletonize
 
 from ink import Ink
 from model import BLOB, ENDPOINT, JUNCTION, Edge, Graph, Node
+from widthclass import bbox_slice
 
 # 8-connectivity for skeleton pixel adjacency
 _N8 = np.ones((3, 3), dtype=int)
@@ -402,7 +403,15 @@ def split_edges_at_blob_contacts(g: Graph, blob_masks: dict, w: float) -> Graph:
     if not blob_masks:
         return g
     reach = CONTACT_REACH_W * w
-    dts = {nid: ndimage.distance_transform_edt(~m) for nid, m in blob_masks.items()}
+    # Only distances within `reach` of a blob matter (all else is skipped below), so window each blob's
+    # EDT to its bbox + reach instead of transforming the whole supersampled frame per blob. A point
+    # outside the window is necessarily > reach from the blob, so it reads as infinitely far (skipped).
+    pad = int(math.ceil(reach)) + 1
+    dts = {}
+    for nid, m in blob_masks.items():
+        sl = bbox_slice(m, pad=pad)
+        if sl is not None:
+            dts[nid] = (ndimage.distance_transform_edt(~m[sl]), sl[0].start, sl[1].start)
     nc = (max(g.nodes) if g.nodes else 0) + 1
     ec = (max(g.edges) if g.edges else 0) + 1
     for e in list(g.edges.values()):                       # snapshot: g.edges is mutated in the loop
@@ -411,9 +420,12 @@ def split_edges_at_blob_contacts(g: Graph, blob_masks: dict, w: float) -> Graph:
             continue
         seglen = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(p, axis=0).T))])
         best = None
-        for nid, dt in dts.items():
+        for nid, (dt, y0, x0) in dts.items():
             H, W = dt.shape
-            d = dt[np.clip(p[:, 1].astype(int), 0, H - 1), np.clip(p[:, 0].astype(int), 0, W - 1)]
+            py, px = p[:, 1].astype(int) - y0, p[:, 0].astype(int) - x0
+            inb = (py >= 0) & (py < H) & (px >= 0) & (px < W)
+            d = np.full(len(p), np.inf)
+            d[inb] = dt[py[inb], px[inb]]                   # points outside the window stay > reach
             k = int(d.argmin())
             if d[k] >= reach:
                 continue

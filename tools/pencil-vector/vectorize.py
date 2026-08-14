@@ -161,13 +161,21 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
         return probe[sid]
 
     def gaps(dstr, edges):
-        dt = ndimage.distance_transform_edt(~raster.full_fill_mask(dstr, w_img, h))
-        out = {}
-        for sid in edges:
-            p = pts(sid)
-            if p is not None:
-                out[sid] = float(dt[p].min())
-        return out
+        fm = raster.full_fill_mask(dstr, w_img, h)
+        probes = [(sid, pts(sid)) for sid in edges]
+        probes = [(sid, p) for sid, p in probes if p is not None]
+        fy, fx = np.where(fm)
+        if len(fy) == 0 or not probes:
+            return {sid: float("inf") for sid, _ in probes}
+        # each edge's gap is min distance from ITS points to the fill; the nearest fill pixel is inside a
+        # window spanning the fill and all probe points, so the EDT runs on that window, not the full frame.
+        ys = [fy.min(), fy.max()]; xs = [fx.min(), fx.max()]
+        for _, (pr, pc) in probes:
+            ys += [pr.min(), pr.max()]; xs += [pc.min(), pc.max()]
+        y0, y1 = max(0, int(min(ys)) - 1), min(h, int(max(ys)) + 2)
+        x0, x1 = max(0, int(min(xs)) - 1), min(w_img, int(max(xs)) + 2)
+        dt = ndimage.distance_transform_edt(~fm[y0:y1, x0:x1])
+        return {sid: float(dt[pr - y0, pc - x0].min()) for sid, (pr, pc) in probes}
 
     def opens(cand, edges, ref):
         g2 = gaps(cand, edges)                        # would a contact the traced edge held within
