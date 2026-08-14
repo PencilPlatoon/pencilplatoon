@@ -17,15 +17,16 @@ from PIL import Image
 from scipy import ndimage
 from scipy.cluster.vq import kmeans2
 from skimage.color import hsv2rgb, rgb2hsv, rgb2lab
-from skimage.filters import threshold_sauvola
+from skimage.filters import threshold_otsu, threshold_sauvola
 from skimage.morphology import skeletonize
 
-# Paper grain lives at a couple of pixels; a deliberate dot is bigger. Gate on
-# an absolute floor this small (NOT a Potrace-style turdsize, which would kill
-# a 6px dot) and let ink-density do the rest. GRAIN_AREA is in *native* pixels;
-# at a supersampled scale it is applied as GRAIN_AREA * scale^2 (§5).
-GRAIN_AREA = 4          # native px; drop connected components at or below this
-SAUVOLA_WINDOW = 25     # px; local-threshold neighborhood for uneven pencil
+# Nothing here is a raw-pixel constant: every spatial threshold is a multiple of the pen
+# width `w` (plan §5), so a scan vectorizes the same whatever DPI it was captured at. The
+# one exception is TARGET_W itself -- the pixel scale we normalize *to*, so w is constant.
+GRAIN_W2 = 0.5          # speckle floor: drop ink components smaller than this * w^2 (paper grain
+                        # is ~a fraction of a pen width across, not a fixed pixel count)
+SAUVOLA_W = 2.9         # Sauvola local-threshold window, in pen widths (a few w spans the local
+                        # contrast the child's uneven pencil needs); realized as an odd px window
 DARK_ABS = 0.4          # any pixel this dark is ink regardless of local contrast: Sauvola
                         # otherwise carves false holes out of a large uniform-dark fill
 MIN_HOLE_W2 = 0.79      # keep an interior hole only if at least ~a pen width across (0.79
@@ -33,11 +34,11 @@ MIN_HOLE_W2 = 0.79      # keep an interior hole only if at least ~a pen width ac
                         # one, so it is imaging noise. Filled at ingest (so a fill isn't left
                         # notched around it) and re-checked when holes are traced.
 
-# Dynamic resolution (§5): a scan is drawn at whatever DPI it was drawn at, so the
-# native pen width `w` varies. We supersample (LANCZOS) so the pipeline always runs
-# at a consistent *effective* pen width -- thin walls and small holes that pinch shut
-# at the native pixel scale then resolve into their true shape (the hybrid does the
-# same with a fixed F=3; picking the factor from `w` generalizes it across scans).
+# Dynamic resolution (§5): a scan is drawn at whatever DPI it was captured at, so the native pen
+# width varies. We supersample (LANCZOS) toward a consistent effective pen width -- thin walls and
+# small holes that pinch shut at the native pixel scale then resolve into their true shape. The
+# factor is picked from the measured native width; every downstream tolerance is a multiple of the
+# resulting `w`, so the constants themselves carry no pixel scale (they track the pen at any DPI).
 TARGET_W = 13.0         # effective working pen width to supersample toward
 SCALE_MAX = 4           # never blow the image up by more than this
 
@@ -67,27 +68,36 @@ class Ink:
     palette: list = field(default_factory=lambda: [BLACK])   # colour id -> idealized (r,g,b)
 
 
-def _modal_pen_width(mask: np.ndarray, dist: np.ndarray) -> float:
-    """`w` = mode of the distance transform along the medial axis, doubled
-    (§5). The medial axis samples the local half-width; its mode is the width
-    the child drew most, robust to a few fat blobs or thin tails."""
-    skel = skeletonize(mask)
-    radii = dist[skel]
+def _pen_width(mask: np.ndarray, dist: np.ndarray) -> float:
+    """`w` = mode of the medial-axis half-width, doubled (§5) -- the width the child drew MOST,
+    robust to a few fat blobs or thin tails. It is the unit every downstream tolerance is a multiple
+    of, so no stage carries a raw pixel constant. A parabolic fit to the peak bin recovers a sub-pixel mode."""
+    radii = dist[skeletonize(mask)]
     radii = radii[radii > 0]
     if radii.size == 0:
         return 1.0
-    # mode via a half-pixel histogram of the half-widths, then double
     hi = max(2.0, float(radii.max()))
-    bins = np.arange(0.0, hi + 0.5, 0.5)
-    counts, edges = np.histogram(radii, bins=bins)
-    peak = 0.5 * (edges[counts.argmax()] + edges[counts.argmax() + 1])
+    counts, edges = np.histogram(radii, bins=np.arange(0.0, hi + 0.5, 0.5))
+    i = int(counts.argmax())
+    peak = 0.5 * (edges[i] + edges[i + 1])
+    if 0 < i < len(counts) - 1:
+        c0, c1, c2 = float(counts[i - 1]), float(counts[i]), float(counts[i + 1])
+        denom = c0 - 2.0 * c1 + c2
+        if denom < 0.0:                                    # a genuine peak -- shift within [-¼,+¼] bin
+            peak += 0.25 * (c0 - c2) / denom
     return float(2.0 * peak)
 
 
-def _binarize(gray: np.ndarray, thresh_bias: float) -> np.ndarray:
+def _sauvola_window(w: float) -> int:
+    """Odd Sauvola window ~SAUVOLA_W pen widths wide (never below 3px)."""
+    return max(3, int(round(SAUVOLA_W * w)) | 1)
+
+
+def _binarize(gray: np.ndarray, thresh_bias: float, window: int) -> np.ndarray:
     """Gray (0..1) -> bool ink mask. Local (Sauvola) threshold handles the uneven
-    illumination of pencil on paper where global Otsu underperforms."""
-    thr = threshold_sauvola(gray, window_size=SAUVOLA_WINDOW)
+    illumination of pencil on paper where global Otsu underperforms. `window` is sized to
+    the pen width by the caller so the neighborhood is a fixed number of pen widths at any DPI."""
+    thr = threshold_sauvola(gray, window_size=window)
     # Sauvola alone flags texture inside large blank areas, so require the pixel be
     # genuinely darker than mid-gray too (paper stays paper). But Sauvola also *misses*
     # the interior of a large uniform-dark fill (no local contrast there) -- so accept
@@ -95,8 +105,32 @@ def _binarize(gray: np.ndarray, thresh_bias: float) -> np.ndarray:
     return ((gray < thr + thresh_bias) | (gray < DARK_ABS + thresh_bias)) & (gray < 0.65 + thresh_bias)
 
 
+def _otsu_w(gray: np.ndarray, thresh_bias: float) -> float:
+    """A rough modal pen width via a window-FREE global (Otsu) threshold -- carries no pixel-scale
+    window, so it breaks the chicken-and-egg of sizing the Sauvola window before knowing w."""
+    try:
+        t = float(threshold_otsu(gray))
+    except Exception:
+        t = 0.5
+    rough = (gray < min(t, 0.65) + thresh_bias) | (gray < DARK_ABS + thresh_bias)
+    if not rough.any():
+        return 1.0
+    return _pen_width(rough, ndimage.distance_transform_edt(rough))
+
+
+def _ink_mask(gray: np.ndarray, thresh_bias: float) -> tuple[np.ndarray, float]:
+    """The Sauvola ink mask and its modal pen width, window bootstrapped from the Otsu-rough width. The
+    mode -- the width the child drew MOST -- is the right characteristic width even for a two-width
+    drawing (the flag's thin emblem vs its fat field): it follows the dominant stroke population, so the
+    resize factor derived from it takes that population to TARGET_W rather than an in-between median."""
+    mask = _binarize(gray, thresh_bias, _sauvola_window(_otsu_w(gray, thresh_bias)))
+    return mask, _pen_width(mask, ndimage.distance_transform_edt(mask))
+
+
 def _pick_scale(w_native: float) -> int:
-    """Supersample factor that brings the native pen width up to ~TARGET_W."""
+    """Integer supersample factor that brings the native pen width up toward TARGET_W (up-sampling only;
+    LANCZOS can't invent detail, so a high-DPI scan is left at native and normalized by the w-relative
+    tolerances rather than resized down)."""
     return int(min(SCALE_MAX, max(1, round(TARGET_W / max(w_native, 1e-3)))))
 
 
@@ -159,9 +193,8 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
     gray = rgb.mean(2) / 255.0 if color else rgb / 255.0
     rgb01 = rgb.astype(float) / 255.0 if color else None
 
-    if scale is None:                       # measure native w, then pick the factor
-        native = _binarize(gray, thresh_bias)
-        scale = _pick_scale(_modal_pen_width(native, ndimage.distance_transform_edt(native)))
+    if scale is None:                       # measure native w (w-relative window), then pick the factor
+        scale = _pick_scale(_ink_mask(gray, thresh_bias)[1])
     if scale > 1:                           # LANCZOS keeps antialiased walls/holes crisp
         h, w_ = gray.shape
         gray = np.asarray(Image.fromarray((gray * 255).astype(np.uint8))
@@ -170,18 +203,18 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
             rgb01 = np.asarray(Image.fromarray((rgb01 * 255).astype(np.uint8))
                                .resize((w_ * scale, h * scale), Image.LANCZOS), float) / 255.0
 
-    mask = _binarize(gray, thresh_bias)
+    mask, w = _ink_mask(gray, thresh_bias)  # Sauvola window sized to the pen width (no fixed pixel window)
+    dist = ndimage.distance_transform_edt(mask)
 
-    # Speckle rejection on imaging grounds only: drop paper-grain-sized specks
-    # (grain is a fixed native size, so the floor grows with the supersample).
+    # Speckle rejection on imaging grounds only: drop paper-grain components smaller than a fraction
+    # of a pen width across (GRAIN_W2 * w^2) -- a w-relative floor, not a fixed pixel count.
     lab, n = ndimage.label(mask, structure=np.ones((3, 3)))
     if n:
         areas = ndimage.sum(np.ones_like(lab), lab, index=np.arange(1, n + 1))
-        keep = np.isin(lab, 1 + np.where(areas > GRAIN_AREA * scale * scale)[0])
+        keep = np.isin(lab, 1 + np.where(areas > GRAIN_W2 * w * w)[0])
         mask = mask & keep
-
-    dist = ndimage.distance_transform_edt(mask)
-    w = _modal_pen_width(mask, dist)
+        dist = ndimage.distance_transform_edt(mask)
+        w = _pen_width(mask, dist)
 
     # Fill enclosed hollows smaller than a pen width across: the pen can't carve them, so
     # they are imaging noise, not real holes. Doing it here (not only dropping them when
