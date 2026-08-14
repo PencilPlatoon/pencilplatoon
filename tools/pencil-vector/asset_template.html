@@ -122,6 +122,11 @@
   .waiting .spinner{width:34px;height:34px;border-radius:50%;border:3px solid #d9d2c2;
     border-top-color:var(--blue);animation:spin .8s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
+  /* copyable stack trace shown in place of the drawing when vectorization fails */
+  .errbox{position:absolute;inset:52px 56px 20px 20px;z-index:6;box-sizing:border-box;resize:none;
+    font-family:var(--mono);font-size:11px;line-height:1.45;color:var(--ink);background:var(--paper);
+    border:1px solid var(--red);border-radius:8px;padding:12px 14px;white-space:pre}
+  .errbox[hidden]{display:none}
 </style>
 </head>
 <body>
@@ -151,6 +156,7 @@
     <svg id="view" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="numbadge"></div>
     <div id="waiting" class="waiting" hidden><div class="spinner"></div><span id="waitmsg">vectorizing…</span></div>
+    <textarea id="errbox" class="errbox" readonly spellcheck="false" hidden></textarea>
     <div class="rotcol">
       <output id="rotOut">0°</output>
       <input id="rotSlider" type="range" min="-180" max="180" value="0" step="1">
@@ -336,7 +342,7 @@ function showScanCrop(box){                                        // show the O
   im.src = "/scan/" + encodeURIComponent(SCAN);
 }
 function loadSubject(name){
-  $("#waiting").hidden = true;                                     // model is ready -- clear any waiting/error overlay
+  $("#waiting").hidden = true; $("#errbox").hidden = true;         // model is ready -- clear any waiting/error overlay
   if(SCAN) localStorage.setItem("pv:lastbox:" + SCAN, name);       // remember it, so the boxer's asset-tool tab reopens it
   baseModel = MODELS[name]; adj = buildAdjacency(baseModel);        // adjacency is sid-based, transform-independent
   rot = 0; flipX = false; flipY = false;
@@ -608,17 +614,29 @@ function renderTabs(){                                          // tabs = the cu
 }
 async function vectorizeBox(name){                             // (re)run the pipeline on this box; true on success
   const box = SCANBOXES.find(b => b.name === name);
+  $("#errbox").hidden = true;                                  // clear any prior failure
   $("#waitmsg").textContent = `vectorizing ${TITLES[name] || name}…`;
   $("#waiting").hidden = false;                                // waiting indicator right in the drawing area
   try {
-    await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
-                               body: JSON.stringify({scan: SCAN, boxes: [box]})});
+    const res = await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+                                           body: JSON.stringify({scan: SCAN, boxes: [box]})});
+    if(!res.ok){                                               // pipeline threw -- surface the server traceback, copyable
+      let tb; try { tb = (await res.json()).error; } catch(_) { tb = await res.text(); }
+      showVectorizeError(name, tb || `vectorize failed (HTTP ${res.status})`);
+      return false;
+    }
     await loadModels(); renderTabs();
     return true;
   } catch(e) {
-    $("#waitmsg").textContent = "vectorize failed — is the server running?";
-    return false;                                              // leave the overlay up showing the error
+    showVectorizeError(name, "vectorize request failed — is the server running?\n\n" + (e && e.stack || e));
+    return false;
   }
+}
+function showVectorizeError(name, text){                        // replace the drawing area with a copyable stack trace
+  $("#waiting").hidden = true;
+  const box = $("#errbox");
+  box.value = `vectorize failed for ${TITLES[name] || name}:\n\n${text}`;
+  box.hidden = false;
 }
 async function selectBox(name){
   if(!MODELS[name]){                                            // not vectorized yet: show the original scan crop at once, then vectorize

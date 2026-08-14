@@ -28,6 +28,7 @@ import datetime
 import json
 import os
 import re
+import traceback
 
 from flask import Flask, Response, abort, jsonify, request, send_file
 from PIL import Image
@@ -150,7 +151,12 @@ def do_vectorize():
     scan_name, boxes = req["scan"], req["boxes"]
     img = Image.open(os.path.join(SCANS, scan_name)).convert("RGB")
     bx = load_boxes()
-    results = [vectorize_box(img, scan_name, b, bx) for b in boxes]
+    try:
+        results = [vectorize_box(img, scan_name, b, bx) for b in boxes]
+    except Exception:                                  # hand the traceback back so the tool can show it copyably
+        tb = traceback.format_exc()
+        print(tb, flush=True)
+        return jsonify({"ok": False, "error": tb}), 500
     save_boxes(bx)
     for r in results:
         print(f"vectorized {r['name']}: nodes={r['nodes']} edges={r['edges']} blobs={r['blobs']}", flush=True)
