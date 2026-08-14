@@ -54,6 +54,10 @@ CHROMA_ABS = 0.08       # absolute RGB spread (max-min, 0..1) below this is penc
                         # isn't amplified into noise for near-black pixels -- so a DARK reddish stroke stays
                         # chromatic (mapped to its own colour area) while grey pencil stays black.
 HUE_MERGE = 0.06        # merge two chromatic clusters whose HSV hue agrees within this (~22deg)
+AB_MERGE = 15.0         # ...OR whose mean colours sit within this Lab a/b distance: hue is unstable for
+                        # desaturated colours near the red axis (two browns 23deg apart are one brown),
+                        # so a perceptual-distance merge catches what the hue gate misses (nearest cross-
+                        # colour pair on the test set is ~24 apart, a comfortable margin below this)
 COLOR_MIN_FRAC = 0.03   # drop a chromatic cluster smaller than this fraction of chromatic ink
 IDEAL_S_MIN, IDEAL_S_MAX = 0.30, 0.72   # idealize by cleaning SATURATION into this band while
                                         # keeping the measured value -- a light touch, so a
@@ -96,7 +100,14 @@ def _sauvola_window(w: float) -> int:
     return max(3, int(round(SAUVOLA_W * w)) | 1)
 
 
-def _binarize(gray: np.ndarray, thresh_bias: float, window: int) -> np.ndarray:
+def _chroma(rgb01: np.ndarray | None) -> np.ndarray | None:
+    """Per-pixel absolute RGB spread (max-min, 0..1); None for greyscale. A darkness-independent colour
+    signal -- paper is achromatic (~0), pigment is not -- shared with the palette gate (§CHROMA_ABS)."""
+    return None if rgb01 is None else rgb01.max(2) - rgb01.min(2)
+
+
+def _binarize(gray: np.ndarray, thresh_bias: float, window: int,
+              chroma: np.ndarray | None = None) -> np.ndarray:
     """Gray (0..1) -> bool ink mask. Local (Sauvola) threshold handles the uneven
     illumination of pencil on paper where global Otsu underperforms. `window` is sized to
     the pen width by the caller so the neighborhood is a fixed number of pen widths at any DPI."""
@@ -105,7 +116,14 @@ def _binarize(gray: np.ndarray, thresh_bias: float, window: int) -> np.ndarray:
     # genuinely darker than mid-gray too (paper stays paper). But Sauvola also *misses*
     # the interior of a large uniform-dark fill (no local contrast there) -- so accept
     # any absolutely-dark pixel as ink as well, or that interior becomes a false hole.
-    return ((gray < thr + thresh_bias) | (gray < DARK_ABS + thresh_bias)) & (gray < 0.65 + thresh_bias)
+    ink = ((gray < thr + thresh_bias) | (gray < DARK_ABS + thresh_bias)) & (gray < 0.65 + thresh_bias)
+    # The absolute-dark floor only rescues a DARK fill; a mid-tone COLOURED fill (a brown flagpole,
+    # gray just above DARK_ABS) is missed by both it and Sauvola, leaving a false hole in the middle
+    # of clearly-drawn colour. Paper is achromatic, so any strongly chromatic pixel is ink regardless
+    # of luminance. No effect on greyscale/black-only art (chroma is None / ~0 everywhere).
+    if chroma is not None:
+        ink = ink | (chroma >= CHROMA_ABS)
+    return ink
 
 
 def _otsu_w(gray: np.ndarray, thresh_bias: float) -> float:
@@ -121,12 +139,13 @@ def _otsu_w(gray: np.ndarray, thresh_bias: float) -> float:
     return _pen_width(rough, ndimage.distance_transform_edt(rough))
 
 
-def _ink_mask(gray: np.ndarray, thresh_bias: float) -> tuple[np.ndarray, float]:
+def _ink_mask(gray: np.ndarray, thresh_bias: float,
+              chroma: np.ndarray | None = None) -> tuple[np.ndarray, float]:
     """The Sauvola ink mask and its modal pen width, window bootstrapped from the Otsu-rough width. The
     mode -- the width the child drew MOST -- is the right characteristic width even for a two-width
     drawing (the flag's thin emblem vs its fat field): it follows the dominant stroke population, so the
     resize factor derived from it takes that population to TARGET_W rather than an in-between median."""
-    mask = _binarize(gray, thresh_bias, _sauvola_window(_otsu_w(gray, thresh_bias)))
+    mask = _binarize(gray, thresh_bias, _sauvola_window(_otsu_w(gray, thresh_bias)), chroma)
     return mask, _pen_width(mask, ndimage.distance_transform_edt(mask))
 
 
@@ -164,14 +183,21 @@ def _quantize_colors(rgb: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, lis
     k = min(6, max(1, int(chro.sum() // 120)))
     _, lb = kmeans2(cab, k, minit="++", seed=0, missing="warn")
 
-    def mean_hsv(c):
-        return rgb2hsv(crgb[lb == c].mean(0)[None, None, :])[0, 0]
+    def mean_rgb(c):
+        return crgb[lb == c].mean(0)
 
-    merged = True                                    # merge clusters that share a hue
-    while merged:
+    def mean_hsv(c):
+        return rgb2hsv(mean_rgb(c)[None, None, :])[0, 0]
+
+    def mean_ab(c):
+        return rgb2lab(mean_rgb(c)[None, None, :])[0, 0, 1:]
+
+    merged = True                                    # merge clusters of the same colour (agreeing hue, or
+    while merged:                                    # -- for desaturated colours hue can't resolve -- near in Lab a/b)
         merged = False
         for a, b in itertools.combinations(np.unique(lb), 2):
-            if _hue_diff(float(mean_hsv(a)[0]), float(mean_hsv(b)[0])) < HUE_MERGE:
+            if (_hue_diff(float(mean_hsv(a)[0]), float(mean_hsv(b)[0])) < HUE_MERGE
+                    or np.linalg.norm(mean_ab(a) - mean_ab(b)) < AB_MERGE):
                 lb[lb == b] = a
                 merged = True
                 break
@@ -198,7 +224,7 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
     rgb01 = rgb.astype(float) / 255.0 if color else None
 
     if scale is None:                       # measure native w (w-relative window), then pick the factor
-        scale = _pick_scale(_ink_mask(gray, thresh_bias)[1])
+        scale = _pick_scale(_ink_mask(gray, thresh_bias, _chroma(rgb01))[1])
     if scale > 1:                           # LANCZOS keeps antialiased walls/holes crisp
         h, w_ = gray.shape
         gray = np.asarray(Image.fromarray((gray * 255).astype(np.uint8))
@@ -207,7 +233,7 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
             rgb01 = np.asarray(Image.fromarray((rgb01 * 255).astype(np.uint8))
                                .resize((w_ * scale, h * scale), Image.LANCZOS), float) / 255.0
 
-    mask, w = _ink_mask(gray, thresh_bias)  # Sauvola window sized to the pen width (no fixed pixel window)
+    mask, w = _ink_mask(gray, thresh_bias, _chroma(rgb01))  # Sauvola window sized to the pen width
     dist = ndimage.distance_transform_edt(mask)
 
     # Speckle rejection on imaging grounds only: drop paper-grain components smaller than a fraction
