@@ -56,8 +56,7 @@
   .curasset input:focus{outline:none;border-color:var(--blue)}
   .curasset button{width:100%;font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
     background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
-  .curasset button:hover:not(:disabled){border-color:var(--blue)}
-  .curasset button:disabled{opacity:.4;cursor:not-allowed}
+  .curasset button:hover{border-color:var(--blue)}
   .shortcuts table{border-collapse:collapse;font-size:12px;width:100%}
   .shortcuts td{padding:4px 0;vertical-align:top}
   .shortcuts td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;padding-right:12px}
@@ -153,8 +152,7 @@
     <h3>Current asset</h3>
     <div class="curasset">
       <input id="assetName" type="text" value="unnamed" spellcheck="false" autocomplete="off">
-      <button id="expBtn">Save new asset</button>
-      <button id="updBtn" disabled>Update</button>
+      <button id="saveBtn">Save new asset</button>
     </div>
     <h3 class="assets-h">Assets</h3>
     <div id="exports" class="exports"></div>
@@ -291,13 +289,14 @@ function transformModel(base, rotDeg, fx, fy){        // rigid rotate + flip abo
     size: [ +(c2-a2+2*PAD).toFixed(1), +(d2-b2+2*PAD).toFixed(1) ] };
 }
 
-function placeRotcol(){                                            // pin the rotate column flush to the drawing's left edge, matching its height
-  const svg = $("#view"), col = $(".rotcol"), canvas = $(".canvas");
-  if(!svg || !col || !canvas) return;
-  const s = svg.getBoundingClientRect(), c = canvas.getBoundingClientRect();
-  col.style.top = (s.top - c.top) + "px";
-  col.style.height = s.height + "px";
-  col.style.left = (s.right - c.left) + "px";
+function placeRotcol(){                                            // span the drawing PANEL's full height, not the SVG's:
+  const svg = $("#view"), col = $(".rotcol"), canvas = $(".canvas");// rotating a non-square image changes the SVG's height,
+  if(!svg || !col || !canvas) return;                              // which would resize the slider track mid-drag and make
+  const s = svg.getBoundingClientRect(), c = canvas.getBoundingClientRect();  // its value fluctuate. The panel height is fixed.
+  const cs = getComputedStyle(canvas), padT = parseFloat(cs.paddingTop), padB = parseFloat(cs.paddingBottom);
+  col.style.top = padT + "px";
+  col.style.height = (canvas.clientHeight - padT - padB) + "px";
+  col.style.left = (s.right - c.left) + "px";                      // still tracks the drawing's right edge horizontally
 }
 function reflow(){ placeRotcol(); }
 function refresh(){ draw(); render(); wireCanvas(); reflow(); }
@@ -331,8 +330,8 @@ function loadAsset(a){                                            // reload a sa
   applyTransform();                                               // redraw with the restored transform; render() re-applies hidden
 }
 
-function updateAssetBar(){                                        // Update only makes sense while a saved asset is loaded
-  $("#updBtn").disabled = !currentAsset;
+function updateAssetBar(){                                        // one button: updates the loaded asset, or saves a new one
+  $("#saveBtn").textContent = currentAsset ? "Update asset" : "Save new asset";
   for(const fig of document.querySelectorAll("#exports .exp"))
     fig.classList.toggle("on", decodeURIComponent(fig.dataset.asset) === currentAsset);
 }
@@ -532,8 +531,7 @@ function saveAsset(assetId){                                     // assetId null
 }
 
 // wire buttons
-$("#expBtn").onclick = () => saveAsset(null);                    // save new asset
-$("#updBtn").onclick = () => saveAsset(currentAsset);            // update the loaded asset in place
+$("#saveBtn").onclick = () => saveAsset(currentAsset);           // null -> new asset; set -> update it in place
 $("#tabBoxer").onclick = () => { if(!$("#tabBoxer").disabled) location.href = "/?scan=" + encodeURIComponent(SCAN); };
 $("#scBtn").onclick = () => {                                    // toggle the shortcuts panel (rightmost box)
   const sc = $("#shortcuts"); sc.hidden = !sc.hidden;
