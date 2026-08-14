@@ -374,9 +374,13 @@ def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
     into it, or lying along it) is stored on the blob's `ann['edges']` and the
     blob sid on the edge's `ann['blobs']`, so flood can traverse the blob as a
     connectivity hub. `blob_masks` maps blob node id -> mask."""
+    it = max(1, int(round(g.w)))
     for nid, mask in blob_masks.items():
         nb = g.nodes[nid]
-        near = ndimage.binary_dilation(mask, iterations=max(1, int(round(g.w))))
+        near = np.zeros_like(mask)                         # dilate in the blob's window (identical: the
+        sl = bbox_slice(mask, pad=it + 1)                  # dilation reaches at most `it` past the bbox)
+        if sl is not None:
+            near[sl] = ndimage.binary_dilation(mask[sl], iterations=it)
         attached = []
         for e in g.edges.values():
             if _edge_touches_blob(e, mask, near, g.w):
@@ -516,10 +520,14 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     from model import BLOB
 
     sw = max(1, int(round(w)))
+    it = max(1, int(round(STUB_NEAR * w)))
     removed: set = set()
     for nid, mask in list(blob_masks.items()):
         bcol = g.nodes[nid].ann.get("color", 0)
-        near = ndimage.binary_dilation(mask, iterations=max(1, int(round(STUB_NEAR * w))))
+        near = np.zeros_like(mask)                         # dilate in the blob's window (identical result)
+        sl = bbox_slice(mask, pad=it + 1)
+        if sl is not None:
+            near[sl] = ndimage.binary_dilation(mask[sl], iterations=it)
         stubs = []
         for e in g.edges.values():
             if e.id in removed or e.length > STUB_LEN * w or e.ann.get("color", 0) != bcol:
