@@ -4,7 +4,7 @@ out/
 data/
 # generated inspectors (published as claude.ai artifacts, not tracked); keep the hand-authored template
 *.html
-!cleanup_template.html
+!asset_template.html
 !scan_boxer.html
 .venv/
 venv/

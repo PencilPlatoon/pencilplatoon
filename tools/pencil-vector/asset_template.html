@@ -3,51 +3,76 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Pencil Vector · Cleanup</title>
+<title>Pencil Vector · Asset tool</title>
 <style>
   :root{
     --bg:#16171b; --panel:#1e2026; --hair:#31333c; --ink:#e9e7e0; --muted:#9a978d;
     --paper:#f6f1e6; --blue:#5878e6; --red:#e8402f; --green:#37b26a;
+    --btn:#3a3f4d; --btn-line:#4c5264;   /* buttons: lighter than the dark inputs/panels so they read as buttons */
     --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
   }
   *{box-sizing:border-box} html,body{margin:0;height:100%}
   body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
-  header{display:flex;align-items:baseline;gap:20px;padding:12px 18px;border-bottom:1px solid var(--hair)}
+  header{display:flex;align-items:center;gap:16px;padding:12px 18px;border-bottom:1px solid var(--hair)}
   header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
-  header .sub{font-family:var(--mono);font-size:12px;color:var(--muted)}
-  .subjects{display:flex;gap:6px;margin-left:auto}
+  header .sc-toggle{margin-left:auto}
+  .tabs{display:flex;gap:4px}
+  .tab{font:inherit;font-size:12.5px;padding:6px 13px;border-radius:7px;cursor:pointer;
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
+  .tab:hover:not(.on):not(:disabled){border-color:var(--blue)}
+  .tab.on{background:var(--blue);border-color:var(--blue);color:#fff;cursor:default}
+  .tab:disabled{opacity:.4;cursor:not-allowed}
+  .subjectbar{display:flex;align-items:center;gap:6px;padding:8px 18px;border-bottom:1px solid var(--hair);overflow-x:auto}
+  .subjects{display:flex;gap:6px;flex-wrap:wrap}
   .subjects button{position:relative;font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
-    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
   .subjects button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .subjects button.pending{opacity:.5;border-style:dashed}
   .chk{position:absolute;top:-5px;right:-5px;width:15px;height:15px;border-radius:50%;background:var(--green);
     color:#fff;font:700 10px/15px var(--sans);text-align:center;box-shadow:0 0 0 2px var(--bg)}
-  .back{font-size:12px;color:var(--blue);text-decoration:none;padding:5px 11px;border:1px solid var(--hair);border-radius:16px;white-space:nowrap}
-  .back:hover{border-color:var(--blue)}
-  .status{font-family:var(--mono);font-size:12px;color:var(--muted);margin-left:12px}
   .cbar{position:absolute;top:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:5}
-  .cbar button,.namebar button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
-    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
-  .cbar button:hover,.namebar button:hover{border-color:var(--blue)}
-  .namebar button{margin-left:4px}
-  .namebar{display:flex;align-items:center;gap:10px;padding:8px 20px;border-bottom:1px solid var(--hair)}
-  .namebar label{font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-  .namebar input{font-size:13px;font-family:var(--mono);padding:6px 10px;border-radius:6px;min-width:220px;
-    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
-  .namebar input:focus{outline:none;border-color:var(--blue)}
-  .namebar .fn{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .cbar button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
+  .cbar button:hover{border-color:var(--blue)}
+  .sc-toggle{font:inherit;font-size:12px;padding:5px 11px;border-radius:16px;cursor:pointer;white-space:nowrap;
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
+  .sc-toggle:hover{border-color:var(--blue)}
+  .sc-toggle.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .stage{flex:1;display:flex;min-height:0}
-  .guide{width:196px;flex:none;border-left:1px solid var(--hair);padding:14px 16px;overflow:auto}
-  .guide h3{margin:0 0 10px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
-  .guide table{border-collapse:collapse;font-size:12px;width:100%}
-  .guide td{padding:4px 0;vertical-align:top}
-  .guide td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;padding-right:12px}
-  .guide td.a{color:var(--muted)}
+  .scans{width:190px;flex:none;border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+  .scans h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+  #scanlist{margin:0;padding:8px;list-style:none;overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px}
+  #scanlist li{font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
+  #scanlist li:hover:not(.on){background:var(--panel)}
+  #scanlist li.on{background:var(--blue);color:#fff}
+  .guide,.shortcuts{flex:none;border-left:1px solid var(--hair);padding:14px 16px;overflow:auto}
+  .guide{width:210px} .shortcuts{width:172px} .shortcuts[hidden]{display:none}
+  .guide h3,.shortcuts h3{margin:0 0 10px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
+  .guide h3.assets-h{margin-top:20px;padding-top:16px;border-top:1px solid var(--hair)}
+  .curasset{display:flex;flex-direction:column;gap:7px}
+  .curasset input{width:100%;font-size:13px;font-family:var(--mono);padding:6px 10px;border-radius:6px;
+    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+  .curasset input:focus{outline:none;border-color:var(--blue)}
+  .curasset button{width:100%;font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
+  .curasset button:hover:not(:disabled){border-color:var(--blue)}
+  .curasset button:disabled{opacity:.4;cursor:not-allowed}
+  .shortcuts table{border-collapse:collapse;font-size:12px;width:100%}
+  .shortcuts td{padding:4px 0;vertical-align:top}
+  .shortcuts td.k{font-family:var(--mono);color:var(--ink);white-space:nowrap;padding-right:12px}
+  .shortcuts td.a{color:var(--muted)}
   .guide .exports{display:flex;flex-direction:column;gap:8px;margin-top:4px}
   .guide .exports .none{font-size:12px;color:var(--muted)}
-  .guide .exp{margin:0}
+  .guide .exp{margin:0;border-radius:7px;display:flex;align-items:center;gap:6px}
+  .guide .exp .thumb{flex:1;min-width:0;cursor:pointer}
   .guide .exp img{width:100%;background:var(--paper);border:1px solid var(--hair);border-radius:6px;display:block}
-  .guide .exp figcaption{font-family:var(--mono);font-size:10px;color:var(--muted);margin-top:2px;word-break:break-all}
+  .guide .exp.on img{border-color:var(--green);box-shadow:0 0 0 1px var(--green)}
+  .guide .exp .trash{flex:none;width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    border:none;border-radius:6px;cursor:pointer;color:var(--muted);background:none}
+  .guide .exp .trash:hover{color:var(--red)}
+  .guide .exp figcaption{font-size:11px;color:var(--muted);margin-top:3px;word-break:break-word}
+  .guide .exp.on figcaption{color:var(--ink)}
   .rotcol{position:absolute;box-sizing:border-box;width:40px;display:flex;flex-direction:column;
     align-items:center;gap:10px;padding:2px 0}
   .rotcol output{font:600 11px var(--mono);color:var(--ink)}
@@ -60,7 +85,7 @@
   .rotcol input[type=range]::-moz-range-thumb{width:14px;height:14px;border-radius:50%;background:var(--blue);border:none}
   .rotcol .flips{display:flex;flex-direction:column;gap:6px;width:100%;padding:0 3px}
   .rotcol .flips button{font-size:14px;line-height:1;padding:6px 0;border-radius:6px;cursor:pointer;
-    background:var(--panel);border:1px solid var(--hair);color:var(--ink)}
+    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
   .rotcol .flips button:hover{border-color:var(--blue)}
   .rotcol .flips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .canvas{flex:1;display:grid;place-items:center;padding:52px 56px 20px 20px;overflow:auto;position:relative}
@@ -82,30 +107,42 @@
   .el.hover .blob{fill:var(--red)}
   .el.sel .edge{stroke:var(--blue)} .el.sel .blob{fill:var(--blue)}
   .el.hidden{opacity:.12}
-  .el.hidden .hit{pointer-events:none}
+  .el.hidden.hover{opacity:1}                                 /* hovering a deleted segment reveals it, so you can pick it */
+  .el.hidden.sel{opacity:1}                                   /* selected for undelete -> fully visible, in green */
+  .el.hidden.sel .edge{stroke:var(--green)} .el.hidden.sel .blob{fill:var(--green)}
   .marquee{fill:rgba(88,120,230,.10);stroke:var(--blue);stroke-width:1.4;stroke-dasharray:6 4;
     vector-effect:non-scaling-stroke;pointer-events:none}
+  /* waiting indicator shown in the drawing area while a box vectorizes */
+  .waiting{position:absolute;inset:52px 56px 20px 20px;display:flex;flex-direction:column;gap:14px;
+    align-items:center;justify-content:center;background:var(--paper);border-radius:8px;
+    color:#6b675c;font-size:13px;z-index:5}
+  .waiting[hidden]{display:none}
+  .waiting .spinner{width:34px;height:34px;border-radius:50%;border:3px solid #d9d2c2;
+    border-top-color:var(--blue);animation:spin .8s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
 </style>
 </head>
 <body>
 <header>
-  <h1>Pencil&nbsp;Vector <span class="sub">· cleanup tool</span></h1>
-  <a id="backscan" class="back" href="/">←&nbsp;scan</a>
-  <div class="subjects" id="subjects"></div>
-  <span id="status" class="status"></span>
+  <h1>Pencil&nbsp;Vector</h1>
+  <div class="tabs">
+    <button id="tabBoxer" class="tab">box selector</button>
+    <button id="tabAsset" class="tab on">asset tool</button>
+  </div>
+  <button id="scBtn" class="sc-toggle" title="Show keyboard shortcuts">Shortcuts</button>
 </header>
-<div class="namebar">
-  <label for="assetName">Asset name</label>
-  <input id="assetName" type="text" value="unnamed" spellcheck="false" autocomplete="off">
-  <button id="expBtn">Save as SVG asset</button>
-  <span class="fn" id="fnPreview"></span>
-</div>
+<div class="subjectbar"><div class="subjects" id="subjects"></div></div>
 <div class="stage">
+  <aside class="scans">
+    <h3>Scans</h3>
+    <ul id="scanlist"></ul>
+  </aside>
   <div class="scanref" id="scanref"><img id="scanimg" alt="original scan"></div>
   <div class="canvas">
     <div class="cbar"><button id="clrBtn">Clear selection</button><button id="resetBtn">Reset drawing</button></div>
     <svg id="view" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="numbadge"></div>
+    <div id="waiting" class="waiting" hidden><div class="spinner"></div><span id="waitmsg">vectorizing…</span></div>
     <div class="rotcol">
       <output id="rotOut">0°</output>
       <input id="rotSlider" type="range" min="-180" max="180" value="0" step="1">
@@ -113,6 +150,16 @@
     </div>
   </div>
   <aside class="guide">
+    <h3>Current asset</h3>
+    <div class="curasset">
+      <input id="assetName" type="text" value="unnamed" spellcheck="false" autocomplete="off">
+      <button id="expBtn">Save new asset</button>
+      <button id="updBtn" disabled>Update</button>
+    </div>
+    <h3 class="assets-h">Assets</h3>
+    <div id="exports" class="exports"></div>
+  </aside>
+  <aside class="shortcuts" id="shortcuts" hidden>
     <h3>Shortcuts</h3>
     <table>
       <tr><td class="k">click</td><td class="a">toggle</td></tr>
@@ -123,19 +170,22 @@
       <tr><td class="k">⌥ click</td><td class="a">whole stroke</td></tr>
       <tr><td class="k">⌘A</td><td class="a">select all</td></tr>
       <tr><td class="k">⇧⌘A</td><td class="a">deselect all</td></tr>
-      <tr><td class="k">Del</td><td class="a">hide</td></tr>
-      <tr><td class="k">⌘S</td><td class="a">export</td></tr>
+      <tr><td class="k">Del</td><td class="a">delete</td></tr>
+      <tr><td class="k">U</td><td class="a">undelete</td></tr>
+      <tr><td class="k">⌘S</td><td class="a">save</td></tr>
     </table>
-    <h3>Exports</h3>
-    <div id="exports" class="exports"></div>
   </aside>
 </div>
 <script>
 let MODELS = {}, SCAN = null, SCANBOXES = [];
 const SVGNS = "http://www.w3.org/2000/svg";
 const $ = s => document.querySelector(s);
+const TRASH = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" '
+  + 'stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/>'
+  + '<path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>';
 
 let model, baseModel, adj, selected, hidden, rot = 0, flipX = false, flipY = false;
+let currentAsset = null;                                          // the saved asset currently loaded (its id), or null for a fresh box
 
 function buildAdjacency(m){
   // hub key -> [edge sid]. A hub is a skeleton node ("n"+id) OR a blob sid, so a
@@ -191,7 +241,7 @@ function elFor(sid){ return $(`.el[data-sid="${CSS.escape(sid)}"]`); }
 function render(){
   for(const el of document.querySelectorAll(".el")){
     const sid = el.dataset.sid;
-    el.classList.toggle("sel", selected.has(sid) && !hidden.has(sid));
+    el.classList.toggle("sel", selected.has(sid));            // a deleted segment can be selected too (to undelete it)
     el.classList.toggle("hidden", hidden.has(sid));
   }
 }
@@ -226,7 +276,8 @@ function transformModel(base, rotDeg, fx, fy){        // rigid rotate + flip abo
   for(const bl of base.blobs) for(const p of bl.boundary) g0(p[0],p[1]);
   for(const e of base.edges) for(const p of e.pts) g0(p[0],p[1]);
   const cx=(a+c)/2, cy=(b+d)/2;
-  const pre = (x,y)=>{ const dx=(x-cx)*sx, dy=(y-cy)*sy; return [dx*cos - dy*sin, dx*sin + dy*cos]; };
+  const pre = (x,y)=>{ const dx=x-cx, dy=y-cy;           // rotate first, then flip -> flip acts on the rotated result
+    return [ (dx*cos - dy*sin)*sx, (dx*sin + dy*cos)*sy ]; };
   let a2=Infinity,b2=Infinity,c2=-Infinity,d2=-Infinity;            // bounds AFTER transform -> grows to fit the rotation
   const g1=(x,y)=>{if(x<a2)a2=x;if(y<b2)b2=y;if(x>c2)c2=x;if(y>d2)d2=y;};
   for(const bl of base.blobs) for(const p of bl.boundary){ const q=pre(p[0],p[1]); g1(q[0],q[1]); }
@@ -248,11 +299,13 @@ function placeRotcol(){                                            // pin the ro
   col.style.height = s.height + "px";
   col.style.left = (s.right - c.left) + "px";
 }
-function reflow(){ alignName(); placeRotcol(); }
+function reflow(){ placeRotcol(); }
 function refresh(){ draw(); render(); wireCanvas(); reflow(); }
 function applyTransform(){ model = transformModel(baseModel, rot, flipX, flipY); refresh(); }
 
 function loadSubject(name){
+  $("#waiting").hidden = true;                                     // model is ready -- clear any waiting/error overlay
+  if(SCAN) localStorage.setItem("pv:lastbox:" + SCAN, name);       // remember it, so the boxer's asset-tool tab reopens it
   baseModel = MODELS[name]; adj = buildAdjacency(baseModel);        // adjacency is sid-based, transform-independent
   rot = 0; flipX = false; flipY = false;
   $("#rotSlider").value = 0; $("#rotOut").textContent = "0°";
@@ -260,10 +313,28 @@ function loadSubject(name){
   if(baseModel.scan){ $("#scanimg").src = "data:image/jpeg;base64,"+baseModel.scan; $("#scanref").hidden = false; }
   else { $("#scanimg").removeAttribute("src"); $("#scanref").hidden = true; }
   selected = new Set(); hidden = new Set();
+  currentAsset = null;                                            // a fresh box -- not editing any saved asset
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
-  $("#assetName").value = name;                                    // the box name is the asset name
-  renderExports(name);
-  applyTransform(); updateFn();
+  $("#assetName").value = name;                                    // the box name seeds a new asset's name
+  renderExports(name); updateAssetBar();
+  applyTransform();
+}
+
+function loadAsset(a){                                            // reload a saved asset's editing state back into the drawing
+  const st = a.state || {};
+  hidden = new Set(st.hidden || []); selected = new Set();
+  rot = st.rot || 0; flipX = !!st.flipX; flipY = !!st.flipY;
+  $("#rotSlider").value = rot; $("#rotOut").textContent = rot + "°";
+  $("#flipXBtn").classList.toggle("on", flipX); $("#flipYBtn").classList.toggle("on", flipY);
+  $("#assetName").value = a.name || a.asset.replace(/\.svg$/, "");
+  currentAsset = a.asset; updateAssetBar();
+  applyTransform();                                               // redraw with the restored transform; render() re-applies hidden
+}
+
+function updateAssetBar(){                                        // Update only makes sense while a saved asset is loaded
+  $("#updBtn").disabled = !currentAsset;
+  for(const fig of document.querySelectorAll("#exports .exp"))
+    fig.classList.toggle("on", decodeURIComponent(fig.dataset.asset) === currentAsset);
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
@@ -309,7 +380,7 @@ function wireCanvas(){
     const u = p.matrixTransform(svg.getScreenCTM().inverse()); return {x:u.x, y:u.y};
   };
   svg.addEventListener("mouseover", e => {
-    const el = e.target.closest(".el"); if(el && !el.classList.contains("hidden")){
+    const el = e.target.closest(".el"); if(el){                  // deleted segments hover too (to find/undelete them)
       el.classList.add("hover"); badge.textContent = "#" + el.dataset.num; badge.style.display = "flex";
     }
   });
@@ -339,9 +410,11 @@ function wireCanvas(){
   });
   svg.addEventListener("click", e => {
     if(justMarqueed){ justMarqueed = false; return; }            // a drag just finished -- swallow the click
-    const el = e.target.closest(".el"); if(!el || hidden.has(el.dataset.sid)) return;
+    const el = e.target.closest(".el"); if(!el) return;
     const sid = el.dataset.sid;
-    if(e.metaKey){                                               // flood the connected component
+    if(hidden.has(sid)){                                         // a deleted segment: plain toggle only (to queue it for undelete)
+      selected.has(sid) ? selected.delete(sid) : selected.add(sid);
+    } else if(e.metaKey){                                        // flood the connected component
       const comp = floodFrom(sid), remove = e.shiftKey;          // ⇧⌘ = anti-fill (remove); ⌘ = fill (add)
       for(const s of comp) remove ? selected.delete(s) : selected.add(s);
     } else if(e.altKey){                                         // select one continuity stroke (through crossings)
@@ -370,28 +443,56 @@ function deleteSelected(){
   render();
 }
 
-function assetName(){ return (($("#assetName").value||"").trim().replace(/\s+/g,"_").replace(/[\\/]+/g,"-")) || "unnamed"; }
-function updateFn(){ $("#fnPreview").textContent = `→ ${assetName()}.svg`; }
-function renderExports(subject){                                  // thumbnails of each SVG saved from this box
-  const box = SCANBOXES.find(b => b.name === subject);
-  const assets = [...new Set(((box && box.exports) || []).map(e => e.asset))];
-  $("#exports").innerHTML = assets.length
-    ? assets.map(a => `<figure class="exp"><img src="/svg/${encodeURIComponent(a)}?t=${Date.now()}" alt="${a}"><figcaption>${a}</figcaption></figure>`).join("")
-    : '<div class="none">no exports yet</div>';
-}
-function alignName(){                                            // line the name control up with the centered drawing's left edge
-  const svg = $("#view"), bar = $(".namebar");
-  if(!svg || !bar) return;
-  const dx = svg.getBoundingClientRect().left - bar.getBoundingClientRect().left;
-  bar.style.paddingLeft = Math.max(0, dx) + "px";
+function undeleteSelected(){                                     // restore the selected deleted segments
+  const s = [...selected].filter(sid => hidden.has(sid)); if(!s.length) return;
+  for(const sid of s){ hidden.delete(sid); selected.delete(sid); }
+  render();
 }
 
-function exportAsset(){                                          // export every non-hidden element, cropped to content
+function displayName(){ return (($("#assetName").value||"").trim()) || "unnamed"; }
+function assetsFor(subject){                                      // this box's assets, de-duped by id (latest entry per asset)
+  const box = SCANBOXES.find(b => b.name === subject);
+  const map = new Map();
+  for(const e of ((box && box.exports) || [])) map.set(e.asset, e);
+  return [...map.values()];
+}
+function renderExports(subject){                                  // thumbnail of each saved asset; click one to reload its state
+  const assets = assetsFor(subject), box = $("#exports");
+  if(!assets.length){ box.innerHTML = '<div class="none">no assets yet</div>'; return; }
+  box.innerHTML = assets.map(a => {
+    const label = a.name || a.asset.replace(/\.svg$/, "");
+    return `<figure class="exp${a.asset === currentAsset ? " on" : ""}" data-asset="${encodeURIComponent(a.asset)}">`
+      + `<div class="thumb"><img src="/svg/${encodeURIComponent(a.asset)}?t=${Date.now()}" alt="${label}">`
+      + `<figcaption>${label}</figcaption></div>`
+      + `<button class="trash" title="Delete asset">${TRASH}</button></figure>`;
+  }).join("");
+  for(const fig of box.querySelectorAll(".exp")){
+    const a = assets.find(x => x.asset === decodeURIComponent(fig.dataset.asset));
+    fig.querySelector(".thumb").onclick = () => loadAsset(a);
+    fig.querySelector(".trash").onclick = () => deleteAsset(a);   // its own control, beside the drawing
+  }
+}
+function deleteAsset(a){
+  fetch("/asset/delete", {method:"POST", headers:{"Content-Type":"application/json"},
+                          body: JSON.stringify({subject: model.subject, asset: a.asset})})
+    .then(r => r.json())
+    .then(async res => {
+      if(!res.ok){ console.error("delete failed"); return; }
+      if(currentAsset === a.asset) currentAsset = null;           // was loaded in the editor -> deselect
+      const bd = await (await fetch("/boxes")).json();
+      if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
+      renderTabs(); renderExports(model.subject); updateAssetBar();
+    })
+    .catch(() => console.error("delete failed (is the server running?)"));
+}
+
+function currentState(){ return { hidden: [...hidden], rot, flipX, flipY }; }
+
+function buildAssetSvg(){                                        // every non-hidden element, cropped tight to content
   const m = model, sw = Math.max(1, m.w);
   const blobs = m.blobs.filter(b => !hidden.has(b.sid));
   const edges = m.edges.filter(e => !hidden.has(e.sid));
-  if(!blobs.length && !edges.length){ alert("Nothing to export — everything is hidden."); return; }
-  const name = assetName();
+  if(!blobs.length && !edges.length) return null;
 
   let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;     // tight bounds over the kept geometry
   const grow = (x,y) => { if(x<x0)x0=x; if(y<y0)y0=y; if(x>x1)x1=x; if(y>y1)y1=y; };
@@ -410,23 +511,34 @@ function exportAsset(){                                          // export every
   out.push(`<g fill="none" stroke="#141414" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
   for(const e of edges) out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
   out.push("</g></svg>");
-  fetch("/export", {method:"POST", headers:{"Content-Type":"application/json"},
-                    body: JSON.stringify({subject: m.subject, name, svg: out.join("")})})
+  return out.join("");
+}
+
+function saveAsset(assetId){                                     // assetId null -> a new asset; else update that asset in place
+  const svg = buildAssetSvg();
+  if(svg === null){ alert("Nothing to save — everything is hidden."); return; }
+  const body = { subject: model.subject, name: displayName(), svg, state: currentState() };
+  if(assetId) body.asset = assetId;
+  fetch("/export", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)})
     .then(r => r.json())
     .then(async res => {
-      $("#fnPreview").textContent = res.ok ? `saved ${res.path}` : "export failed";
-      if(res.ok){                                                // refresh this box's exports so the new thumbnail shows
-        const bd = await (await fetch("/boxes")).json();
-        if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
-        renderTabs(); renderExports(m.subject);
-      }
+      if(!res.ok){ console.error("save failed"); return; }
+      currentAsset = res.asset;                                  // now editing the saved asset -> further ⌘S updates it
+      const bd = await (await fetch("/boxes")).json();
+      if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
+      renderTabs(); renderExports(model.subject); updateAssetBar();
     })
-    .catch(() => { $("#fnPreview").textContent = "export failed (is the server running?)"; });
+    .catch(() => console.error("save failed (is the server running?)"));
 }
 
 // wire buttons
-$("#expBtn").onclick = exportAsset;
-$("#assetName").oninput = updateFn;                              // just the export filename now -- not a box rename
+$("#expBtn").onclick = () => saveAsset(null);                    // save new asset
+$("#updBtn").onclick = () => saveAsset(currentAsset);            // update the loaded asset in place
+$("#tabBoxer").onclick = () => { if(!$("#tabBoxer").disabled) location.href = "/?scan=" + encodeURIComponent(SCAN); };
+$("#scBtn").onclick = () => {                                    // toggle the shortcuts panel (rightmost box)
+  const sc = $("#shortcuts"); sc.hidden = !sc.hidden;
+  $("#scBtn").classList.toggle("on", !sc.hidden); reflow();
+};
 window.addEventListener("resize", reflow);
 $("#rotSlider").oninput = e => { rot = +e.target.value; $("#rotOut").textContent = rot + "°"; applyTransform(); };
 $("#flipXBtn").onclick = e => { flipX = !flipX; e.currentTarget.classList.toggle("on", flipX); applyTransform(); };
@@ -434,9 +546,11 @@ $("#flipYBtn").onclick = e => { flipY = !flipY; e.currentTarget.classList.toggle
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
+  if(/^(INPUT|TEXTAREA)$/.test(e.target.tagName)) return;        // don't hijack typing in the asset-name field
   if((e.metaKey || e.ctrlKey) && (e.key==="a" || e.key==="A")){ e.preventDefault(); e.shiftKey ? clearSelection() : selectAll(); }
-  else if((e.metaKey || e.ctrlKey) && (e.key==="s" || e.key==="S")){ e.preventDefault(); exportAsset(); }
+  else if((e.metaKey || e.ctrlKey) && (e.key==="s" || e.key==="S")){ e.preventDefault(); saveAsset(currentAsset); }
   else if(e.key==="Delete" || e.key==="Backspace"){ e.preventDefault(); deleteSelected(); }
+  else if(e.key==="u" || e.key==="U"){ e.preventDefault(); undeleteSelected(); }
 });
 
 // subject buttons -- full titles for the demo subjects; boxed subjects use their box name
@@ -456,25 +570,49 @@ function renderTabs(){                                          // tabs = the cu
 async function selectBox(name){
   if(!MODELS[name]){                                            // this box isn't vectorized yet -- do it on demand
     const box = SCANBOXES.find(b => b.name === name);
-    $("#status").textContent = `vectorizing ${name}…`;
-    await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
-                               body: JSON.stringify({scan: SCAN, boxes: [box]})});
-    await loadModels(); renderTabs();
-    $("#status").textContent = "";
+    $("#waitmsg").textContent = `vectorizing ${TITLES[name] || name}…`;
+    $("#waiting").hidden = false;                               // waiting indicator right in the drawing area
+    try {
+      await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+                                 body: JSON.stringify({scan: SCAN, boxes: [box]})});
+      await loadModels(); renderTabs();
+    } catch(e) {
+      $("#waitmsg").textContent = "vectorize failed — is the server running?";
+      return;                                                   // leave the overlay up showing the error
+    }
   }
-  loadSubject(name);
+  loadSubject(name);                                            // clears the overlay once the model is in hand
+}
+function openScan(name){                                        // switch the asset tool to another scan: its last box, else its first
+  if(name === SCAN) return;
+  const last = localStorage.getItem("pv:lastbox:" + name);
+  location.href = "/asset?scan=" + encodeURIComponent(name) + (last ? "&subject=" + encodeURIComponent(last) : "");
+}
+async function loadScanList(){                                  // the same scan picker as the boxer, current scan highlighted
+  let list = [];
+  try { list = await (await fetch("/scans")).json(); } catch(e) { return; }
+  const ul = $("#scanlist");
+  ul.innerHTML = list.map(n => `<li data-scan="${encodeURIComponent(n)}">${n}</li>`).join("");
+  for(const li of ul.children){
+    const name = decodeURIComponent(li.dataset.scan);
+    li.classList.toggle("on", name === SCAN);
+    li.onclick = () => openScan(name);
+  }
 }
 async function boot(){
   const p = new URLSearchParams(location.search);
   SCAN = p.get("scan"); const want = p.get("subject");
+  loadScanList();
   await loadModels();
   const boxData = await (await fetch("/boxes")).json();
   if(SCAN){
     SCANBOXES = (boxData.boxes || []).filter(b => b.scan === SCAN);
-    $("#backscan").href = "/?scan=" + encodeURIComponent(SCAN);
+    const coords = (p.get("box") || "").split(",").map(Number);  // a freshly-drawn box passes its coords, not yet in boxes.json
+    if(want && coords.length === 4 && !coords.some(isNaN) && !SCANBOXES.some(b => b.name === want))
+      SCANBOXES.push({name: want, scan: SCAN, x0: coords[0], y0: coords[1], x1: coords[2], y1: coords[3]});
   } else {                                                      // no scan context: show every vectorized subject
     SCANBOXES = Object.keys(MODELS).map(n => ({name: n}));
-    $("#backscan").style.display = "none";
+    $("#tabBoxer").disabled = true;                             // nothing to go back to without a scan
   }
   if(!SCANBOXES.length){ $("#subjects").innerHTML = '<span style="color:var(--muted);font-size:12px">no boxes — mark some in the scan view</span>'; return; }
   renderTabs();

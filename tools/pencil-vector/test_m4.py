@@ -1,4 +1,4 @@
-"""M4 acceptance tests -- the model the cleanup tool consumes (plan §10, §13).
+"""M4 acceptance tests -- the model the asset tool consumes (plan §10, §13).
 
 The tool needs a serialized model whose edges carry endpoint node ids (so
 flood-select can traverse adjacency) and whose every element carries its stable

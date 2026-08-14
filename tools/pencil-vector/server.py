@@ -4,17 +4,21 @@ One process serves the browser tools AND owns the pipeline + files, so the tools
 and read/write real files (no baking, no downloads, a real audit trail):
 
   GET  /            -> scan boxer
-  GET  /cleanup     -> cleanup tool
+  GET  /asset       -> asset tool
   GET  /scans       -> list scans in artwork-scans/
   GET  /scan/<name> -> serve a scan image
-  GET  /svg/<name>  -> serve an exported asset SVG (cleanup exports thumbnails)
+  GET  /svg/<name>  -> serve an exported asset SVG (asset-tool thumbnails)
   POST /vectorize   -> {scan, boxes:[{name,x0,y0,x1,y1}]} : crop + vectorize each, save out/<name>_model.json
                        (with box provenance + scan thumbnail), record the boxes in out/boxes.json
-  GET  /models      -> every current out/*_model.json (the cleanup tool loads these live)
+  GET  /models      -> every current out/*_model.json (the asset tool loads these live)
   GET  /boxes       -> data/boxes.json (box defs + audit) so the boxer can pre-load a scan's boxes
+  POST /box         -> {name, scan, x0,y0,x1,y1} : persist a drawn box def at once (no vectorize)
+  POST /box/delete  -> {name} : drop a box def + its regeneratable model/crop (exported svgs kept)
+  POST /asset/delete-> {subject, asset} : remove one saved asset (its boxes.json record + its svg file)
   POST /rename      -> {old, new} : rename a box everywhere (model, crop, boxes.json)
-  POST /export      -> {subject, name, svg} : write out/svg/<name>.svg AND append the export to the
-                       subject's box in out/boxes.json -- the audit trail
+  POST /export      -> {subject, name, svg, state, asset?} : save an asset -- its svg + the editing state
+                       (hidden sids, rotation, flips) that made it. `asset` present updates it in place,
+                       absent creates a new one. Recorded on the subject's box in data/boxes.json (audit)
 
   python3 server.py            (or: npm run vector-server)  ->  http://localhost:8889
 """
@@ -23,11 +27,12 @@ from __future__ import annotations
 import datetime
 import json
 import os
+import re
 
 from flask import Flask, Response, abort, jsonify, request, send_file
 from PIL import Image
 
-from boxcrop import load_boxes, save_boxes, vectorize_box
+from boxcrop import load_boxes, record_box, save_boxes, vectorize_box
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 SCANS = os.path.abspath(os.path.join(HERE, "..", "..", "artwork-scans"))
@@ -51,9 +56,9 @@ def boxer():
     return _page("scan_boxer.html")
 
 
-@app.get("/cleanup")
-def cleanup():
-    return _page("cleanup_template.html")
+@app.get("/asset")
+def asset_tool():
+    return _page("asset_template.html")
 
 
 @app.get("/scans")
@@ -72,7 +77,7 @@ def get_scan(name):
 
 
 @app.get("/svg/<path:name>")
-def get_svg(name):                                     # an exported asset, for the cleanup exports thumbnails
+def get_svg(name):                                     # an exported asset, for the asset-tool thumbnails
     p = os.path.abspath(os.path.join(SVGDIR, name))
     if not p.startswith(SVGDIR) or not os.path.isfile(p):
         abort(404)
@@ -91,6 +96,30 @@ def get_models():
 @app.get("/boxes")
 def get_boxes():                                       # box defs (+ audit) so the boxer can pre-load a scan's boxes
     return jsonify(load_boxes())
+
+
+@app.post("/box")
+def do_box():                                          # persist a freshly-drawn box def (no vectorize) so it survives at once
+    b = request.get_json(force=True)
+    bx = load_boxes()
+    record_box(bx, b["scan"], b)
+    save_boxes(bx)
+    print(f"saved box {b['name']} ({b['scan']})", flush=True)
+    return jsonify({"ok": True})
+
+
+@app.post("/box/delete")
+def do_box_delete():                                   # drop a box def + its regeneratable model/crop (exported svgs are kept)
+    name = request.get_json(force=True)["name"]
+    bx = load_boxes()
+    bx["boxes"] = [b for b in bx["boxes"] if b.get("name") != name]
+    save_boxes(bx)
+    for f in (f"{name}_model.json", f"{name}_crop.png"):
+        p = os.path.join(OUT, f)
+        if os.path.exists(p):
+            os.remove(p)
+    print(f"deleted box {name}", flush=True)
+    return jsonify({"ok": True})
 
 
 @app.post("/rename")
@@ -128,26 +157,69 @@ def do_vectorize():
     return jsonify(results)
 
 
+def _slug(name: str) -> str:                           # a display name -> a filesystem-safe asset id
+    s = re.sub(r"\s+", "_", (name or "").strip())
+    s = re.sub(r"[\\/]+", "-", s)
+    s = re.sub(r"[^\w.\-]", "", s)
+    return s or "unnamed"
+
+
+def _unique_asset(taken, base: str) -> str:            # base.svg, or base-2.svg, base-3.svg ... if taken
+    cand, i = f"{base}.svg", 2
+    while cand in taken:
+        cand, i = f"{base}-{i}.svg", i + 1
+    return cand
+
+
 @app.post("/export")
 def do_export():
+    """Save an asset: its SVG plus the editing state (hidden sids, rotation, flips) that produced it, so it
+    can be reloaded and re-edited. `asset` present -> update that asset in place; absent -> a brand-new asset."""
     req = request.get_json(force=True)
     subject, name, svg = req["subject"], req["name"], req["svg"]
+    state, asset = req.get("state", {}), req.get("asset")
     os.makedirs(SVGDIR, exist_ok=True)
-    path = os.path.join(SVGDIR, f"{name}.svg")
-    open(path, "w").write(svg)
     bx = load_boxes()
-    entry = {"asset": f"{name}.svg", "at": _now()}
+    box = next((b for b in bx["boxes"] if b.get("name") == subject), None)
+    exports = box.setdefault("exports", []) if box is not None else bx.setdefault("exports", [])
+    same = exports if box is not None else [e for e in exports if e.get("subject") == subject]
+    if asset:                                          # update an existing asset in place (filename is its stable id)
+        entry = next((e for e in same if e.get("asset") == asset), None)
+        if entry is None:
+            abort(404)
+        entry.update(name=name, at=_now(), state=state)
+    else:                                              # a brand-new asset
+        asset = _unique_asset({e.get("asset") for e in same}, _slug(name))
+        entry = {"asset": asset, "name": name, "at": _now(), "state": state}
+        if box is None:                                # a subject with no box (e.g. a demo) -- record loosely
+            entry["subject"] = subject
+        exports.append(entry)
+    open(os.path.join(SVGDIR, asset), "w").write(svg)
+    save_boxes(bx)
+    rel = os.path.relpath(os.path.join(SVGDIR, asset), HERE)
+    print(f"{'updated' if req.get('asset') else 'saved'} asset {subject}/{name} -> {rel}", flush=True)
+    return jsonify({"ok": True, "asset": asset, "name": name, "path": rel})
+
+
+@app.post("/asset/delete")
+def do_asset_delete():                                 # remove one saved asset: its boxes.json record + its svg file
+    req = request.get_json(force=True)
+    subject, asset = req["subject"], req["asset"]
+    bx = load_boxes()
     box = next((b for b in bx["boxes"] if b.get("name") == subject), None)
     if box is not None:
-        box.setdefault("exports", []).append(entry)
-    else:                                              # a subject with no box (e.g. a demo) -- record loosely
-        bx.setdefault("exports", []).append({"subject": subject, **entry})
+        box["exports"] = [e for e in box.get("exports", []) if e.get("asset") != asset]
+    else:
+        bx["exports"] = [e for e in bx.get("exports", [])
+                         if not (e.get("asset") == asset and e.get("subject") == subject)]
     save_boxes(bx)
-    rel = os.path.relpath(path, HERE)
-    print(f"exported {subject} -> {rel}  (audit -> out/boxes.json)", flush=True)
-    return jsonify({"ok": True, "path": rel})
+    p = os.path.join(SVGDIR, asset)
+    if os.path.exists(p):
+        os.remove(p)
+    print(f"deleted asset {subject}/{asset}", flush=True)
+    return jsonify({"ok": True})
 
 
 if __name__ == "__main__":
-    print(f"pencil-vector server on http://localhost:{PORT}  (boxer: /   cleanup: /cleanup)", flush=True)
+    print(f"pencil-vector server on http://localhost:{PORT}  (boxer: /   asset tool: /asset)", flush=True)
     app.run(port=PORT, debug=False)

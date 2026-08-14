@@ -41,7 +41,7 @@ by whichever of these applies.
 
 1. **Connectivity is the primary invariant.** Raster connectivity is ground
    truth. It is computed once, frozen, and edited only by explicit human
-   action in the cleanup tool — never by a heuristic.
+   action in the asset tool — never by a heuristic.
 
 2. **Annotations, not substitutions.** Below the topology tiers, every stage
    *records facts about* the model rather than rewriting it. "This edge is an
@@ -55,7 +55,7 @@ by whichever of these applies.
    to how fat a marker the child used.
 
 4. **Weak automation appears only as hints.** Any heuristic that can be wrong
-   is rendered as a ranked suggestion in the cleanup UI, never as a pipeline
+   is rendered as a ranked suggestion in the asset-tool UI, never as a pipeline
    stage that can fail silently. The manual path must always work unaided.
 
 5. **Edits are a replayable log, not a mutation.** The vectorizer will be
@@ -108,7 +108,7 @@ Stage 3   Graph construction                  → nodes, edges, blob nodes
 Stage 4   Junction resolution                 → T vs X, continuity pairing
 Stage 5   TOPOLOGY FREEZE + stable ID assignment
 Stage 6   Planar embedding                    → faces, containment tree, rotational order
-Stage 7   Cleanup tool (human in the loop)    → edit log
+Stage 7   Asset tool (human in the loop)      → edit log
 Stage 8   Geometry fitting                    → κ(s) and r(s) segmentation, primitives
 Stage 9   Relational constraint inference     → per-asset, with global page frame
 Stage 10  Export / build                      → role-specific SVG + LOD + colliders
@@ -295,7 +295,7 @@ the edge alongside its sampled geometry. Do not replace the points.
 
 ---
 
-## 10. Stage 7 — Cleanup tool
+## 10. Stage 7 — Asset tool
 
 A separate interactive app. This is where extraction actually happens; the
 automatic pipeline exists to make this step cheap, not to replace it.
@@ -418,8 +418,8 @@ Get end-to-end early; depth later.
 2. **M2 — Width classes.** Stage 1 with the range gate and hysteresis.
    Blobs render as filled boundaries, strokes as centerlines.
 3. **M3 — Stable IDs + freeze.** Write the ID-stability test before the
-   cleanup tool exists. Cheap now, near-impossible to retrofit.
-4. **M4 — Cleanup tool, manual only.** Highlight, delete, flood on raw
+   asset tool exists. Cheap now, near-impossible to retrofit.
+4. **M4 — Asset tool, manual only.** Highlight, delete, flood on raw
    adjacency, export. No hints, no continuity. Extract one weapon by hand
    end-to-end and put it in the game. **This is the real milestone.**
 5. **M5 — Junction resolution + continuity flood.** Measure the drop in
@@ -441,7 +441,7 @@ Get end-to-end early; depth later.
     exported three ways — static `<circle>` / rigged extra-nodes / collision
     convex-hull — with path-merging gated on role, plus anchor transform,
     canonical orientation, pivot candidates, and fill semantics per asset (§11).
-    Leans on the M4 cleanup tool actually cutting assets out.
+    Leans on the M4 asset tool actually cutting assets out.
 11. **M11 — LOD.** Several geometric levels of detail derived from the one
     frozen tier 1–3 model; the one place on-screen size may legitimately
     override "size ≠ salience" (§11).
@@ -475,7 +475,7 @@ accumulate rather than replace each other:
   (`skeletonize`, `medial_axis`, `label`), `networkx` (articulation points,
   biconnected components, traversal), `shapely` (polygon ops, intersection
   validation), `svgelements` or `svgwrite` for output.
-- Cleanup tool: browser-based is easiest — render the model as SVG, wire
+- Asset tool: browser-based is easiest — render the model as SVG, wire
   click handlers to edge IDs, POST the edit log. Avoids building a canvas
   picking system.
 - Model serialization: JSON, one file per drawing, with the edit log separate.

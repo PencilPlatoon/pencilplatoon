@@ -1,4 +1,4 @@
-"""Serialize the frozen graph to JSON -- the model the cleanup tool loads (§13).
+"""Serialize the frozen graph to JSON -- the model the asset tool loads (§13).
 
 One file per drawing. Edges carry their endpoint node ids so the tool can
 flood-select over adjacency; every element carries its stable `sid` so the edit
@@ -24,7 +24,7 @@ def _pts(a):
 
 
 def _scan_b64(img, maxdim: int = 700) -> str:
-    """A downscaled JPEG of the source scan, base64 -- the cleanup tool shows it beside the vector so
+    """A downscaled JPEG of the source scan, base64 -- the asset tool shows it beside the vector so
     you can compare your cleanup against the original pencil drawing."""
     im = img.convert("RGB")
     w, h = im.size
@@ -36,7 +36,7 @@ def _scan_b64(img, maxdim: int = 700) -> str:
 
 
 def _ideal(ann, raw):
-    """The idealized geometry the pipeline actually renders (reconstruct at alpha=0), so the cleanup
+    """The idealized geometry the pipeline actually renders (reconstruct at alpha=0), so the asset
     tool shows the same smooth output as the asset rather than the raw trace the fit annotates. Falls
     back to the raw points if the element was never fitted (mirrors how holes are already exported)."""
     f = ann.get("fit")
