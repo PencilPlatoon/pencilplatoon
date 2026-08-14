@@ -321,6 +321,20 @@ function showScan(which){                                          // toggle the
   $("#scanOrigBtn").classList.toggle("on", which !== "clean");
   $("#scanCleanBtn").classList.toggle("on", which === "clean");
 }
+function showScanCrop(box){                                        // show the ORIGINAL scan crop right away, before the model vectorizes
+  if(!SCAN || !box || box.x1 == null) return;                     // (the cleaned crop only exists post-pipeline, so its tab waits)
+  const im = new Image();
+  im.onload = () => {
+    const w = box.x1 - box.x0, h = box.y1 - box.y0;
+    const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+    cv.getContext("2d").drawImage(im, box.x0, box.y0, w, h, 0, 0, w, h);
+    $("#scanimg").src = cv.toDataURL("image/png");
+    $("#scanref").hidden = false;
+    $("#scanOrigBtn").classList.add("on"); $("#scanCleanBtn").classList.remove("on");
+    $("#scanCleanBtn").disabled = true;
+  };
+  im.src = "/scan/" + encodeURIComponent(SCAN);
+}
 function loadSubject(name){
   $("#waiting").hidden = true;                                     // model is ready -- clear any waiting/error overlay
   if(SCAN) localStorage.setItem("pv:lastbox:" + SCAN, name);       // remember it, so the boxer's asset-tool tab reopens it
@@ -607,7 +621,10 @@ async function vectorizeBox(name){                             // (re)run the pi
   }
 }
 async function selectBox(name){
-  if(!MODELS[name] && !(await vectorizeBox(name))) return;     // vectorize on demand; bail (overlay shows the error)
+  if(!MODELS[name]){                                            // not vectorized yet: show the original scan crop at once, then vectorize
+    showScanCrop(SCANBOXES.find(b => b.name === name));
+    if(!(await vectorizeBox(name))) return;                     // bail on failure (overlay shows the error)
+  }
   loadSubject(name);                                            // clears the overlay once the model is in hand
 }
 async function revectorize(){                                  // re-run the pipeline on the current box (e.g. after a pipeline change)
