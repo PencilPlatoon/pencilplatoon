@@ -393,6 +393,13 @@ def fill_boundary(mask, w, holes_mask=None):
     is re-added as its own even-odd contour. Only holes the closing FULLY sealed are re-added (`& closed`) --
     a hole that survived closing is already in `holes`, and adding it twice would even-odd cancel it open."""
     closed = ndimage.binary_closing(mask, iterations=1)
+    # Each blob's outline is traced then decimated INWARD by up to POLY_TOL_W*w, so two abutting blobs
+    # each recede from their shared border and leave a background sliver between them. Dilate the closure
+    # by that same tolerance first: neighbours now overlap by ~a pixel at the seam (drawn in node order,
+    # so it reads solid) instead of gapping. It grows real paper holes / the silhouette inward by the
+    # same hair, below the decimation's own error.
+    grow = max(1, int(round(WC.POLY_TOL_W * w)))
+    closed = ndimage.binary_dilation(closed, iterations=grow)
     # `_boundaries` traces this colour's closure and cuts a hole at every interior gap >= a pen wide --
     # so a blob is hollow wherever ANOTHER colour (or real paper) sits inside it (§5, §6.2). The other
     # colour's own blob fills that hole from beneath, so a wide multi-colour region still tiles solid;
