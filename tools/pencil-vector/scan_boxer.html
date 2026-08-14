@@ -116,7 +116,9 @@ async function loadScan(name){
     $("#drop").hidden = true; $("#imgwrap").hidden = false;
     boxes = mine.map(b => ({name:b.name, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1, serverName:b.name,
                             done:!!(b.exports && b.exports.length)}));
-    seq = Math.max(0, ...boxes.map(b => { const m = /^box(\d+)$/.exec(b.name); return m ? +m[1] : 0; }));
+    // box names are a GLOBAL key (out/<name>_model.json, boxes.json) -- number new boxes past the highest
+    // across EVERY scan, not just this one, so a fresh scan's "box1" can't collide with another scan's.
+    seq = Math.max(0, ...(all.boxes || []).map(b => { const m = /^box(\d+)$/.exec(b.name); return m ? +m[1] : 0; }));
     render();
   };
   img.src = "/scan/" + encodeURIComponent(name);
