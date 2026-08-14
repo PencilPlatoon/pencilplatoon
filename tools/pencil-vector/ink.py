@@ -45,19 +45,24 @@ SCALE_MAX = 4           # never blow the image up by more than this
 # Colour determination (§5, revised M1): a scan is drawn with a few discrete pencil/pen
 # colours, no gradients, and each pixel is exactly one colour (marks abut, never overlap).
 # So we QUANTIZE the ink into a small canonical palette -- an achromatic "pencil-black" for
-# everything under CHROMA_MIN, and chromatic hue-clusters merged when their hue agrees to
-# within HUE_MERGE. Each colour is a separate entity downstream, rendered in an idealized
+# everything under CHROMA_ABS, and chromatic clusters merged into perceptual colours (§MERGE_AB).
+# Each colour is a separate entity downstream, rendered in an idealized
 # (clean, saturated) version of its hue, so a red mark abutting a black line stays a distinct
 # red region instead of binarizing into one thick black blob that swallows the line.
 CHROMA_ABS = 0.08       # absolute RGB spread (max-min, 0..1) below this is pencil-black, not a colour. Unlike
                         # Lab chroma it doesn't collapse as a colour darkens, and unlike HSV saturation it
                         # isn't amplified into noise for near-black pixels -- so a DARK reddish stroke stays
                         # chromatic (mapped to its own colour area) while grey pencil stays black.
-HUE_MERGE = 0.06        # merge two chromatic clusters whose HSV hue agrees within this (~22deg)
-AB_MERGE = 15.0         # ...OR whose mean colours sit within this Lab a/b distance: hue is unstable for
-                        # desaturated colours near the red axis (two browns 23deg apart are one brown),
-                        # so a perceptual-distance merge catches what the hue gate misses (nearest cross-
-                        # colour pair on the test set is ~24 apart, a comfortable margin below this)
+# k-means over-segments a shaded colour into several clusters; merge them back by PERCEPTUAL distance
+# (Lab a/b) rather than hue (which is unstable for desaturated colours near the red axis -- two browns
+# read as different hues). But a plain distance can't tell a shading split (one object, clusters
+# INTERWOVEN -> merge) from two genuinely-different adjacent colours (a reddish patch sitting in a brown
+# pole -> keep): the reddish/brown pair is as close as the shading split. Spatial interpenetration
+# breaks the tie -- interwoven clusters have most of their pixels near each other; a distinct patch
+# touches its host only along a seam. So the allowed merge distance widens with mutual contact.
+MERGE_AB = 11.0         # base Lab a/b distance under which two clusters are the same colour outright
+MERGE_GAIN = 30.0       # ...extended by this * their mutual spatial-contact fraction (0..1)
+MERGE_R = 0.3           # contact = fraction of a cluster within this * pen-width of the other
 COLOR_MIN_FRAC = 0.03   # drop a chromatic cluster smaller than this fraction of chromatic ink
 IDEAL_S_MIN, IDEAL_S_MAX = 0.30, 0.72   # idealize by cleaning SATURATION into this band while
                                         # keeping the measured value -- a light touch, so a
@@ -156,23 +161,52 @@ def _pick_scale(w_native: float) -> int:
     return int(min(SCALE_MAX, max(1, round(TARGET_W / max(w_native, 1e-3)))))
 
 
-def _hue_diff(a: float, b: float) -> float:
-    d = abs(a - b) % 1.0
-    return min(d, 1.0 - d)
+def _merge_clusters(lb: np.ndarray, cxy: np.ndarray, crgb: np.ndarray,
+                    shape: tuple, w: float) -> np.ndarray:
+    """Single-linkage merge of the k-means clusters into perceptual colours (see MERGE_AB). Two clusters
+    join when their mean Lab a/b distance is under MERGE_AB, widened by MERGE_GAIN * their mutual spatial
+    contact -- a shaded colour split into interwoven clusters re-merges, a distinct patch that only seams
+    its host stays its own colour. Returns lb with each pixel relabelled to its component representative."""
+    ids = list(np.unique(lb))
+    if len(ids) <= 1:
+        return lb
+    H, W = shape
+    r = max(1, int(round(MERGE_R * w)))
+    img = {}; dil = {}
+    for c in ids:
+        m_ = np.zeros((H, W), bool); sel = cxy[lb == c]; m_[sel[:, 0], sel[:, 1]] = True
+        img[c], dil[c] = m_, ndimage.binary_dilation(m_, iterations=r)
+    abv = {c: rgb2lab(crgb[lb == c].mean(0)[None, None, :])[0, 0, 1:] for c in ids}
+    parent = {c: c for c in ids}
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]; x = parent[x]
+        return x
+
+    for a, b in itertools.combinations(ids, 2):
+        contact = min((img[a] & dil[b]).sum() / max(1, img[a].sum()),
+                      (img[b] & dil[a]).sum() / max(1, img[b].sum()))
+        if np.linalg.norm(abv[a] - abv[b]) < MERGE_AB + MERGE_GAIN * contact:
+            parent[find(a)] = find(b)
+    out = lb.copy()
+    for c in ids:
+        out[lb == c] = find(c)
+    return out
 
 
-def _quantize_colors(rgb: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, list]:
-    """Partition the ink into a small canonical palette (see CHROMA_MIN/HUE_MERGE).
+def _quantize_colors(rgb: np.ndarray, mask: np.ndarray, w: float) -> tuple[np.ndarray, list]:
+    """Partition the ink into a small canonical palette (see CHROMA_ABS/MERGE_AB).
 
     `rgb` is 0..1 at the working scale. Returns a colour-id map (-1 = paper, 0 = pencil-black,
     1.. = chromatic) and the idealized palette. Chromatic pixels are k-means clustered in Lab
-    (a,b), clusters whose HSV hue agrees are merged, tiny ones dropped; each surviving colour
-    renders as its hue cleanly saturated. Achromatic ink (and pixels a colour didn't claim, e.g.
-    filled sub-pen holes) fall to pencil-black."""
+    (a,b), clusters of one perceptual colour are merged (spatially-aware, §_merge_clusters), tiny
+    ones dropped; each surviving colour renders as its hue cleanly saturated. Achromatic ink (and
+    pixels a colour didn't claim, e.g. filled sub-pen holes) fall to pencil-black."""
     labels = np.full(mask.shape, -1, int)
     labels[mask] = 0
     palette = [BLACK]
-    ab = rgb2lab(rgb)[..., 1:]                       # cluster + hue-merge in Lab/HSV as before...
+    ab = rgb2lab(rgb)[..., 1:]                       # cluster + merge in Lab...
     chroma = rgb.max(2) - rgb.min(2)                 # ...but gate chromatic-vs-black on the absolute RGB spread
     idx = np.argwhere(mask)
     px_ab = ab[mask]
@@ -182,25 +216,11 @@ def _quantize_colors(rgb: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, lis
     cab, crgb, cxy = px_ab[chro], rgb[mask][chro], idx[chro]
     k = min(6, max(1, int(chro.sum() // 120)))
     _, lb = kmeans2(cab, k, minit="++", seed=0, missing="warn")
-
-    def mean_rgb(c):
-        return crgb[lb == c].mean(0)
+    lb = _merge_clusters(lb, cxy, crgb, mask.shape, w)
 
     def mean_hsv(c):
-        return rgb2hsv(mean_rgb(c)[None, None, :])[0, 0]
+        return rgb2hsv(crgb[lb == c].mean(0)[None, None, :])[0, 0]
 
-    def mean_ab(c):
-        return rgb2lab(mean_rgb(c)[None, None, :])[0, 0, 1:]
-
-    merged = True                                    # merge clusters of the same colour (agreeing hue, or
-    while merged:                                    # -- for desaturated colours hue can't resolve -- near in Lab a/b)
-        merged = False
-        for a, b in itertools.combinations(np.unique(lb), 2):
-            if (_hue_diff(float(mean_hsv(a)[0]), float(mean_hsv(b)[0])) < HUE_MERGE
-                    or np.linalg.norm(mean_ab(a) - mean_ab(b)) < AB_MERGE):
-                lb[lb == b] = a
-                merged = True
-                break
     for c in np.unique(lb):
         if (lb == c).sum() < COLOR_MIN_FRAC * len(cab):
             continue
@@ -260,7 +280,7 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
             dist = ndimage.distance_transform_edt(mask)
 
     if color:                               # §5: quantize the ink into a canonical palette
-        labels, palette = _quantize_colors(rgb01, mask)
+        labels, palette = _quantize_colors(rgb01, mask, w)
     else:
         labels, palette = None, [BLACK]
     return Ink(mask=mask, dist=dist, w=w, scale=scale, labels=labels, palette=palette)
