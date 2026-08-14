@@ -19,6 +19,7 @@ from skimage.measure import approximate_polygon, find_contours
 
 import growth
 import raster
+import widthclass as WC
 from embedding import containment, rotational_order
 from fit import fit_graph, path_d, reconstruct
 from graph import (absorb_rim_stubs, attach_contact_splits, attach_edges_to_blobs,
@@ -55,6 +56,11 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
               scale=ink.scale, palette=ink.palette)
     nc, ec = [0], [0]                       # global node / edge id counters across layers
     blob_masks = {}
+    # The fill-vs-stroke test is 2D-thickness, but measured on the AGGREGATE ink (all colours unioned),
+    # not per colour (§5): a wide contiguous region striped from several pen-wide colours is a fill even
+    # though no single colour is thick there, so it's covered by tiling blobs, not gappy strokes. On a
+    # single-colour drawing this equals that colour's own core, so black-only art is unchanged.
+    agg_solid = growth.expand(growth.raw_core(ink), ink) if len(ink.palette) > 1 else None
     for c, cmask in _color_masks(ink):
         ink_c = Ink(mask=cmask, dist=ndimage.distance_transform_edt(cmask), w=ink.w, scale=ink.scale)
         if milestone <= 1:                  # M1: raw skeleton per colour, no width classes
@@ -64,7 +70,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
         # the stroke contacts that touch them, and keep only those with a leftover fill-lobe as blobs
         # (a clear 2D-core fill is always a blob). The returned skeleton already has each junction
         # network and every blob-to-blob bridge folded in, ready to build like any stroke skeleton.
-        net, fills = growth.resolve(ink_c)
+        net, fills = growth.resolve(ink_c, force_fill=agg_solid)
         sub = build(ink_c, mask=net)
         merge_close_junctions(sub, ink.w)   # collapse the skeletonizer's split junctions at a fill
         _merge(g, sub, c, nc, ec)
@@ -185,22 +191,55 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
             nd.ann["fit_ok"] = True                   # arcs render intact AND keep every attachment
 
 
+def _blob_pieces(mask: np.ndarray, w: float):
+    """The blob's mask split into the pieces a single outline can actually enclose. A boundary is one
+    outer polygon + holes, so a mask whose regions only touch through a sub-pixel/diagonal strand (which
+    marching-squares tracing reads as disconnected) can't be one blob -- the stray region would trace as
+    a non-nesting contour and get dropped, leaving real ink uncovered. Split on the same 4-connectivity
+    the tracer sees so each piece is a faithful outline. Sub-blob-area crumbs are discarded (as tracing
+    dropped them before), but a lone under-area piece is kept so a small legitimate blob never vanishes."""
+    closed = ndimage.binary_closing(mask, iterations=1)
+    lab, n = ndimage.label(closed)                        # ndimage default: 4-connectivity, matches the tracer
+    if n <= 1:
+        return [closed] if closed.any() else []
+    comps = [lab == i for i in range(1, n + 1)]
+    big = [c for c in comps if c.sum() >= WC.MIN_BLOB_AREA_W2 * w * w]
+    return big if big else [max(comps, key=lambda c: c.sum())]
+
+
 def _trace_blobs(g: Graph, blob_masks: dict, ink: Ink) -> None:
     """Trace each blob's outer boundary + interior holes from its FINAL (post rim-stub absorption) mask,
     once. Deferred here (rather than at blob creation in growth.resolve) so a blob whose rim stub absorb
     folded in isn't traced twice -- 23 of the 26 blobs were being traced then re-traced. Holes are traced
-    natively WITH the outline -- a hollow shape is hollow from the start, not gated to a later milestone."""
+    natively WITH the outline -- a hollow shape is hollow from the start, not gated to a later milestone.
+    A mask that fell into disconnected pieces (§_blob_pieces) becomes one sibling blob per piece."""
     ink_holes = ndimage.binary_fill_holes(ink.mask) & ~ink.mask   # holes the pen left open in the drawing
-    dead = []
-    for nid, mask in blob_masks.items():
+    dead = []; born = {}
+    next_id = (max(g.nodes) + 1) if g.nodes else 0
+    for nid, mask in list(blob_masks.items()):
         nd = g.nodes.get(nid)
         if nd is None or nd.kind != BLOB:
             continue
-        outer, holes = growth.fill_boundary(mask, ink.w, ink_holes)
-        if outer is None:
+        pieces = _blob_pieces(mask, ink.w)
+        if not pieces:
             dead.append(nid)                              # degenerate mask -> not a real blob
             continue
-        nd.boundary, nd.ann["holes"] = outer, holes
+        for k, piece in enumerate(sorted(pieces, key=lambda m: -int(m.sum()))):
+            if k == 0:
+                tgt, blob_masks[nid] = nid, piece         # largest piece stays this node
+            else:
+                tgt = next_id; next_id += 1               # a stray region strands into its own sibling blob
+                ys, xs = np.where(piece)
+                g.nodes[tgt] = Node(id=tgt, kind=BLOB, pos=(float(xs.mean()), float(ys.mean())),
+                                    boundary=None, ann={**nd.ann, "holes": []})
+                born[tgt] = piece
+            outer, holes = growth.fill_boundary(piece, ink.w, ink_holes)
+            gn = g.nodes[tgt]
+            if outer is None:
+                dead.append(tgt)
+                continue
+            gn.boundary, gn.ann["holes"] = outer, holes
+    blob_masks.update(born)
     for nid in dead:
         g.nodes.pop(nid, None); blob_masks.pop(nid, None)
 

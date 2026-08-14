@@ -43,7 +43,7 @@ def _ideal(ann, raw):
     return _pts(reconstruct(f, 0.0)) if f is not None else _pts(raw)
 
 
-def model_dict(g, subject: str, scan_b64: str | None = None) -> dict:
+def model_dict(g, subject: str, scan_b64: str | None = None, clean_b64: str | None = None) -> dict:
     nodes, blobs = [], []
     for nd in g.nodes.values():
         if nd.kind == BLOB:
@@ -52,16 +52,20 @@ def model_dict(g, subject: str, scan_b64: str | None = None) -> dict:
                           "boundary": _ideal(nd.ann, nd.boundary),
                           "holes": [_pts(h) for h in nd.ann.get("holes", [])],  # §6.2
                           "edges": nd.ann.get("edges", []),     # incident strokes (§6.3)
+                          "color": nd.ann.get("color", 0),      # palette index (§5); 0 = pencil-black
                           "z": nd.ann.get("z", 0)})             # paint order (§8 containment)
         else:
             nodes.append({"id": nd.id, "sid": nd.sid, "kind": nd.kind,
                           "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)]})
     edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _ideal(e.ann, e.pts),
               "blobs": e.ann.get("blobs", []),
+              "color": e.ann.get("color", 0),                   # palette index (§5)
               "cont": e.ann.get("cont", {})}   # node id -> continuity-partner sid (§6.4)
              for e in g.edges.values()]
     return {"subject": subject, "w": round(g.w, 2), "size": list(g.size),
-            "nodes": nodes, "edges": edges, "blobs": blobs, "scan": scan_b64}
+            "palette": [[int(c[0]), int(c[1]), int(c[2])] for c in g.palette],   # idealized colours (§5)
+            "nodes": nodes, "edges": edges, "blobs": blobs,
+            "scan": scan_b64, "scan_clean": clean_b64}   # original crop, and the cleaned crop fed to the pipeline
 
 
 def export(in_path: str, subject: str, out_path: str) -> dict:

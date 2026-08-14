@@ -110,7 +110,8 @@ def vectorize_box(img, scan_name: str, b: dict, bx: dict) -> dict:
     cleaned = clean_crop(crop)                                # strip the paper/halo so the ink threshold sees crisp strokes
     crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
     cleaned.save(crop_path)
-    d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop))   # thumbnail from the ORIGINAL, for honest comparison
+    # thumbnails: the ORIGINAL crop (honest reference) and the CLEANED crop (what the pipeline actually saw)
+    d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop), _scan_b64(cleaned))
     d["box"] = {"scan": scan_name, "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]}
     json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
     record_box(bx, scan_name, b)

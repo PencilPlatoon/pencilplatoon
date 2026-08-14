@@ -63,18 +63,31 @@ def expand(core, ink):
     return ink.mask & (ndimage.distance_transform_edt(~core) <= WC.WIDE_EXIT * ink.w + 1.0)
 
 
-def classify(ink):
+def classify(ink, force_fill=None):
     """(grown, carved skeleton, candidate regions, kept fills, snapped-endpoints).
     `kept` are regions with a clear 2D core (real fills, always blobs); `candidates` are the ambiguous
     2D regions that get grown and then decided fill-vs-junction by keep_as_blob. Both are lists of
-    per-component bool masks; `grown` is their union (what the growth-sim treats as solid)."""
+    per-component bool masks; `grown` is their union (what the growth-sim treats as solid).
+
+    `force_fill` is the 2D-thick mask of the AGGREGATE ink (all colours unioned, §5). A component this
+    colour contributes that is thin on its own but sits inside an aggregate-wide area is kept as a fill,
+    so a wide contiguous region striped from several pen-wide colours (a painted flagpole) is covered by
+    tiling per-colour blobs instead of gappy per-colour strokes. Only the EXTRA thickness aggregation
+    creates is forced, so on a single-colour drawing `force_fill` == this layer's own core and nothing
+    changes -- black-only art is untouched."""
     w = ink.w
     grown = expand(raw_core(ink), ink)
+    extra = None
+    if force_fill is not None:
+        extra = (ink.mask & force_fill) & ~grown          # thick only once colours are aggregated
+        grown = grown | extra
     lab, n = ndimage.label(grown, structure=np.ones((3, 3)))
     kept = []; candidates = []
     for i in range(1, n + 1):
         c = lab == i
-        if c.sum() < WC.MIN_BLOB_AREA_W2 * w * w or not WC._has_2d_core(c, w) or WC._is_line(c, ink.dist, w):
+        if extra is not None and bool((c & extra).any()):
+            kept.append(c)                                # aggregate-wide -> a fill (tiles with the other colours)
+        elif c.sum() < WC.MIN_BLOB_AREA_W2 * w * w or not WC._has_2d_core(c, w) or WC._is_line(c, ink.dist, w):
             candidates.append(c)                          # ambiguous: grow + decide by leftover lobe
         else:
             kept.append(c)                                # clear 2D core -> a fill
@@ -380,6 +393,10 @@ def fill_boundary(mask, w, holes_mask=None):
     is re-added as its own even-odd contour. Only holes the closing FULLY sealed are re-added (`& closed`) --
     a hole that survived closing is already in `holes`, and adding it twice would even-odd cancel it open."""
     closed = ndimage.binary_closing(mask, iterations=1)
+    # `_boundaries` traces this colour's closure and cuts a hole at every interior gap >= a pen wide --
+    # so a blob is hollow wherever ANOTHER colour (or real paper) sits inside it (§5, §6.2). The other
+    # colour's own blob fills that hole from beneath, so a wide multi-colour region still tiles solid;
+    # but the blob no longer claims -- or hit-tests over -- area that isn't its colour.
     outer, holes = WC._boundaries(closed, w)
     if outer is None or holes_mask is None or not holes_mask.any():
         return outer, holes
@@ -426,15 +443,16 @@ def keep_as_blob(region_mask, paths, w):
 
 
 # ----------------------------------------------------------------------------- one-layer resolution
-def resolve(ink):
+def resolve(ink, force_fill=None):
     """Resolve one colour layer's 2D regions. Returns (skeleton, fills):
       skeleton -- carved stroke skeleton + the growth networks of junction regions + blob-bridge links,
                   ready for graph.build (blob interiors are absent, so they aren't skeletonized)
       fills    -- [(mask, centroid)] for every region kept as a solid blob. The boundary is NOT traced
                   here: rim-stub absorption folds ink into these masks first, so tracing waits until the
-                  mask is final (vectorize._trace_blobs) and each blob is traced once, not twice."""
+                  mask is final (vectorize._trace_blobs) and each blob is traced once, not twice.
+    `force_fill` (see classify) makes aggregate-wide colour regions blobs rather than gappy strokes."""
     w = ink.w
-    grown, skel, candidates, kept, snapped = classify(ink)
+    grown, skel, candidates, kept, snapped = classify(ink, force_fill)
     lab, _ = ndimage.label(grown, structure=np.ones((3, 3)))
     owned = {}; bynear = {}
     for near, edge, dv, L in blob_contacts(skel, grown, w):

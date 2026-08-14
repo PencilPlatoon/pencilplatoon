@@ -33,7 +33,8 @@
   .cbar{position:absolute;top:12px;left:0;right:0;display:flex;justify-content:center;gap:8px;z-index:5}
   .cbar button{font:inherit;font-size:12.5px;padding:6px 12px;border-radius:7px;cursor:pointer;
     background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
-  .cbar button:hover{border-color:var(--blue)}
+  .cbar button:hover:not(:disabled){border-color:var(--blue)}
+  .cbar button:disabled{opacity:.4;cursor:not-allowed}
   .sc-toggle{font:inherit;font-size:12px;padding:5px 11px;border-radius:16px;cursor:pointer;white-space:nowrap;
     background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
   .sc-toggle:hover{border-color:var(--blue)}
@@ -88,9 +89,11 @@
   .rotcol .flips button:hover{border-color:var(--blue)}
   .rotcol .flips button.on{background:var(--blue);border-color:var(--blue);color:#fff}
   .canvas{flex:1;display:grid;place-items:center;padding:52px 56px 20px 20px;overflow:auto;position:relative}
-  .scanref{flex:1;display:grid;place-items:center;padding:20px;overflow:auto;border-right:1px solid var(--hair)}
-  .scanref img{max-width:100%;max-height:calc(100vh - 130px);border-radius:4px;box-shadow:0 12px 40px -16px #000;background:var(--paper)}
+  .scanref{flex:1;display:flex;flex-direction:column;min-width:0;padding:14px 16px;border-right:1px solid var(--hair)}
   .scanref[hidden]{display:none}
+  .scantabs{display:flex;gap:4px;justify-content:center;flex:none;margin-bottom:12px}
+  .scanimgwrap{flex:1;display:grid;place-items:center;min-height:0;overflow:auto}
+  .scanref img{max-width:100%;max-height:100%;border-radius:4px;box-shadow:0 12px 40px -16px #000;background:var(--paper)}
   #numbadge{position:absolute;top:26px;left:26px;z-index:6;background:var(--red);color:#fff;
     font-family:var(--mono);font-weight:700;font-size:15px;min-width:22px;height:26px;border-radius:13px;
     padding:0 9px;display:none;align-items:center;justify-content:center;box-shadow:0 4px 14px -4px #000}
@@ -98,8 +101,8 @@
     box-shadow:0 12px 40px -16px #000}
 
   /* drawing elements */
-  .edge{fill:none;stroke:#141414;stroke-linecap:round;stroke-linejoin:round}
-  .blob{fill:#141414;stroke:none}
+  .edge{fill:none;stroke:var(--col,#141414);stroke-linecap:round;stroke-linejoin:round}
+  .blob{fill:var(--col,#141414);stroke:none}
   .hit{stroke:transparent;fill:none;pointer-events:stroke;cursor:pointer}
   .hit.blobhit{fill:transparent;pointer-events:fill}
   .el.hover .edge,.el.hover .blob{stroke:var(--red)}
@@ -136,9 +139,15 @@
     <h3>Scans</h3>
     <ul id="scanlist"></ul>
   </aside>
-  <div class="scanref" id="scanref"><img id="scanimg" alt="original scan"></div>
+  <div class="scanref" id="scanref">
+    <div class="scantabs">
+      <button id="scanOrigBtn" class="tab on">Original scan</button>
+      <button id="scanCleanBtn" class="tab">Cleaned scan</button>
+    </div>
+    <div class="scanimgwrap"><img id="scanimg" alt="scan"></div>
+  </div>
   <div class="canvas">
-    <div class="cbar"><button id="clrBtn">Clear selection</button><button id="resetBtn">Reset drawing</button></div>
+    <div class="cbar"><button id="revecBtn">Re-vectorize</button><button id="clrBtn">Clear selection</button><button id="resetBtn">Reset drawing</button></div>
     <svg id="view" xmlns="http://www.w3.org/2000/svg"></svg>
     <div id="numbadge"></div>
     <div id="waiting" class="waiting" hidden><div class="spinner"></div><span id="waitmsg">vectorizing…</span></div>
@@ -244,6 +253,10 @@ function render(){
   }
 }
 
+function colorStyle(c){                                          // base colour via a CSS var, so hover/select rules still override
+  const p = (model.palette || [])[c || 0];
+  return (c && p) ? ` style="--col:rgb(${p[0]},${p[1]},${p[2]})"` : "";
+}
 function draw(){
   const m = model, sw = Math.max(1, m.w); let n = 0;
   // number blobs first, then edges -- same order as the comparison page's tabs
@@ -251,12 +264,12 @@ function draw(){
   for(const b of m.blobs){
     let d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
     for(const h of (b.holes||[])) d += " M" + h.map(p=>p.join(" ")).join("L") + "Z";   // §6.2 holes
-    parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"><path class="blob" d="${d}" fill-rule="evenodd"/>`
+    parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"${colorStyle(b.color)}><path class="blob" d="${d}" fill-rule="evenodd"/>`
       + `<path class="hit blobhit" d="${d}" fill-rule="evenodd"/></g>`);
   }
   for(const e of m.edges){
     const pts = e.pts.map(p=>p.join(",")).join(" ");
-    parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}" data-num="${++n}">`
+    parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}" data-num="${++n}"${colorStyle(e.color)}>`
       + `<polyline class="edge" points="${pts}" stroke-width="${sw}"/>`
       + `<polyline class="hit" points="${pts}" stroke-width="${sw*2.8}"/></g>`);
   }
@@ -302,6 +315,12 @@ function reflow(){ placeRotcol(); }
 function refresh(){ draw(); render(); wireCanvas(); reflow(); }
 function applyTransform(){ model = transformModel(baseModel, rot, flipX, flipY); refresh(); }
 
+function showScan(which){                                          // toggle the scan reference between the original crop and the cleaned pipeline input
+  const b64 = which === "clean" ? baseModel.scan_clean : baseModel.scan;
+  $("#scanimg").src = "data:image/jpeg;base64," + b64;
+  $("#scanOrigBtn").classList.toggle("on", which !== "clean");
+  $("#scanCleanBtn").classList.toggle("on", which === "clean");
+}
 function loadSubject(name){
   $("#waiting").hidden = true;                                     // model is ready -- clear any waiting/error overlay
   if(SCAN) localStorage.setItem("pv:lastbox:" + SCAN, name);       // remember it, so the boxer's asset-tool tab reopens it
@@ -309,8 +328,11 @@ function loadSubject(name){
   rot = 0; flipX = false; flipY = false;
   $("#rotSlider").value = 0; $("#rotOut").textContent = "0°";
   $("#flipXBtn").classList.remove("on"); $("#flipYBtn").classList.remove("on");
-  if(baseModel.scan){ $("#scanimg").src = "data:image/jpeg;base64,"+baseModel.scan; $("#scanref").hidden = false; }
-  else { $("#scanimg").removeAttribute("src"); $("#scanref").hidden = true; }
+  if(baseModel.scan){
+    $("#scanref").hidden = false;
+    $("#scanCleanBtn").disabled = !baseModel.scan_clean;        // demo subjects have no cleaned crop
+    showScan("orig");                                           // default to the original scan
+  } else { $("#scanimg").removeAttribute("src"); $("#scanref").hidden = true; }
   selected = new Set(); hidden = new Set();
   currentAsset = null;                                            // a fresh box -- not editing any saved asset
   for(const b of document.querySelectorAll(".subjects button")) b.classList.toggle("on", b.dataset.name===name);
@@ -501,14 +523,16 @@ function buildAssetSvg(){                                        // every non-hi
   x0-=pad; y0-=pad; x1+=pad; y1+=pad;
   const vb = `${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1-x0).toFixed(1)} ${(y1-y0).toFixed(1)}`;
 
+  const pal = model.palette || [[20,20,20]];
+  const col = c => { const p = pal[c || 0] || [20,20,20]; return `rgb(${p[0]},${p[1]},${p[2]})`; };
   const out = [`<svg viewBox="${vb}" xmlns="${SVGNS}">`];
   for(const b of blobs){
     let d = "M"+b.boundary.map(p=>p.join(" ")).join("L")+"Z";
     for(const h of (b.holes||[])) d += " M"+h.map(p=>p.join(" ")).join("L")+"Z";
-    out.push(`<path d="${d}" fill="#141414" fill-rule="evenodd"/>`);
+    out.push(`<path d="${d}" fill="${col(b.color)}" fill-rule="evenodd"/>`);
   }
-  out.push(`<g fill="none" stroke="#141414" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
-  for(const e of edges) out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}"/>`);
+  out.push(`<g fill="none" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
+  for(const e of edges) out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}" stroke="${col(e.color)}"/>`);
   out.push("</g></svg>");
   return out.join("");
 }
@@ -541,6 +565,9 @@ window.addEventListener("resize", reflow);
 $("#rotSlider").oninput = e => { rot = +e.target.value; $("#rotOut").textContent = rot + "°"; applyTransform(); };
 $("#flipXBtn").onclick = e => { flipX = !flipX; e.currentTarget.classList.toggle("on", flipX); applyTransform(); };
 $("#flipYBtn").onclick = e => { flipY = !flipY; e.currentTarget.classList.toggle("on", flipY); applyTransform(); };
+$("#revecBtn").onclick = revectorize;
+$("#scanOrigBtn").onclick = () => showScan("orig");
+$("#scanCleanBtn").onclick = () => { if(baseModel.scan_clean) showScan("clean"); };
 $("#clrBtn").onclick = clearSelection;
 $("#resetBtn").onclick = () => loadSubject(model.subject);
 document.addEventListener("keydown", e => {
@@ -565,21 +592,27 @@ function renderTabs(){                                          // tabs = the cu
   for(const btn of document.querySelectorAll(".subjects button")) btn.onclick = () => selectBox(btn.dataset.name);
   if(model) document.querySelectorAll(".subjects button").forEach(b => b.classList.toggle("on", b.dataset.name === model.subject));
 }
-async function selectBox(name){
-  if(!MODELS[name]){                                            // this box isn't vectorized yet -- do it on demand
-    const box = SCANBOXES.find(b => b.name === name);
-    $("#waitmsg").textContent = `vectorizing ${TITLES[name] || name}…`;
-    $("#waiting").hidden = false;                               // waiting indicator right in the drawing area
-    try {
-      await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
-                                 body: JSON.stringify({scan: SCAN, boxes: [box]})});
-      await loadModels(); renderTabs();
-    } catch(e) {
-      $("#waitmsg").textContent = "vectorize failed — is the server running?";
-      return;                                                   // leave the overlay up showing the error
-    }
+async function vectorizeBox(name){                             // (re)run the pipeline on this box; true on success
+  const box = SCANBOXES.find(b => b.name === name);
+  $("#waitmsg").textContent = `vectorizing ${TITLES[name] || name}…`;
+  $("#waiting").hidden = false;                                // waiting indicator right in the drawing area
+  try {
+    await fetch("/vectorize", {method:"POST", headers:{"Content-Type":"application/json"},
+                               body: JSON.stringify({scan: SCAN, boxes: [box]})});
+    await loadModels(); renderTabs();
+    return true;
+  } catch(e) {
+    $("#waitmsg").textContent = "vectorize failed — is the server running?";
+    return false;                                              // leave the overlay up showing the error
   }
+}
+async function selectBox(name){
+  if(!MODELS[name] && !(await vectorizeBox(name))) return;     // vectorize on demand; bail (overlay shows the error)
   loadSubject(name);                                            // clears the overlay once the model is in hand
+}
+async function revectorize(){                                  // re-run the pipeline on the current box (e.g. after a pipeline change)
+  if(!SCAN || !(model && model.subject)) return;               // only a boxed subject can be re-vectorized
+  if(await vectorizeBox(model.subject)) loadSubject(model.subject);
 }
 function openScan(name){                                        // switch the asset tool to another scan: its last box, else its first
   if(name === SCAN) return;
@@ -611,6 +644,7 @@ async function boot(){
   } else {                                                      // no scan context: show every vectorized subject
     SCANBOXES = Object.keys(MODELS).map(n => ({name: n}));
     $("#tabBoxer").disabled = true;                             // nothing to go back to without a scan
+    $("#revecBtn").disabled = true;                             // demo subjects have no box to re-vectorize
   }
   if(!SCANBOXES.length){ $("#subjects").innerHTML = '<span style="color:var(--muted);font-size:12px">no boxes — mark some in the scan view</span>'; return; }
   renderTabs();

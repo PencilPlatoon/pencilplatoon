@@ -49,7 +49,10 @@ SCALE_MAX = 4           # never blow the image up by more than this
 # within HUE_MERGE. Each colour is a separate entity downstream, rendered in an idealized
 # (clean, saturated) version of its hue, so a red mark abutting a black line stays a distinct
 # red region instead of binarizing into one thick black blob that swallows the line.
-CHROMA_MIN = 16.0       # Lab chroma below this is pencil-black (achromatic), not a colour
+CHROMA_ABS = 0.08       # absolute RGB spread (max-min, 0..1) below this is pencil-black, not a colour. Unlike
+                        # Lab chroma it doesn't collapse as a colour darkens, and unlike HSV saturation it
+                        # isn't amplified into noise for near-black pixels -- so a DARK reddish stroke stays
+                        # chromatic (mapped to its own colour area) while grey pencil stays black.
 HUE_MERGE = 0.06        # merge two chromatic clusters whose HSV hue agrees within this (~22deg)
 COLOR_MIN_FRAC = 0.03   # drop a chromatic cluster smaller than this fraction of chromatic ink
 IDEAL_S_MIN, IDEAL_S_MAX = 0.30, 0.72   # idealize by cleaning SATURATION into this band while
@@ -150,10 +153,11 @@ def _quantize_colors(rgb: np.ndarray, mask: np.ndarray) -> tuple[np.ndarray, lis
     labels = np.full(mask.shape, -1, int)
     labels[mask] = 0
     palette = [BLACK]
-    ab = rgb2lab(rgb)[..., 1:]
+    ab = rgb2lab(rgb)[..., 1:]                       # cluster + hue-merge in Lab/HSV as before...
+    chroma = rgb.max(2) - rgb.min(2)                 # ...but gate chromatic-vs-black on the absolute RGB spread
     idx = np.argwhere(mask)
     px_ab = ab[mask]
-    chro = np.hypot(px_ab[:, 0], px_ab[:, 1]) >= CHROMA_MIN
+    chro = chroma[mask] >= CHROMA_ABS
     if chro.sum() <= 0.01 * max(1, mask.sum()):
         return labels, palette                      # essentially monochrome
     cab, crgb, cxy = px_ab[chro], rgb[mask][chro], idx[chro]

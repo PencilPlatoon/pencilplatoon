@@ -15,12 +15,13 @@ import base64, io, os, re, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import numpy as np
-from PIL import Image
+from PIL import Image, ImageDraw
 from scipy import ndimage
 import growth
 import raster
 import vectorize as V
 from vectorize import vectorize
+from export_model import model_dict
 from graph import build
 from ink import Ink, ingest
 from model import Graph
@@ -65,9 +66,10 @@ def pre_grow(key):
     g = Graph(nodes={}, edges={}, w=ink.w, size=(ink.mask.shape[1], ink.mask.shape[0]),
               scale=ink.scale, palette=ink.palette)
     nc, ec = [0], [0]
+    agg = growth.expand(growth.raw_core(ink), ink) if len(ink.palette) > 1 else None   # aggregate-wide fill hint (§5)
     for c, cmask in V._color_masks(ink):
         ink_c = Ink(mask=cmask, dist=ndimage.distance_transform_edt(cmask), w=ink.w, scale=ink.scale)
-        _grown, skel, *_ = growth.classify(ink_c)
+        _grown, skel, *_ = growth.classify(ink_c, force_fill=agg)
         V._merge(g, build(ink_c, mask=skel), c, nc, ec)
     g.labels = ink.labels
     return g
@@ -79,15 +81,44 @@ def _png_b64(arr):
     return base64.b64encode(bio.getvalue()).decode()
 
 
+def _color_base(g):
+    """The stage rendered exactly as the ASSET TOOL draws it: blobs in node order, each filled in its
+    palette colour with holes cut to reveal what's underneath (not painted black-last), then strokes at
+    pen width. Rendering from the same `model_dict` the tool consumes keeps the study page and the tool
+    in lockstep -- so a later stage here matches the vectorization you edit."""
+    m = model_dict(g, "")
+    W, H = int(g.size[0]), int(g.size[1])
+    pal = m["palette"]
+    col = lambda c: BLACK if (c or 0) == 0 else tuple(pal[c])
+    canvas = np.full((H, W, 3), PAPER, np.uint8)
+
+    def polymask(pts):
+        im = Image.new("1", (W, H)); ImageDraw.Draw(im).polygon([tuple(p) for p in pts], fill=1)
+        return np.array(im, dtype=bool)
+
+    for b in m["blobs"]:
+        if not b["boundary"] or len(b["boundary"]) < 3:
+            continue
+        fill = polymask(b["boundary"])
+        for h in b.get("holes", []):
+            if len(h) >= 3:
+                fill &= ~polymask(h)                      # a hole reveals the earlier-drawn colour beneath
+        canvas[fill] = col(b.get("color", 0))
+    im = Image.fromarray(canvas); dr = ImageDraw.Draw(im)
+    sw = max(1, int(round(m["w"])))
+    for e in m["edges"]:
+        if len(e["pts"]) >= 2:
+            dr.line([tuple(p) for p in e["pts"]], fill=col(e.get("color", 0)), width=sw)
+    return np.asarray(im)
+
+
 def coverage_datauri(g, ink, prim=False):
-    """Two layers: the stage's render as plain BLACK on paper (always shown), and a transparent
-    diff overlay marking where the render is BIGGER than the scan (orange) or SMALLER (grey) --
-    revealed only by the 'coverage vs scan' toggle."""
-    render = raster.render_mask(g, primitives=prim)
+    """Two layers: the stage rendered on paper in the drawing's palette colours the way the asset tool
+    draws it (always shown), and a transparent diff overlay marking where the render is BIGGER than the
+    scan (orange) or SMALLER (grey) -- revealed only by the 'coverage vs scan' toggle."""
+    render = raster.render_mask(g, primitives=prim)       # full coverage, for the diff
     inkm = ink.mask
-    base = np.empty((*inkm.shape, 3), np.uint8)
-    base[:] = PAPER
-    base[render] = BLACK
+    base = _color_base(g)
     diff = np.zeros((*inkm.shape, 4), np.uint8)            # transparent everywhere it matches
     diff[inkm & ~render] = (*LAVENDER, 255)               # pen in the scan, missing in the render
     diff[render & ~inkm] = (*ORANGE, 255)                 # bigger than the scan (overshoot)
@@ -348,10 +379,10 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
 <label class="numtoggle difftoggle" for="showdiff"><span class="dot"></span>Coverage vs scan</label>
 <div class="wrap">
   <header class="masthead">
-    <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit · arcs</p>
+    <p class="eyebrow">Pencil Vector &middot; the real pipeline &middot; skeleton · grow · absorb · fit</p>
     <h1>Pencil Vector — the pipeline, stage by stage</h1>
     <div class="legend">
-      <span><i class="sw-black"></i>on ink</span>
+      <span><i class="sw-black"></i>the render (in the drawing's palette)</span>
       <span><i class="sw-orange"></i>vs scan: bigger</span>
       <span><i class="sw-lav"></i>vs scan: smaller</span>
       <span><i class="sw-skel"></i>skeleton / centerline</span>
@@ -436,13 +467,20 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
     var rp=svg.createSVGPoint(); rp.x=e.clientX; rp.y=e.clientY;   // clean point (no hover fudge) for the readout
     var rl=rp.matrixTransform(ctm.inverse());
     showCoord(Math.round(rl.x), Math.round(rl.y));                 // viewBox px == ink-mask px (my analysis space)
-    var segs=build(svg), best=null, bd=Infinity;
-    for(var i=0;i<segs.length;i++){
-      var s=segs[i], d=Infinity;
-      if(s.isFill){ try{ if(s.hit.isPointInFill(loc)){ best=s; bd=0; break; } }catch(e2){} }
-      var p=s.pts;
-      for(var k=0;k<p.length;k+=2){ var dx=p[k]-loc.x, dy=p[k+1]-loc.y, dd=dx*dx+dy*dy; if(dd<d) d=dd; }
-      if(d<bd){ bd=d; best=s; }
+    var segs=build(svg), best=null;
+    for(var i=0;i<segs.length;i++){                   // topmost element actually under the cursor: svgdump draws blobs
+      var s=segs[i], inside=false;                     // (node order) then strokes, so the LAST cover is the VISIBLE one --
+      try{ inside = s.isFill ? s.hit.isPointInFill(loc) : s.hit.isPointInStroke(loc); }catch(e2){}  // matching the render, where
+      if(inside) best=s;                               // a later blob sits on top and its holes reveal the earlier blob beneath
+    }
+    if(!best){                                        // nothing under the cursor -> snap to the nearest stroke (thin, hard to hit exactly)
+      var bd=Infinity;
+      for(var j=0;j<segs.length;j++){
+        var s2=segs[j]; if(s2.isFill) continue;
+        var d=Infinity, p=s2.pts;
+        for(var k=0;k<p.length;k+=2){ var dx=p[k]-loc.x, dy=p[k+1]-loc.y, dd=dx*dx+dy*dy; if(dd<d) d=dd; }
+        if(d<bd){ bd=d; best=s2; }
+      }
     }
     var t=best?best.seg:null;
     if(cur!==t){

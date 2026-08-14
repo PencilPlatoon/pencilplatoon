@@ -127,6 +127,20 @@ def _xy(poly: np.ndarray) -> np.ndarray:
     return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
 
 
+def _pt_in_poly(x: float, y: float, poly: np.ndarray) -> bool:
+    """Ray cast: is (x,y) inside the (x,y)-ordered polygon `poly`?"""
+    inside = False
+    n = len(poly)
+    j = n - 1
+    for i in range(n):
+        xi, yi = poly[i]
+        xj, yj = poly[j]
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+            inside = not inside
+        j = i
+    return inside
+
+
 def _boundaries(comp: np.ndarray, w: float):
     """Trace the outer boundary AND any interior holes (§6.2), each decimated.
     Holes below a pen-width floor are dropped (smaller than the pen can carve)."""
@@ -137,15 +151,22 @@ def _boundaries(comp: np.ndarray, w: float):
     outer = approximate_polygon(cs[0], tolerance=POLY_TOL_W * w)
     if len(outer) < 3:
         return None, []
+    outer_xy = _xy(outer)
     hole_floor = MIN_HOLE_W2 * w * w
     holes = []
     for c in cs[1:]:
         if _poly_area(c) < hole_floor:
             continue
         h = approximate_polygon(c, tolerance=POLY_TOL_W * w)
-        if len(h) >= 3:
-            holes.append(_xy(h))
-    return _xy(outer), holes
+        if len(h) < 3:
+            continue
+        hxy = _xy(h)
+        # A hole must nest INSIDE the (independently decimated) outer, else even-odd fills the overflow.
+        # A separate mask piece, or a hole inside a thin tendril the outer got simplified away, does not
+        # nest -- keep a hole only if most of its vertices land inside the simplified outer (§6.2).
+        if np.mean([_pt_in_poly(float(x), float(y), outer_xy) for x, y in hxy]) >= 0.5:
+            holes.append(hxy)
+    return outer_xy, holes
 
 
 def _reclaim_rim_crumbs(wide: np.ndarray, ink: Ink) -> np.ndarray:
