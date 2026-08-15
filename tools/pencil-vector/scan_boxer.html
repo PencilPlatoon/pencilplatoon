@@ -97,29 +97,21 @@ async function loadScan(name){
   img.src = "/scan/" + encodeURIComponent(name);
 }
 
-function toImg(ev){                                       // client coords -> scan-pixel coords
-  const p = ov.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
-  const u = p.matrixTransform(ov.getScreenCTM().inverse());
-  return {x: u.x, y: u.y};
-}
-function norm(a, b){ return {x0:Math.round(Math.min(a.x,b.x)), y0:Math.round(Math.min(a.y,b.y)),
-                             x1:Math.round(Math.max(a.x,b.x)), y1:Math.round(Math.max(a.y,b.y))}; }
-
 let start=null, cur=null, live=null;
 ov.addEventListener("pointerdown", e => {
   if(e.button!==0) return;
-  start = toImg(e); cur = null; ov.setPointerCapture(e.pointerId);
+  start = clientToUser(ov, e); cur = null; ov.setPointerCapture(e.pointerId);
   live = document.createElementNS(SVGNS,"rect"); live.setAttribute("class","box"); ov.appendChild(live);
 });
 ov.addEventListener("pointermove", e => {
   if(!start) return;
-  cur = toImg(e); const r = norm(start, cur);
+  cur = clientToUser(ov, e); const r = rectFrom(start, cur, true);
   live.setAttribute("x", r.x0); live.setAttribute("y", r.y0);
   live.setAttribute("width", r.x1-r.x0); live.setAttribute("height", r.y1-r.y0);
 });
 ov.addEventListener("pointerup", () => {
   const clickPt = start; let dragged = false;
-  if(start && cur){ const r = norm(start, cur);
+  if(start && cur){ const r = rectFrom(start, cur, true);
     if(r.x1-r.x0 > 4 && r.y1-r.y0 > 4){ const b = {name:"box"+(++seq), ...r}; boxes.push(b); dragged = true; saveBox(b); } }
   if(live){ live.remove(); live = null; }
   start = cur = null; render();

@@ -360,7 +360,6 @@ function updateAssetBar(){                                        // one button:
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
-function rectFrom(a, b){ return {x0:Math.min(a.x,b.x), y0:Math.min(a.y,b.y), x1:Math.max(a.x,b.x), y1:Math.max(a.y,b.y)}; }
 function ptInRect(x, y, r){ return x>=r.x0 && x<=r.x1 && y>=r.y0 && y<=r.y1; }
 function ccw(ax,ay,bx,by,cx,cy){ return (cy-ay)*(bx-ax) > (by-ay)*(cx-ax); }
 function segInt(ax,ay,bx,by,cx,cy,dx,dy){                        // do segments ab and cd cross?
@@ -397,10 +396,7 @@ function wireCanvas(){
   const svg = $("#view");
   const badge = $("#numbadge");
   let mqStart=null, mqStartC=null, mqMoved=false, mqBox=null, justMarqueed=false;
-  const toUser = ev => {
-    const p = svg.createSVGPoint(); p.x = ev.clientX; p.y = ev.clientY;
-    const u = p.matrixTransform(svg.getScreenCTM().inverse()); return {x:u.x, y:u.y};
-  };
+  const toUser = e => clientToUser(svg, e);
   svg.addEventListener("mouseover", e => {
     const el = e.target.closest(".el"); if(el){                  // deleted segments hover too (to find/undelete them)
       el.classList.add("hover"); badge.textContent = "#" + el.dataset.num; badge.style.display = "flex";
