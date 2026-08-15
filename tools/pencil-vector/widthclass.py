@@ -1,4 +1,4 @@
-"""Stage 1 -- width-class segmentation (plan §6.1).
+"""Width-class segmentation (plan §6.1).
 
 Skeletonizing a filled region is wrong: the medial axis of a disc is a point.
 So before extracting centerlines we split the ink into width classes and route
@@ -14,7 +14,7 @@ interior does, however thin the fill. (The distance transform is the "density" t
 thick over an area vs thin along a line. Genuine crosshatch -- thin strokes with white
 gaps -- is left as line-work, being indistinguishable from a stroke crossing.) The raw
 outer boundary is traced as-is; boundary idealization (smoothing, straightening,
-arc-fitting) is a later, uniform step (M7), and interior holes (§6.2) are left in place.
+arc-fitting) is a later, uniform step (fit-ideal-geometry), and interior holes (§6.2) are left in place.
 
 A long thick *line* (a deliberately heavy outline stroke, e.g. a flag pole) is
 rescued back to `stroke`: high length-to-width aspect with near-constant width
@@ -64,7 +64,7 @@ POLY_TOL_W = 0.1        # boundary decimation, in units of w. A stroke keeps eve
                         # same kind of traced polyline and should track its own rough edge
                         # the same way. Kept just coarse enough to drop the marching-squares
                         # staircase, NOT to abstract the shape into a polygon (that faceting
-                        # is not idealization -- real smoothing/arc-fitting is M7, uniform for
+                        # is not idealization -- real smoothing/arc-fitting is fit-ideal-geometry, uniform for
                         # strokes and blobs alike).  (MIN_HOLE_W2: ink.py)
 
 # Where the rough ink edge bulges out past grow-to-edge's reach, a thin sliver of ink is

@@ -1,4 +1,4 @@
-"""Stage 0 -- ingest and ink determination (plan §5).
+"""Ingest and ink determination (plan §5).
 
 The one destructive stage: it decides which pixels are ink and computes the
 scale everything else is measured in. A component may be dropped here only on
@@ -45,7 +45,7 @@ SCALE_MAX = 3           # never blow the image up by more than this. 3x already 
                         # only quadruples the per-op cost of a whole colour drawing for no visible gain
                         # (a thin scan measured 18.4px at 4x vs 14.5px at 3x -- same vectorization, 2x slower)
 
-# Colour determination (§5, revised M1): a scan is drawn with a few discrete pencil/pen
+# Colour determination (§5): a scan is drawn with a few discrete pencil/pen
 # colours, no gradients, and each pixel is exactly one colour (marks abut, never overlap).
 # So we QUANTIZE the ink into a small canonical palette -- an achromatic "pencil-black" for
 # everything under CHROMA_ABS, and chromatic clusters merged into perceptual colours (§MERGE_AB).
@@ -240,7 +240,7 @@ def ingest(rgb: np.ndarray, thresh_bias: float = 0.0, scale: int | None = None) 
     effective pen width (§5). Pass `scale` to force a factor; otherwise it is
     chosen from the native pen width (`scale=1` reproduces the native behaviour).
 
-    `thresh_bias` nudges the ink threshold (used by the M3 ID-stability test to
+    `thresh_bias` nudges the ink threshold (used by the ID-stability test to
     perturb binarization a few percent and check identities still hold)."""
     color = rgb.ndim == 3
     gray = rgb.mean(2) / 255.0 if color else rgb / 255.0

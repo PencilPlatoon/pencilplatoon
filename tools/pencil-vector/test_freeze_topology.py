@@ -1,4 +1,4 @@
-"""M3 acceptance tests -- stable IDs and topology freeze (plan §7, §12).
+"""Freeze-topology acceptance tests -- stable IDs and topology freeze (plan §7, §12).
 
 The load-bearing property: re-running with a slightly different binarization
 threshold must keep the same identities, so downstream cleanup survives re-runs.
@@ -13,7 +13,7 @@ import pytest
 from PIL import Image
 
 from model import BLOB
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ISO = os.path.join(HERE, "subjects")
@@ -40,8 +40,8 @@ def _midpoints(g):
 def test_edge_ids_track_geometry_not_iteration(bias):
     # on a blob-heavy subject, IDs must not churn beyond genuine geometry change:
     # fraction of edges keeping their sid >= fraction whose midpoint still exists.
-    b = vectorize(_path("soldier"), milestone=3)
-    q = vectorize(_path("soldier"), milestone=3, thresh_bias=bias)
+    b = vectorize(_path("soldier"), Stage.FREEZE_TOPOLOGY)
+    q = vectorize(_path("soldier"), Stage.FREEZE_TOPOLOGY, thresh_bias=bias)
     bs, qs = _edge_sids(b), _edge_sids(q)
     sid_frac = len(bs & qs) / len(bs)
     qmids = _midpoints(q)
@@ -51,14 +51,14 @@ def test_edge_ids_track_geometry_not_iteration(bias):
 
 
 def test_ids_are_deterministic():
-    a = vectorize(_path("mg"), milestone=3)
-    b = vectorize(_path("mg"), milestone=3)
+    a = vectorize(_path("mg"), Stage.FREEZE_TOPOLOGY)
+    b = vectorize(_path("mg"), Stage.FREEZE_TOPOLOGY)
     assert sorted(_edge_sids(a)) == sorted(_edge_sids(b))
     assert sorted(n.sid for n in a.nodes.values()) == sorted(n.sid for n in b.nodes.values())
 
 
 def test_ids_are_unique():
-    g = vectorize(_path("cannon"), milestone=3)
+    g = vectorize(_path("cannon"), Stage.FREEZE_TOPOLOGY)
     esids = [e.sid for e in g.edges.values()]
     nsids = [n.sid for n in g.nodes.values()]
     assert len(esids) == len(set(esids)) and all(esids)
@@ -66,15 +66,16 @@ def test_ids_are_unique():
 
 
 def test_graph_freezes_at_m3_not_before():
-    assert vectorize(_path("cannon"), milestone=3).frozen is True
-    assert vectorize(_path("cannon"), milestone=2).frozen is False
+    assert vectorize(_path("cannon"), Stage.FREEZE_TOPOLOGY).frozen is True
+    assert vectorize(_path("cannon"), Stage.IDENTIFY_ELEMENTS).frozen is False
 
 
-def test_m3_preserves_strokes():
-    # M3 no longer spur-prunes: the contact-aware skeleton drops sub-pen twigs at the source, so M3
-    # (stable IDs + freeze) keeps exactly M2's strokes -- it only assigns identity, it doesn't reshape.
-    m2 = vectorize(_path("cannon"), milestone=2)
-    m3 = vectorize(_path("cannon"), milestone=3)
-    assert len(m3.edges) == len(m2.edges)
+def test_freeze_preserves_identified_strokes():
+    # Freeze-topology no longer spur-prunes: the contact-aware skeleton drops sub-pen twigs at the
+    # source, so freezing (stable IDs + freeze) keeps exactly the identified strokes -- it only assigns
+    # identity, it doesn't reshape.
+    identified = vectorize(_path("cannon"), Stage.IDENTIFY_ELEMENTS)
+    frozen = vectorize(_path("cannon"), Stage.FREEZE_TOPOLOGY)
+    assert len(frozen.edges) == len(identified.edges)
     # blobs (first-class nodes) carry through unchanged
-    assert any(n.kind == BLOB for n in m3.nodes.values())
+    assert any(n.kind == BLOB for n in frozen.nodes.values())

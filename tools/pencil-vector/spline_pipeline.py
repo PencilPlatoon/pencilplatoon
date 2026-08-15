@@ -10,7 +10,7 @@ from skimage.restoration import denoise_tv_chambolle
 from PIL import Image
 import fit
 from fit import (resample_corners, RESAMPLE_W, MIN_STEP)
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 from ink import ingest
 from model import BLOB
 
@@ -82,7 +82,7 @@ def ink_png(mask):
 SCANS, allkap = [], []
 for key, sname in SUBJECTS:
     ink = ingest(np.asarray(Image.open(ISO % key).convert("RGB")))
-    g = vectorize(ISO % key, milestone=8)
+    g = vectorize(ISO % key, Stage.FIT_IDEAL_GEOMETRY)
     s2e = {e.sid: e for e in g.edges.values()}
     num, dn = 0, {}
     for nd in g.nodes.values():

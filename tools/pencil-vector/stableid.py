@@ -1,6 +1,6 @@
-"""Stage 5 (M3) -- topology freeze and stable IDs (plan §7).
+"""Topology freeze and stable IDs (plan §7).
 
-Human cleanup (Stage 7) is expensive and keyed on element identity, while the
+Human cleanup (the asset tool) is expensive and keyed on element identity, while the
 vectorizer is re-run many times as tolerances are tuned. If IDs came from
 traversal order, every re-run would silently invalidate every cleaned drawing.
 So identity is derived from *re-derivable geometry*, not iteration index:
@@ -17,7 +17,7 @@ Collisions inside a cell are broken by a stable secondary sort (length), then
 indexed. After assignment the graph is frozen: nothing in the automatic pipeline
 may renumber or re-shape it.
 
-The ID-stability test (`test_m3.py`) perturbs the threshold a few percent and
+The ID-stability test (`test_freeze_topology.py`) perturbs the threshold a few percent and
 asserts >=95% of edge ids survive -- the property this whole scheme exists for.
 """
 from __future__ import annotations

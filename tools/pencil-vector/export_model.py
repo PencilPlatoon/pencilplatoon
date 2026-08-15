@@ -16,7 +16,7 @@ from PIL import Image
 
 from fit import reconstruct
 from model import BLOB
-from vectorize import LATEST, vectorize
+from vectorize import Stage, vectorize
 
 
 def _pts(a):
@@ -69,7 +69,7 @@ def model_dict(g, subject: str, scan_b64: str | None = None, clean_b64: str | No
 
 
 def export(in_path: str, subject: str, out_path: str) -> dict:
-    d = model_dict(vectorize(in_path, milestone=LATEST), subject, _scan_b64(Image.open(in_path)))
+    d = model_dict(vectorize(in_path, Stage.FIT_IDEAL_GEOMETRY), subject, _scan_b64(Image.open(in_path)))
     with open(out_path, "w") as f:
         json.dump(d, f)
     return d

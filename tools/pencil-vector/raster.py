@@ -114,12 +114,12 @@ def broken_attachments(g, primitives: bool = True):
 
     An absolute 'is the stroke near the fill' test is the wrong bar: the ink itself draws some
     strokes ending a pen or more from a blob, and both the stroke and the boundary idealize at
-    M8, so the two shift together. What matters is the REGRESSION the idealization introduced.
-    So compare same-milestone: for each blob, measure each attached stroke's gap to the fill it
+    the fit stage, so the two shift together. What matters is the REGRESSION the idealization introduced.
+    So compare at the same render config: for each blob, measure each attached stroke's gap to the fill it
     ACTUALLY renders vs the gap to its stashed traced edge (`ann['traced']`, the ink-faithful
     boundary). A contact the traced edge held within a half-pen but the rendered edge does not
     is a break. Contact is probed with the stroke's frozen centerline `pts` (never idealized), so
-    the measure is identical at M7 and M8 -- only the boundary moves. Returns a list of
+    the measure is identical with or without primitives -- only the boundary moves. Returns a list of
     (blob_id, edge_sid, gap_px)."""
     from model import BLOB
     from svgdump import _d, blob_d

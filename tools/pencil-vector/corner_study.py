@@ -8,7 +8,7 @@ HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import numpy as np
 import fit
 from fit import resample_corners, _line_params, RESAMPLE_W, MIN_STEP
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 from model import BLOB
 
 CORNER_WIN2_W = 2.5     # this study's own candidate detector: fit each side's line over +-this many w
@@ -188,7 +188,7 @@ def ray_markup(card):
 
 cards = []
 for key, sname in SUBJECTS:
-    g = vectorize(ISO % key, milestone=8)
+    g = vectorize(ISO % key, Stage.FIT_IDEAL_GEOMETRY)
     step = max(MIN_STEP, RESAMPLE_W * g.w)
     num, dn = 0, {}
     for nd in g.nodes.values():

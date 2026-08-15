@@ -15,48 +15,59 @@ from PIL import Image
 
 import raster
 from ink import ingest
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ISO = os.path.join(HERE, "subjects")
 SUBJECTS = ["cannon", "mg", "soldier", "dying", "flag"]
+
+# (stage, primitives) render configs to check. Emitting the fitted geometry as real arc/line primitives
+# is a render choice on top of FIT_IDEAL_GEOMETRY, so it's a flag here rather than its own stage.
+RENDER_CONFIGS = [(Stage.PLANAR_EMBED, False), (Stage.FIT_IDEAL_GEOMETRY, False),
+                  (Stage.FIT_IDEAL_GEOMETRY, True)]
+IDEAL_CONFIGS = [(Stage.FIT_IDEAL_GEOMETRY, False), (Stage.FIT_IDEAL_GEOMETRY, True)]
+
+
+def _label(stage, primitives):
+    return stage.name.lower() + ("+primitives" if primitives else "")
+
 
 pytestmark = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.png")),
                                 reason="isolated subjects not present")
 
 
 @pytest.mark.parametrize("name", SUBJECTS)
-@pytest.mark.parametrize("milestone", [6, 7, 8])
-def test_render_preserves_connectivity(name, milestone):
+@pytest.mark.parametrize("stage,primitives", RENDER_CONFIGS)
+def test_render_preserves_connectivity(name, stage, primitives):
     # within each colour the rendered pieces must not exceed the ink pieces (no split)
     ink = ingest(np.asarray(Image.open(os.path.join(ISO, f"{name}_iso.png")).convert("RGB")))
-    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), milestone=milestone)
-    rows, worst = raster.connectivity(g, ink, primitives=milestone >= 8)
+    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), stage)
+    rows, worst = raster.connectivity(g, ink, primitives=primitives)
     splits = [(c, rc, ic) for c, rc, ic, _ in rows if rc > ic]
-    assert worst <= 0, f"{name} M{milestone} splits a colour (colour, render, ink): {splits}"
+    assert worst <= 0, f"{name} {_label(stage, primitives)} splits a colour (colour, render, ink): {splits}"
 
 
 @pytest.mark.parametrize("name", SUBJECTS)
-@pytest.mark.parametrize("milestone", [7, 8])
-def test_idealization_breaks_no_attachment(name, milestone):
+@pytest.mark.parametrize("stage,primitives", IDEAL_CONFIGS)
+def test_idealization_breaks_no_attachment(name, stage, primitives):
     # the detour-masked class piece-counting can't see: idealizing/emitting a fill must not pull
     # a stroke the ink held against a blob out of contact, even if the drawing stays one piece the
     # long way round (how cannon 2/26 slipped through). Checked on the actual render, per attachment.
-    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), milestone=milestone)
-    broken = raster.broken_attachments(g, primitives=milestone >= 8)
-    # a graze the v3 corner detector idealizes a hair past the ½-pen reach reads as still attached: the
+    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), stage)
+    broken = raster.broken_attachments(g, primitives=primitives)
+    # a graze the corner detector idealizes a hair past the ½-pen reach reads as still attached: the
     # boundary recedes just over the hard cutoff (rounding), not a real detachment. Accept overshoots
     # under 0.15w; a genuine break (how cannon 2/26 slipped through) is far larger. Tolerance-relative,
     # not a hardcoded blob id, so it survives the resolution normalization (§5) rescaling the geometry.
     broken = [b for b in broken if b[2] - g.w / 2 >= 0.15 * g.w]
-    assert not broken, f"{name} M{milestone} idealization broke attachments (blob, edge, gap): {broken}"
+    assert not broken, f"{name} {_label(stage, primitives)} idealization broke attachments (blob, edge, gap): {broken}"
 
 
 @pytest.mark.parametrize("name", SUBJECTS)
 def test_render_covers_the_ink(name):
     # idealization trims edges, but the render must still cover the bulk of each colour's ink
     ink = ingest(np.asarray(Image.open(os.path.join(ISO, f"{name}_iso.png")).convert("RGB")))
-    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), milestone=8)
+    g = vectorize(os.path.join(ISO, f"{name}_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
     rows, _ = raster.connectivity(g, ink, primitives=True)
     for c, _, _, cov in rows:
         assert cov >= 0.6, f"{name} colour {c} coverage only {cov:.2f} -- a chunk went missing"

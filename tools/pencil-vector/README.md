@@ -10,32 +10,35 @@ principles (§2) and invariant hierarchy (§3).
 
 The 5 reference subjects it iterates on live in `subjects/` (`*_iso.png`).
 
-## Build order
+## Pipeline
 
-Each milestone writes its own **retained** render, `out/<subject>_m<N>.svg` — a new
-milestone never overwrites a prior one, and each milestone's code path stays
-runnable. The `pipeline_stages` study page (below) turns those into a per-cell tab
+The pipeline runs in ordered **stages** (the `Stage` enum in `vectorize.py`). `vectorize(path,
+stage=…)` stops at any of them, so the graph can be inspected at each point; each stage builds on the
+ones before it. Following the plan §12 — end-to-end early, depth later:
+
+| stage | what it does |
+|-------|--------------|
+| `SKELETONIZE` | ink + `w` → naive per-colour skeleton → graph → one `<path>` per edge |
+| `IDENTIFY_ELEMENTS` | width classes (hysteresis): filled regions → blobs, line-work → strokes; boundaries + holes traced |
+| `FREEZE_TOPOLOGY` | geometry-derived stable IDs + topology freeze + blob incidence |
+| `JUNCTIONIZE` | junction resolution (continuity pairing) + continuity flood |
+| `PLANAR_EMBED` | planar embedding — interior holes, rotational order, containment/z, validation |
+| `FIT_IDEAL_GEOMETRY` | geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) |
+
+`svgdump.dump(…, primitives=True)` then emits the fitted geometry as real arc/line SVG commands — a
+render choice, not a stage. Two things sit outside the pipeline: the **asset tool** (interactive
+cleanup, below), and future export work (constraints, LOD, colliders, role-specific export).
+
+The CLI writes `out/<subject>_<stage>.svg` — a new stage never overwrites another, and each stage's
+code path stays runnable. The `pipeline_stages` study page (below) turns those into a per-cell tab
 strip so you can flip through the approach's progress on each subject.
-
-Milestones follow the plan §12 — end-to-end early, depth later:
-
-| # | milestone | status |
-|---|-----------|--------|
-| **M1** | Stage 0 (ink + `w`) → naive skeleton → graph → one `<path>` per edge | ✅ done |
-| **M2** | Width classes (hysteresis): filled regions → blobs, line-work → strokes | ✅ done |
-| **M3** | Spur prune + stable IDs (geometry-derived) + topology freeze | ✅ done |
-| **M4** | Asset tool — manual highlight / delete / flood-select / export | ✅ done |
-| **M5** | Junction resolution (continuity pairing) + continuity flood | ✅ done |
-| **M6** | Planar embedding — interior holes, rotational order, containment/z, validation | ✅ done |
-| M7 | Geometry fitting (TV-denoised κ(s)/r(s), primitive segmentation) | — |
-| M8 | Constraints, LOD, colliders, role-specific export | — |
 
 ## Run
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python vectorize.py subjects/cannon_iso.png out/cannon_m1.svg
+python vectorize.py subjects/cannon_iso.png       # full pipeline; add --stage=skeletonize to stop early
 ```
 
 Prints the derived pen width `w` (the unit every downstream tolerance is
@@ -62,18 +65,18 @@ intermediates.
 | file | role |
 |------|------|
 | `model.py` | data model — `Node` / `Edge` / `Graph`, annotations layer |
-| `ink.py` | Stage 0 — Sauvola threshold, speckle rejection, distance transform, `w` |
-| `widthclass.py` | Stage 1 (M2) — solid detection (thick-core seed + density grow) → blobs |
+| `ink.py` | ingest — Sauvola threshold, speckle rejection, distance transform, `w` |
+| `widthclass.py` | element identification — solid detection (thick-core seed + density grow) → blobs |
 | `graph.py` | skeleton → node/edge graph, spur pruning (§6.4), blob incidence, continuity |
-| `stableid.py` | Stage 5 (M3) — geometry-derived stable IDs + topology freeze |
-| `embedding.py` | Stage 6 (M6) — rotational order, containment/z, post-fit crossing check |
+| `stableid.py` | freeze topology — geometry-derived stable IDs + topology freeze |
+| `embedding.py` | planar embedding — rotational order, containment/z, post-fit crossing check |
 | `svgdump.py` | export — filled blobs + one `<path>` per stroke edge (carries `data-sid`) |
-| `vectorize.py` | end-to-end driver (`--milestone=N`, default latest) |
+| `vectorize.py` | end-to-end driver + the `Stage` enum (`--stage=NAME`, default `fit_ideal_geometry`) |
 | `export_model.py` | serialize the frozen graph to `out/<subject>_model.json` (§13) |
-| `asset_template.html` | the M4 asset tool (served live by `server.py` at `/asset`) |
+| `asset_template.html` | the asset tool (served live by `server.py` at `/asset`) |
 | `pipeline_stages.py` | **Pipeline Stages** study page → `pipeline_stages.html`, published as artifact `bab2a5a5` (per subject: scan next to a stage tab-strip — skeleton · grow · absorb · fit · arcs; selecting a stage syncs every cell) |
 
-## Asset tool (M4)
+## Asset tool
 
 `./build.sh` generates a standalone **`cleanup.html`** (all subjects' models inlined —
 no server needed). Open it in a browser to extract an asset by hand:
@@ -82,7 +85,7 @@ no server needed). Open it in a browser to extract an asset by hand:
 - **click** toggles one segment; **shift-click** fills the connected component, or
   anti-fills it if the clicked segment is already selected;
 - **ctrl/⌘-click** selects one continuity *stroke* (through junctions, §10);
-- flood is **continuity-aware** (M5): it follows a stroke through a junction but does
+- flood is **continuity-aware** (junctionize, §6.4): it follows a stroke through a junction but does
   not leak across a crossing (an arm crossing a sword shaft doesn't drag in the
   figure), and it stops at deleted (masked) segments;
 - **Delete → mask** hides the selection (recorded, never mutating the model);
@@ -91,9 +94,9 @@ no server needed). Open it in a browser to extract an asset by hand:
   JSON so it replays against a re-run of the pipeline (§10). Hints and free-cut are
   later work.
 
-M3 note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
+Freeze-topology note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
 cell), not traversal order, so re-running with tweaked tolerances keeps the same
-identities. The `test_m3.py` ID-stability test perturbs the threshold a few
+identities. The `test_freeze_topology.py` ID-stability test perturbs the threshold a few
 percent and asserts ≥95% of edge IDs survive on clean line-art, and that on
 blob-heavy inputs the IDs never churn beyond genuine geometry change.
 
@@ -103,7 +106,7 @@ geometry. A short leaf is a thinning twig only if its free end connects to
 blob** (extending the end lands inside the blob, not in an empty concave notch —
 the edge→blob incidence blobs need as first-class nodes, §6.3), or it runs
 **collinear** with a junction partner (a continuation of that stroke, fragmented
-by the skeleton; full merge is M5). Length is only the twig-size ceiling.
+by the skeleton; full merge is junctionize). Length is only the twig-size ceiling.
 
 A region is **solid** where ink is locally dense — seeded on a genuine thick core
 (a thin-line junction can't seed) and grown through ink that is either still thick
@@ -111,10 +114,8 @@ or *locally dense*, so crosshatch/scribble reads as solid even though its stroke
 are thin. Enclosed white gaps (drawing noise) are filled. This keeps solids solid
 instead of leaving concave gaps, pinches, and stray medial-axis strokes.
 
-M2 notes: **colour** isn't handled yet, so a coloured solid (the flag field, blood
-spray) fills flat black rather than its hue — a later concern (the plan keeps colour
-separate). The `variable`/taper class (splitting an elongated fill into a monotone
-ramp) is also deferred; every fill is a `blob` for now.
+Element-identification notes: the `variable`/taper class (splitting an elongated fill into a
+monotone ramp) is deferred; every fill is a `blob` for now.
 
 ## Tests
 
@@ -123,5 +124,5 @@ pip install -r requirements-dev.txt
 pytest
 ```
 
-`test_m1.py` runs the pipeline on the checked-in isolated subjects and asserts
+`test_skeletonize.py` runs the pipeline on the checked-in isolated subjects and asserts
 `w` is sane and the graph is well-formed (skips if the isos aren't present).

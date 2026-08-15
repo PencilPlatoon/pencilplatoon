@@ -1,4 +1,4 @@
-"""M4 acceptance tests -- the model the asset tool consumes (plan §10, §13).
+"""Asset-model acceptance tests -- the model the asset tool consumes (plan §10, §13).
 
 The tool needs a serialized model whose edges carry endpoint node ids (so
 flood-select can traverse adjacency) and whose every element carries its stable
@@ -10,7 +10,7 @@ import os
 import pytest
 
 from export_model import model_dict
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ISO = os.path.join(HERE, "subjects")
@@ -23,7 +23,7 @@ pytestmark = pytest.mark.skipif(
 
 @pytest.fixture(scope="module")
 def m():
-    return model_dict(vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=3), "cannon")
+    return model_dict(vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FREEZE_TOPOLOGY), "cannon")
 
 
 def test_model_has_the_pieces_the_tool_needs(m):

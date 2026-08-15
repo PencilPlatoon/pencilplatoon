@@ -1,7 +1,7 @@
-"""Stage 8 -- geometry fitting (plan §9).
+"""Geometry fitting (plan §9).
 
 Idealize each traced polyline -- stroke centerlines AND blob boundaries alike, the
-one uniform step promised at M2/M6 -- so a wobbly-but-straight line reads as a line, an
+one uniform step the earlier stages defer -- so a wobbly-but-straight line reads as a line, an
 intended circle as one arc, and a corner stays a corner. Smoothing x/y naively would kill
 corners along with wobble; the fit keeps them as knots where it is free to bend.
 
@@ -450,7 +450,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
 
 
 def path_d(fit: Fit) -> str:
-    """Emit the fitted primitives as a real SVG path (M8, §11): `L` for a line, an `A`
+    """Emit the fitted primitives as a real SVG path (§11): `L` for a line, an `A`
     arc command for an arc (large-arc/sweep read off the swept angle). One arc command
     replaces a whole sampled polyline -- the biggest size win after centerline strokes.
     Crisp geometry only; the charm layer samples instead."""

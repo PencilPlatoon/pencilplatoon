@@ -22,7 +22,7 @@ import numpy as np
 from PIL import Image
 
 from export_model import model_dict, _scan_b64
-from vectorize import LATEST, vectorize
+from vectorize import Stage, vectorize
 
 SAT_INK = 45            # a colour ink pixel: R..B spread above this (0..255), even if not dark
 CLEAN_KEEP = 30         # bias the ink/paper split this many luminance levels toward KEEPING ink: only
@@ -111,7 +111,7 @@ def vectorize_box(img, scan_name: str, b: dict, bx: dict) -> dict:
     crop_path = os.path.join(OUT, f"{b['name']}_crop.png")
     cleaned.save(crop_path)
     # thumbnails: the ORIGINAL crop (honest reference) and the CLEANED crop (what the pipeline actually saw)
-    d = model_dict(vectorize(crop_path, milestone=LATEST), b["name"], _scan_b64(crop), _scan_b64(cleaned))
+    d = model_dict(vectorize(crop_path, Stage.FIT_IDEAL_GEOMETRY), b["name"], _scan_b64(crop), _scan_b64(cleaned))
     d["box"] = {"scan": scan_name, "x0": b["x0"], "y0": b["y0"], "x1": b["x1"], "y1": b["y1"]}
     json.dump(d, open(os.path.join(OUT, f"{b['name']}_model.json"), "w"))
     record_box(bx, scan_name, b)

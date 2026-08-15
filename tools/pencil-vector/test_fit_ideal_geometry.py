@@ -1,4 +1,4 @@
-"""M7 acceptance tests -- geometry fitting (plan §9).
+"""Fit-ideal-geometry acceptance tests -- geometry fitting (plan §9).
 
 Working in the turning function, a wobbly-but-straight run fits ONE line, a distorted
 circle ONE arc (not forty segments), and a deliberate corner survives as a step. The fit
@@ -13,7 +13,7 @@ import pytest
 
 from fit import fit_curve, reconstruct
 from model import BLOB
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 W = 10.0
 
@@ -75,18 +75,18 @@ needs_iso = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.
 
 
 @needs_iso
-def test_m7_annotates_without_replacing_points():
-    g6 = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=6)
-    g7 = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=7)
-    assert all("fit" not in e.ann for e in g6.edges.values())     # gating: no fit before M7
-    assert all("fit" in e.ann for e in g7.edges.values())         # every stroke fitted at M7
-    assert any("fit" in nd.ann for nd in g7.nodes.values() if nd.kind == BLOB)   # blobs too
-    for e in g7.edges.values():                                   # raw geometry untouched (§9)
+def test_fit_annotates_without_replacing_points():
+    embedded = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.PLANAR_EMBED)
+    fitted = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
+    assert all("fit" not in e.ann for e in embedded.edges.values())   # gating: no fit before fit-ideal-geometry
+    assert all("fit" in e.ann for e in fitted.edges.values())         # every stroke fitted at fit-ideal-geometry
+    assert any("fit" in nd.ann for nd in fitted.nodes.values() if nd.kind == BLOB)   # blobs too
+    for e in fitted.edges.values():                                   # raw geometry untouched (§9)
         assert e.pts is not None and len(e.pts) >= 1
 
 
 @needs_iso
-def test_m7_fits_lines_and_arcs_on_a_real_subject():
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=7)
+def test_fits_lines_and_arcs_on_a_real_subject():
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
     kinds = Counter(p.kind for e in g.edges.values() for p in e.ann["fit"].prims)
     assert kinds["line"] > 0 and kinds["arc"] > 0                 # the cannon has both

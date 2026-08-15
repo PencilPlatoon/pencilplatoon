@@ -1,6 +1,6 @@
 """Pipeline Stages study page: per subject, the original SCAN next to a tab strip stepping through the
 pipeline stages that each visibly change the diagram -- skeleton, grow, absorb, fit (named for
-what they do, not by milestone number; see stage_graphs). Tabs are radio-driven (pure CSS) and clone
+what they do; see stage_graphs). Tabs are radio-driven (pure CSS) and clone
 into the zoom, so they work zoomed and non-zoomed (the pencil-vector study-page pattern). Selecting a
 stage in any cell syncs every cell on the page. Published as artifact bab2a5a5 ("Pencil Vector —
 pipeline stages").
@@ -20,7 +20,7 @@ from scipy import ndimage
 import growth
 import raster
 import vectorize as V
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 from export_model import model_dict
 from graph import build
 from ink import Ink, ingest
@@ -45,13 +45,13 @@ SUBJECTS = [
 
 
 def build_pre_absorb(key):
-    """The M2 graph the instant BEFORE absorb_rim_stubs runs -- growth blob-resolution and the
-    junction merge are done, but the rim fray isn't yet folded into the fills. Diffed against the
-    'absorb' tab (the finished M2), this isolates exactly what the rim-stub absorber changes."""
+    """The identify-elements graph the instant BEFORE absorb_rim_stubs runs -- growth blob-resolution
+    and the junction merge are done, but the rim fray isn't yet folded into the fills. Diffed against
+    the 'absorb' tab (elements fully identified), this isolates what the rim-stub absorber changes."""
     saved = V.absorb_rim_stubs
     V.absorb_rim_stubs = (lambda *a, **k: None)
     try:
-        return vectorize(ISO % key, milestone=2)
+        return vectorize(ISO % key, Stage.IDENTIFY_ELEMENTS)
     finally:
         V.absorb_rim_stubs = saved                        # restore even if vectorize raises
 
@@ -153,7 +153,7 @@ def phase_svg(g, ink, clines=False, prim=False):
 
 
 def pv_cell(subj, panels, default=-1):
-    """A milestone tab-strip (radio-driven, pure CSS) over one cell. `panels` = [(label, svg), ...];
+    """A stage tab-strip (radio-driven, pure CSS) over one cell. `panels` = [(label, svg), ...];
     `default` is the checked tab index. The lightbox clones the whole cell so tabs come with zoom."""
     radios = tabs = pans = ""
     d = default % len(panels)
@@ -186,18 +186,18 @@ def tile(kind, label, inner, meta):
 
 
 def stage_graphs(key):
-    """The pipeline checkpoints that each visibly change the diagram, named for what they DO rather
-    than by milestone number. Each was verified to differ from the one before by hundreds to tens of
+    """The pipeline checkpoints that each visibly change the diagram, named for what they DO. Each was
+    verified to differ from the one before by hundreds to tens of
     thousands of rendered pixels on every scan (skeleton->grow is the big one -- 2D regions fill in).
       skeleton  contact-aware stroke skeleton: endpoints disciplined, 2D regions carved out (classify)
       grow      2D regions grown from their stroke contacts into networks + kept fills (pre-absorb)
       absorb    rim fray folded into the fills it frays off (absorb_rim_stubs)
-      fit       strokes + fill edges idealized to line/arc geometry (milestone 8, spline)"""
+      fit       strokes + fill edges idealized to line/arc geometry (fit-ideal-geometry, spline)"""
     return [
-        ("skeleton", pre_grow(key),                     False),
-        ("grow",     build_pre_absorb(key),             False),
-        ("absorb",   vectorize(ISO % key, milestone=2), False),
-        ("fit",      vectorize(ISO % key, milestone=8), False),
+        ("skeleton", pre_grow(key),                                    False),
+        ("grow",     build_pre_absorb(key),                           False),
+        ("absorb",   vectorize(ISO % key, Stage.IDENTIFY_ELEMENTS),   False),
+        ("fit",      vectorize(ISO % key, Stage.FIT_IDEAL_GEOMETRY),  False),
     ]
 
 
@@ -217,7 +217,7 @@ for key, name, note in SUBJECTS:
     rows += ('<div class="row" style="--ar:%d/%d"><div class="rowhead"><h3>%s</h3><p>%s</p></div>'
              '<div class="cells">%s</div></div>') % (w, h, name, note, cells)
 
-NTABS = 12          # emit tab show/hide rules for up to this many panels (grows with the milestone set)
+NTABS = 12          # emit tab show/hide rules for up to this many panels (grows with the stage set)
 PVCSS = "\n".join(
     "  .pv:has(.pvr:nth-of-type(%d):checked) .pvpanel:nth-of-type(%d){display:contents}" % (i, i)
     for i in range(1, NTABS + 1))
@@ -321,9 +321,9 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
   .seg.near .vis path[fill]:not([fill="none"]){fill:#e8402f}
   .seg.near .vis circle{stroke:#e8402f}
 
-  /* Pencil-Vector milestone tab-strip over one cell (radio-driven, pure CSS). Panels use
+  /* Pencil-Vector stage tab-strip over one cell (radio-driven, pure CSS). Panels use
      display:contents so the shown SVG sizes exactly like the scan panel. Show/hide rules (PVCSS)
-     are generated for NTABS panels, so the strip grows with the milestone set. */
+     are generated for NTABS panels, so the strip grows with the stage set. */
   .art.pv{position:relative;padding-top:38px;cursor:default}
   .pvr{position:absolute;width:0;height:0;opacity:0;pointer-events:none}
   .pvtabs{position:absolute;top:9px;left:10px;right:10px;z-index:4;display:flex;gap:6px;
@@ -403,7 +403,7 @@ HTML = r'''<title>Pencil Vector — pipeline stages</title>
       var art=btn.parentNode.querySelector('.art');
       fr.textContent='';
       if(art.classList.contains('pv')){
-        // clone the whole cell so the milestone tabs come with the zoom; remap the radio group
+        // clone the whole cell so the stage tabs come with the zoom; remap the radio group
         var clone=art.cloneNode(true), uid='lbpv'+(++n);
         clone.querySelectorAll('.pvr').forEach(function(r){
           var old=r.id; r.name=uid; r.id=uid+'-'+old;

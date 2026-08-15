@@ -1,7 +1,7 @@
-"""M1 acceptance tests (plan §5, §12).
+"""Skeletonize acceptance tests (plan §5, §12).
 
 Runs the end-to-end skeleton->graph on the checked-in isolated subjects and
-asserts the two things M1 promises: a sane pen width `w`, and a connected graph
+asserts the two things the skeleton promises: a sane pen width `w`, and a connected graph
 of junction-to-junction edges dumped as SVG paths. Skips if the isos are absent.
 """
 import os
@@ -19,7 +19,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 ISO = os.path.join(HERE, "subjects")
 
 # line-art subjects: w should read as a thin pen. (soldier/flag are fill-heavy
-# or fine-emblem, so their w is Stage-1's business, not M1's.)
+# or fine-emblem, so their w is width-classing's business, not the skeleton's.)
 LINE_ART = ["cannon", "mg", "dying"]
 
 pytestmark = pytest.mark.skipif(
@@ -48,7 +48,7 @@ def test_graph_is_nonempty_and_typed(name):
     g = _graph(name)
     assert g.nodes and g.edges
     kinds = {nd.kind for nd in g.nodes.values()}
-    assert kinds <= {ENDPOINT, JUNCTION}          # blobs arrive in M2
+    assert kinds <= {ENDPOINT, JUNCTION}          # blobs arrive at identify-elements
     assert {ENDPOINT, JUNCTION} & kinds            # at least one real node kind
 
 
@@ -62,7 +62,7 @@ def test_edges_are_junction_to_junction(name):
 
 
 def test_dump_emits_a_seg_per_edge():
-    # M1 has no blobs, so every component is a stroke edge: one interactive
+    # the skeleton has no blobs, so every component is a stroke edge: one interactive
     # <g class="seg"> and one data-edge apiece.
     g = _graph("cannon")
     svg = dump(g, show_nodes=True)

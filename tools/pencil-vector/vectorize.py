@@ -1,7 +1,7 @@
-"""M1 driver: image -> graph -> SVG, end-to-end.
+"""Driver: image -> graph -> SVG, end-to-end.
 
 Usage:
-    python vectorize.py IN.png [OUT.svg]
+    python vectorize.py IN.png [OUT.svg] [--stage=NAME] [--primitives]
 
 Prints the derived pen width `w` (§5 acceptance: sane, ~within 15% of a
 hand-measured stroke) and the node/edge counts.
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+from enum import IntEnum
 
 import numpy as np
 from PIL import Image, ImageDraw
@@ -30,24 +31,32 @@ from model import BLOB, Graph, Node
 from stableid import assign
 from svgdump import dump
 
-LATEST = 8                      # highest implemented milestone
+class Stage(IntEnum):
+    """How far to run the pipeline. Each stage builds on the ones before it, so a given stage's output
+    is what the approach produces once that phase is done. Ordered, so `stage >= Stage.PLANAR_EMBED`
+    reads naturally. Only some phases change the render (SKELETONIZE, IDENTIFY_ELEMENTS,
+    FIT_IDEAL_GEOMETRY); the rest add connectivity/embedding structure the export reads. Emitting the
+    idealized geometry as real arc/line primitives is a separate render choice (`svgdump.dump(..,
+    primitives=True)`), not a stage."""
+    SKELETONIZE = 1          # raw per-colour medial-axis skeleton (strokes only)
+    IDENTIFY_ELEMENTS = 2    # 2D fills -> blobs, line-work -> strokes; boundaries + holes traced
+    FREEZE_TOPOLOGY = 3      # stable ids assigned, topology frozen, blob incidence wired
+    JUNCTIONIZE = 4          # junction continuity resolved (a stroke traced through its junctions)
+    PLANAR_EMBED = 5         # planar embedding: interior holes, rotational order, containment/z
+    FIT_IDEAL_GEOMETRY = 6   # strokes + fill edges idealized to line/arc geometry
 
 
-def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
+def vectorize(in_path: str, stage: Stage = Stage.FIT_IDEAL_GEOMETRY, thresh_bias: float = 0.0,
               scale: int | None = None):
-    """Run the pipeline up to `milestone` -- each milestone adds the features up
-    to it, so a given milestone's output is what the approach produced at that
-    stage. M1 naive skeleton; M2 width classes (blobs, holes and all -- a hollow shape
-    is hollow from the start); M3 stable IDs + freeze; M4/M5 add connectivity (no
-    render change); M6 planar embedding. Only render-changing milestones differ
-    visually (M1, M2, M3).
+    """Run the pipeline up to `stage` (see Stage) -- each stage adds the features up to it, so a given
+    stage's output is what the approach produced at that point.
 
     `scale` supersamples the scan (§5); None picks it dynamically from the native
     pen width so small holes / thin walls resolve instead of pinching shut."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
     ink = ingest(rgb, thresh_bias=thresh_bias, scale=scale)
 
-    # Stage 1 runs PER COLOUR LAYER (§5, revised M1): each colour's ink is skeletonized and
+    # Skeletonization runs PER COLOUR LAYER (§5): each colour's ink is skeletonized and
     # width-classed on its own, so a black line abutting a red fill is measured on the black
     # layer alone -- it stays a thin stroke instead of fusing with the fill into one blob. The
     # layers' subgraphs merge into one graph; cross-colour contiguity is then restored below
@@ -63,7 +72,7 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
     agg_solid = growth.expand(growth.raw_core(ink), ink) if len(ink.palette) > 1 else None
     for c, cmask in _color_masks(ink):
         ink_c = Ink(mask=cmask, dist=ndimage.distance_transform_edt(cmask), w=ink.w, scale=ink.scale)
-        if milestone <= 1:                  # M1: raw skeleton per colour, no width classes
+        if stage <= Stage.SKELETONIZE:      # raw skeleton per colour, no width classes
             _merge(g, build(ink_c), c, nc, ec)
             continue
         # Growth-based blob resolution (§6.4): grow the ambiguous 2D regions into segment networks by
@@ -79,28 +88,27 @@ def vectorize(in_path: str, milestone: int = LATEST, thresh_bias: float = 0.0,
             g.nodes[nid] = Node(id=nid, kind=BLOB, pos=centroid, boundary=None,
                                 ann={"color": c, "width_class": "blob", "holes": []})
             blob_masks[nid] = mask
-    if milestone <= 1:
-        return g                            # M1 is a skeleton -- no fills, so no contiguity base
-    g.labels = ink.labels                   # M2+: carry the colour map for the render's fill base
-    absorb_rim_stubs(g, blob_masks, ink.mask, ink.w)   # M2: fold rim fray into the fill it bumps off
-                                            # -- a width-class cleanup, so it belongs with M2's blobs
-                                            # and must run before the M3 topology freeze either way
+    if stage <= Stage.SKELETONIZE:
+        return g                            # a bare skeleton -- no fills, so no contiguity base
+    g.labels = ink.labels                   # carry the colour map for the render's fill base
+    # Element identification's own cleanups: fold rim fray into the fill it bumps off, and separate a
+    # stroke that GRAZES a blob mid-edge at the contact. Both are stroke<->blob geometry, so they run
+    # here (before the boundary is traced / topology is frozen), not as a later reshape.
+    absorb_rim_stubs(g, blob_masks, ink.mask, ink.w)
     _trace_blobs(g, blob_masks, ink)                   # trace each blob's boundary + holes ONCE, from its final mask
-    split_edges_at_blob_contacts(g, blob_masks, ink.w)  # M2: separate a stroke that GRAZES a blob mid-edge at
-                                            # the contact (like absorb_rim_stubs, this is stroke<->blob geometry
-                                            # cleanup, so it precedes the M3 freeze -- not a reshape at M3)
+    split_edges_at_blob_contacts(g, blob_masks, ink.w)
 
-    if milestone >= 3:                      # M3: stable IDs + freeze; M4: blob incidence
+    if stage >= Stage.FREEZE_TOPOLOGY:      # stable IDs + freeze + blob incidence
         # (no spur-prune: the contact-aware skeleton already drops sub-pen twigs at the source, §6.2)
         assign(g)
         attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
         attach_contact_splits(g)               # wire the graze-split incidence (endpoint attach can't see it)
-    if milestone >= 5:                      # M5: junction resolution for continuity flood (§6.4)
+    if stage >= Stage.JUNCTIONIZE:          # junction resolution for continuity flood (§6.4)
         resolve_continuity(g)
-    if milestone >= 6:                      # M6: planar embedding (§8)
+    if stage >= Stage.PLANAR_EMBED:         # planar embedding (§8)
         rotational_order(g)
         containment(g)
-    if milestone >= 7:                      # M7: geometry fitting (§9)
+    if stage >= Stage.FIT_IDEAL_GEOMETRY:   # geometry fitting (§9)
         fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
         _idealize_blob_boundaries(g, ink)    # idealize/emit only where it keeps strokes in contact
     return g
@@ -130,20 +138,20 @@ def _fill_polygon(poly: np.ndarray, w: float):
 
 
 def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
-    """Give fills the stroke's M7 treatment: render each fill from its FITTED (idealized) edge
+    """Give fills the same idealization strokes get: render each fill from its FITTED edge
     -- straight edges, arcs -- with the pen-width minimum re-asserted. But idealizing can smooth
     the boundary INWARD, off a stroke that reached the traced edge, opening a gap -- and the
     drawing may stay connected the long way round, so a piece-count check misses it (how cannon
     2/26 slipped through, §12). So guard each attachment the blob RECORDED from the ink (§6.3)
     one at a time: idealize a fill only if no attached stroke ends up more than a half-pen from
     the new edge when it wasn't before (an aggregate contact count is fooled -- pulling off one
-    stroke while gaining another nets zero). Emit arcs at M8 under the same per-attachment guard;
-    otherwise keep the traced edge -- connected, if not as clean. This is the guard side of the
-    invariant `raster.broken_attachments` checks after the fact.
+    stroke while gaining another nets zero). Emitting the edge as real arc primitives is guarded the
+    same way; otherwise keep the traced edge -- connected, if not as clean. This is the guard side of
+    the invariant `raster.broken_attachments` checks after the fact.
 
     Contact is probed with each stroke's frozen centerline `pts`, NOT its rendered stroke: the raw
-    geometry never idealizes (M7 fits only annotations), so the same probe measures identically at
-    M7 and M8 -- the boundary is the only thing that moves."""
+    geometry never idealizes (the fit only annotates), so the same probe measures identically whether
+    or not primitives are emitted -- the boundary is the only thing that moves."""
     from svgdump import _d
     h, w_img = ink.mask.shape
     reach = 0.5 * ink.w                               # a stroke within a half-pen of the edge touches
@@ -228,7 +236,7 @@ def _trace_blobs(g: Graph, blob_masks: dict, ink: Ink) -> None:
     """Trace each blob's outer boundary + interior holes from its FINAL (post rim-stub absorption) mask,
     once. Deferred here (rather than at blob creation in growth.resolve) so a blob whose rim stub absorb
     folded in isn't traced twice -- 23 of the 26 blobs were being traced then re-traced. Holes are traced
-    natively WITH the outline -- a hollow shape is hollow from the start, not gated to a later milestone.
+    natively WITH the outline -- a hollow shape is hollow from the start, not gated to a later stage.
     A mask that fell into disconnected pieces (§_blob_pieces) becomes one sibling blob per piece."""
     ink_holes = ndimage.binary_fill_holes(ink.mask) & ~ink.mask   # holes the pen left open in the drawing
     dead = []; born = {}
@@ -287,11 +295,12 @@ def _merge(g: Graph, sub: Graph, color: int, nc: list, ec: list) -> None:
 
 def main(argv):
     show_nodes = "--nodes" in argv           # debug overlay of node kinds
-    milestone = LATEST
+    primitives = "--primitives" in argv      # emit the idealized geometry as real arc/line commands
+    stage = Stage.FIT_IDEAL_GEOMETRY
     scale = None                             # dynamic by default
     for a in argv:
-        if a.startswith("--milestone="):
-            milestone = int(a.split("=", 1)[1])
+        if a.startswith("--stage="):
+            stage = Stage[a.split("=", 1)[1].upper()]
         if a.startswith("--scale="):
             scale = int(a.split("=", 1)[1])
     pos = [a for a in argv if not a.startswith("--")]
@@ -299,13 +308,13 @@ def main(argv):
         print(__doc__)
         return 2
     in_path = pos[0]
-    out_path = pos[1] if len(pos) > 1 else "%s_m%d.svg" % (os.path.splitext(in_path)[0], milestone)
-    g = vectorize(in_path, milestone, scale=scale)
+    out_path = pos[1] if len(pos) > 1 else "%s_%s.svg" % (os.path.splitext(in_path)[0], stage.name.lower())
+    g = vectorize(in_path, stage, scale=scale)
     with open(out_path, "w") as f:
-        f.write(dump(g, show_nodes=show_nodes, primitives=milestone >= 8))   # M8 emits real arcs
+        f.write(dump(g, show_nodes=show_nodes, primitives=primitives))
     blobs = sum(1 for nd in g.nodes.values() if nd.kind == BLOB)
-    print("m%d  scale=%dx  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
-          % (milestone, g.scale, g.w, len(g.nodes), len(g.edges), blobs, out_path))
+    print("%s  scale=%dx  w=%.2f  nodes=%d  edges=%d  blobs=%d  -> %s"
+          % (stage.name.lower(), g.scale, g.w, len(g.nodes), len(g.edges), blobs, out_path))
     return 0
 
 

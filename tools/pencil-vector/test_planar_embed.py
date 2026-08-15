@@ -1,4 +1,4 @@
-"""M6 acceptance tests -- planar embedding (plan §8).
+"""Planar-embed acceptance tests -- planar embedding (plan §8).
 
 Interior holes are traced (a hollow shape stays hollow), the rotational order
 around a junction is its incident edges, a nested fill gets a higher paint order,
@@ -11,7 +11,7 @@ import pytest
 
 from embedding import containment, count_crossings, rotational_order, validate_embedding
 from model import BLOB, Edge, Graph, Node
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ISO = os.path.join(HERE, "subjects")
@@ -33,13 +33,13 @@ def _e(i, a, b, pts):
 def test_blobs_get_interior_holes():
     # the flag's field has real hollows at least a pen wide (the emblem) -- they must be
     # traced, not swallowed. (Sub-pen-width hollows are dropped by the pen-width floor.)
-    g = vectorize(_iso("flag"), milestone=6)
+    g = vectorize(_iso("flag"), Stage.PLANAR_EMBED)
     blobs = [nd for nd in g.nodes.values() if nd.kind == BLOB]
     assert any(nd.ann.get("holes") for nd in blobs)
 
 
 def test_rotational_order_is_the_incident_edges():
-    g = vectorize(_iso("cannon"), milestone=6)
+    g = vectorize(_iso("cannon"), Stage.PLANAR_EMBED)
     for nid, nd in g.nodes.items():
         if nd.kind == BLOB:
             continue

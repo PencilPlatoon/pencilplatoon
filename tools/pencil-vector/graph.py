@@ -1,12 +1,12 @@
-"""Stage 2-3 (M1 subset) -- skeleton and naive graph construction (plan §6.2-6.3).
+"""Skeleton and graph construction (plan §6.2-6.3).
 
-M1 is deliberately naive: thin the whole mask, find nodes where the skeleton's
+Skeletonization is deliberately naive: thin the whole mask, find nodes where the skeleton's
 degree != 2, and trace the degree-2 runs between them into junction-to-junction
 edges. Width classification (blobs vs strokes), continuity pairing, and stable
-IDs arrive in later milestones; this just gets a graph end-to-end.
+IDs arrive in later stages; this just gets a graph end-to-end.
 
 IDs here are traversal-order and therefore NOT yet stable across re-runs -- that
-is M3's job (§7), and is called out so nothing downstream leans on them early.
+is the freeze-topology stage's job (§7), and is called out so nothing downstream leans on them early.
 """
 from __future__ import annotations
 
@@ -58,8 +58,8 @@ def _trace_run(start, came_from, skel, node_at):
 
 
 def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
-    # `mask` defaults to all ink (M1). M2 passes the thin (stroke-only) mask so
-    # blob interiors aren't skeletonized into centerlines (§6.2).
+    # `mask` defaults to all ink (the naive skeleton). Element identification passes the thin
+    # (stroke-only) mask so blob interiors aren't skeletonized into centerlines (§6.2).
     skel = skeletonize(ink.mask if mask is None else mask)
     deg = _degree(skel)
 
@@ -124,7 +124,7 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
 
 
 # ---- Contact-aware skeleton + the w/2 endpoint discipline (§6.2, revised) --------------------------
-# The old M2 skeleton was skeletonize(ink - blobs): it treats a stroke->fill contact as a WALL, so the
+# The old width-class skeleton was skeletonize(ink - blobs): it treats a stroke->fill contact as a WALL, so the
 # medial axis HOOKS where a stroke is cut against a solid, and forks at every rounded end. Instead
 # skeletonize the FULL ink and drop only the fill interiors, so the axis runs THROUGH each contact;
 # then apply one w/2 endpoint rule, symmetric about a half pen, entirely here (not as later cleanups).
@@ -335,7 +335,7 @@ CONT_MAX_TURN = 60.0    # deg: two edges are one stroke through a junction if th
 
 
 def resolve_continuity(g: Graph) -> Graph:
-    """Junction resolution (Stage 4, §6.4): at each junction pair the edges that
+    """Junction resolution (§6.4): at each junction pair the edges that
     continue smoothly through it -- a stroke passing through -- greedily by the
     straightest continuation (Noris 'reverse drawing'). An edge that has no
     smooth partner is a T-termination. Records the partner sid per (edge, node)

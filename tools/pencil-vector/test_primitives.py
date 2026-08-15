@@ -1,8 +1,8 @@
-"""M8 acceptance tests -- emit real primitives (plan §11 "complexity wins").
+"""Primitives acceptance tests -- emit real primitives (plan §11 "complexity wins").
 
-The M7 fit annotations are emitted as real SVG geometry: a `line` becomes an `L`, an
+The fit annotations are emitted as real SVG geometry: a `line` becomes an `L`, an
 `arc` becomes a single `A` arc command (not a sampled polyline), coordinates round to one
-decimal. Same picture as M7, a fraction of the bytes. Gated on `primitives` (milestone 8),
+decimal. Same picture as the sampled render, a fraction of the bytes. Gated on `primitives`,
 and only when no charm is reapplied (a perturbed arc is no longer an arc).
 """
 import os
@@ -13,7 +13,7 @@ import pytest
 
 from fit import fit_curve, path_d
 from svgdump import dump
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 
 W = 10.0
 COORD = re.compile(r"-?\d+\.\d{2,}")            # a coordinate with 2+ decimals = not rounded
@@ -63,10 +63,10 @@ needs_iso = pytest.mark.skipif(not os.path.exists(os.path.join(ISO, "cannon_iso.
 
 @needs_iso
 def test_primitives_are_smaller_than_sampling_and_gated():
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
-    sampled = dump(g, primitives=False)          # M7 render
-    emitted = dump(g, primitives=True)            # M8 render
-    assert "A" not in re.sub(r"[^A]", "", sampled) or sampled.count("A") == 0   # M7 never emits arcs
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
+    sampled = dump(g, primitives=False)          # sampled (no-primitives) render
+    emitted = dump(g, primitives=True)            # primitives render
+    assert "A" not in re.sub(r"[^A]", "", sampled) or sampled.count("A") == 0   # the sampled render never emits arcs
     assert emitted.count("A") > 10                # the cannon's arcs become A commands
     assert len(emitted) < 0.8 * len(sampled)      # and it's markedly smaller
     assert emitted.startswith("<svg") and emitted.rstrip().endswith("</svg>")
@@ -76,7 +76,7 @@ def test_primitives_are_smaller_than_sampling_and_gated():
 def test_all_fitted_primitives_are_line_or_arc():
     # the whole real subject -- strokes, blob boundaries, holes -- classifies to line/arc only
     from model import BLOB
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
     kinds = set()
     for e in g.edges.values():
         if "fit" in e.ann:
@@ -91,7 +91,7 @@ def test_all_fitted_primitives_are_line_or_arc():
 
 @needs_iso
 def test_emit_does_not_touch_the_model():
-    # M8 is a render choice; the frozen geometry/annotations are unchanged
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=8)
+    # primitives is a render choice; the frozen geometry/annotations are unchanged
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.FIT_IDEAL_GEOMETRY)
     for e in g.edges.values():
         assert "fit" in e.ann and e.pts is not None and len(e.pts) >= 1

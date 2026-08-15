@@ -1,4 +1,4 @@
-"""M2 acceptance tests (plan §6.1, §12).
+"""Identify-elements acceptance tests (plan §6.1, §12).
 
 Width-class segmentation: a filled region (the cannon's gun, the SMG) becomes a
 filled blob instead of a skeleton, while the surrounding line-work stays as
@@ -13,7 +13,7 @@ from PIL import Image
 from ink import ingest
 from model import BLOB
 from svgdump import dump
-from vectorize import vectorize
+from vectorize import Stage, vectorize
 from widthclass import segment
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,7 +36,7 @@ def _blobs(g):
 @pytest.mark.parametrize("name", ["cannon", "soldier"])
 def test_filled_weapon_becomes_a_blob(name):
     # the cannon's gun-on-top and the gunner's SMG are solid fills -> >=1 blob
-    g = vectorize(_path := os.path.join(ISO, f"{name}_iso.png"), milestone=2)
+    g = vectorize(_path := os.path.join(ISO, f"{name}_iso.png"), Stage.IDENTIFY_ELEMENTS)
     blobs = _blobs(g)
     assert blobs, f"{name} produced no blobs"
     for b in blobs:
@@ -45,7 +45,7 @@ def test_filled_weapon_becomes_a_blob(name):
 
 def test_strokes_survive_alongside_blobs():
     # segmentation must not swallow the line-work: strokes remain as edges
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=2)
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.IDENTIFY_ELEMENTS)
     assert g.edges, "cannon lost all strokes to blobs"
 
 
@@ -119,7 +119,7 @@ def test_no_shell_of_rim_crumbs():
     for b in blobs:
         union |= b.mask
     edt = ndimage.distance_transform_edt(~union) / ink.scale     # native px to a blob
-    g = vectorize(os.path.join(ISO, "cannon_iso.png"), milestone=2)
+    g = vectorize(os.path.join(ISO, "cannon_iso.png"), Stage.IDENTIFY_ELEMENTS)
     on_rim = [e for e in g.edges.values()
               if float(np.hypot(*np.diff(e.pts, axis=0).T).sum()) / ink.scale < 2.0
               and edt[int(e.pts[len(e.pts) // 2][1]), int(e.pts[len(e.pts) // 2][0])] < 2.5]
@@ -127,7 +127,7 @@ def test_no_shell_of_rim_crumbs():
 
 
 def test_dump_emits_fills_and_strokes():
-    g = vectorize(os.path.join(ISO, "soldier_iso.png"), milestone=2)
+    g = vectorize(os.path.join(ISO, "soldier_iso.png"), Stage.IDENTIFY_ELEMENTS)
     svg = dump(g)
     assert 'data-blob=' in svg and 'fill="' in svg     # filled blob present
     assert 'data-edge=' in svg                          # strokes present

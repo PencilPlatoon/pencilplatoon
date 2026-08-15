@@ -1,12 +1,12 @@
-"""Stage 6 (M6) -- planar embedding (plan §8).
+"""Planar embedding (plan §8).
 
 The edges carve the plane into faces; containment of one closed region inside
 another gives object grouping and paint order (z) for free -- a fill nested
 inside another paints on top, not by traversal order. Rotational order (the
 cyclic order of edges around a junction) is the embedding's local structure.
 
-`validate_embedding` is the guard §8 asks for, to be run after any geometric fit
-(M7): a fit may not introduce a crossing that wasn't there, nor move a component
+`validate_embedding` is the guard §8 asks for, to be run after any geometric fit:
+a fit may not introduce a crossing that wasn't there, nor move a component
 out of the region it started in.
 """
 from __future__ import annotations

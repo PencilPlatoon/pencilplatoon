@@ -1,4 +1,4 @@
-"""One-off diagnostic: the flag M8 attachment regression the v3 corner detector introduces on blob 212.
+"""One-off diagnostic: the flag attachment regression (primitives render) the v3 corner detector introduces on blob 212.
 Reads flagdiff.json (extracted from the vectorizer, v2 vs v3, everything else held equal) and renders a
 blob overview + a tight zoom on the stroke<->fill contact, both for v2 (attached) and v3 (detached)."""
 import os, sys, json, re

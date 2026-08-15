@@ -29,7 +29,7 @@ class Node:
     kind: str
     pos: tuple[float, float]              # (x, y) representative point
     boundary: np.ndarray | None = None    # (M,2) outline, blobs only
-    sid: str = ""                         # stable id (M3); survives re-runs
+    sid: str = ""                         # stable id (assigned at freeze-topology); survives re-runs
     ann: dict = field(default_factory=dict)
 
 
@@ -42,8 +42,8 @@ class Edge:
     b: int
     pts: np.ndarray                       # (N,2) centerline polyline
     r: np.ndarray                         # (N,) half-width sampled along pts
-    width_class: str = "stroke"           # stroke | blob | variable (Stage 1)
-    sid: str = ""                         # stable id (M3); survives re-runs
+    width_class: str = "stroke"           # stroke | blob | variable (set at identify-elements)
+    sid: str = ""                         # stable id (assigned at freeze-topology); survives re-runs
     ann: dict = field(default_factory=dict)
 
     @property
@@ -60,7 +60,7 @@ class Graph:
     w: float                              # modal pen width, the unit of scale
     size: tuple[int, int]                 # (width, height) of the source raster
     scale: int = 1                        # supersample factor applied at ingest (§5)
-    frozen: bool = False                  # set once stable IDs are assigned (M3)
+    frozen: bool = False                  # set once stable IDs are assigned (freeze-topology)
     palette: list = field(default_factory=lambda: [(35, 35, 35)])   # colour id -> (r,g,b) (§5)
     labels: np.ndarray | None = None      # per-pixel colour id (§5); the render's contiguity base
 
