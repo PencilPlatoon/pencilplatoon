@@ -26,15 +26,38 @@ function rectFrom(a, b, round){
 }
 
 // Render the left-hand scan picker: list /scans, highlight `current`, call onPick(name) on click.
+// The scan set is cached per session, so a boxer<->asset navigation repaints the list instantly from
+// cache (no empty->populated flash). The <ul> is only rebuilt when the set of scans actually changed;
+// otherwise the existing <li>s are left in place and just re-highlighted/re-wired -- untouched between
+// navigations. The background /scans fetch still runs to pick up any real change to the scan folder.
 function renderScanList(current, onPick){
-  return fetch("/scans").then(r => r.json()).then(list => {
-    const ul = $("#scanlist");
-    ul.innerHTML = list.map(n => `<li data-scan="${encodeURIComponent(n)}">${n}</li>`).join("");
+  const ul = $("#scanlist");
+  const paint = list => {
+    const html = list.map(n => `<li data-scan="${encodeURIComponent(n)}">${n}</li>`).join("");
+    if(ul.innerHTML !== html) ul.innerHTML = html;   // rebuild only when the scans changed
     for(const li of ul.children){
       const name = decodeURIComponent(li.dataset.scan);
       li.classList.toggle("on", name === current);
       li.onclick = () => onPick(name);
     }
+  };
+  let cached = null;
+  try { cached = JSON.parse(sessionStorage.getItem("pv:scans") || "null"); } catch(_){}
+  if(Array.isArray(cached)){
+    paint(cached);                                   // instant, from the previous navigation...
+    const sc = sessionStorage.getItem("pv:scansScroll");
+    if(sc != null) ul.scrollTop = +sc;               // ...and restored to its scroll BEFORE first paint, so
+  }                                                  // the rail never jumps to the top on a boxer<->asset hop
+  return fetch("/scans").then(r => r.json()).then(list => {
+    try { sessionStorage.setItem("pv:scans", JSON.stringify(list)); } catch(_){}
+    paint(list);                                     // no-op on the DOM when unchanged, so scroll is kept
     return list;
   });
 }
+
+// Persist the scan rail's scroll across a full-page boxer<->asset navigation. Saved on the way out and
+// restored (above) before the next page paints, so switching tools leaves the rail visually fixed.
+window.addEventListener("pagehide", () => {
+  const ul = $("#scanlist");
+  if(ul) try { sessionStorage.setItem("pv:scansScroll", ul.scrollTop); } catch(_){}
+});

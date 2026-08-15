@@ -7,6 +7,10 @@
 <link rel="stylesheet" href="/pv-common.css">
 <style>
   header .sc-toggle{margin-left:auto}
+  /* the work area sits to the RIGHT of the scan list: box tabs on top, the drawing row below.
+     So the scan list rises to touch the header, and the box tabs' left edge meets its right edge. */
+  .workarea{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}
+  .workrow{flex:1;display:flex;min-height:0}
   .subjectbar{display:flex;align-items:center;gap:6px;padding:8px 18px;border-bottom:1px solid var(--hair);overflow-x:auto}
   .subjects{display:flex;gap:6px;flex-wrap:wrap}
   .subjects button{position:relative;font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
@@ -115,12 +119,14 @@
   </div>
   <button id="scBtn" class="sc-toggle" title="Show keyboard shortcuts">Shortcuts</button>
 </header>
-<div class="subjectbar"><div class="subjects" id="subjects"></div></div>
 <div class="stage">
   <aside class="scans">
     <h3>Scans</h3>
     <ul id="scanlist"></ul>
   </aside>
+  <div class="workarea">
+  <div class="subjectbar"><div class="subjects" id="subjects"></div></div>
+  <div class="workrow">
   <div class="scanref" id="scanref">
     <div class="scantabs">
       <button id="scanOrigBtn" class="tab on">Original scan</button>
@@ -165,6 +171,8 @@
       <tr><td class="k">⌘S</td><td class="a">save</td></tr>
     </table>
   </aside>
+  </div>
+  </div>
 </div>
 <script src="/pv-common.js"></script>
 <script>
@@ -614,10 +622,9 @@ async function revectorize(){                                  // re-run the pip
   if(!SCAN || !(model && model.subject)) return;               // only a boxed subject can be re-vectorized
   if(await vectorizeBox(model.subject)) loadSubject(model.subject);
 }
-function openScan(name){                                        // switch the asset tool to another scan: its last box, else its first
+function openScan(name){                                        // clicking a different scan leaves the asset tool for the box selector on that scan
   if(name === SCAN) return;
-  const last = localStorage.getItem("pv:lastbox:" + name);
-  location.href = "/asset?scan=" + encodeURIComponent(name) + (last ? "&subject=" + encodeURIComponent(last) : "");
+  location.href = "/?scan=" + encodeURIComponent(name);
 }
 async function boot(){
   const p = new URLSearchParams(location.search);
