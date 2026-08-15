@@ -18,6 +18,8 @@ ahead to reach. Everything is measured in the pen width `w`.
 """
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
@@ -208,35 +210,63 @@ def cast(p, d, grown, maxd):
     return maxd
 
 
-def _simulate(contacts, grown, w, com, forced, final=False):
-    """One growth simulation toward the `forced` junction points: returns ('split', pt, stamp)
-    to ask grow()'s fixpoint for a rewind, or ('done', paths, nodes, matched). The per-tip parallel
-    arrays and the spawn/land/cast helpers stay local, so this reads as one self-contained sim."""
+@dataclass
+class _Tip:
+    """One growing segment. `path`/`stamp` are the committed points and their step-clocks; `dir` is the
+    current unit heading; `birth` the spawn origin. The flags track its lifecycle: `spawn` (a
+    continuation aimed at the COM, not an original contact), `active` (still growing), `matched`
+    (terminated on a forced point or crossing), `deep` (has latched onto open interior)."""
+    path: list
+    stamp: list
+    dir: np.ndarray
+    birth: np.ndarray
+    spawn: bool = False
+    active: bool = True
+    matched: bool = False
+    deep: bool = False
+
+
+@dataclass
+class _Split:
+    """A crossing forced a fixpoint rewind: terminate the first reacher at `pt`, whose committed
+    point was stamped `stamp`, and re-simulate with it pinned."""
+    pt: np.ndarray
+    stamp: int
+
+
+@dataclass
+class _Done:
+    """The sim converged: `paths`/`matched` are per-segment, `nodes` the junction points it placed."""
+    paths: list
+    nodes: list
+    matched: list
+
+
+def _simulate(contacts, grown, w, com, forced, final=False) -> _Split | _Done:
+    """One growth simulation toward the `forced` junction points: returns a `_Split` to ask grow()'s
+    fixpoint for a rewind, or a `_Done` once it converges. Each growing segment is a `_Tip`; the
+    spawn/land/cast helpers stay local, so this reads as one self-contained sim."""
     self_skip = max(4, int(round(w / QUANTUM)))
     grace = w / 2.0
     feps = 0.02
     joinr = MEET_D
-    n = len(contacts)
-    paths = [[np.array(e, float)] for e, _ in contacts]
-    stamps = [[0] for _ in contacts]
-    dirs = [np.array(dv, float) / (np.hypot(*dv) or 1) for _, dv in contacts]
-    births = [np.array(e, float) for e, _ in contacts]
-    spawn = [False] * n
-    active = [True] * n; matched = [False] * n; deep = [False] * n
-    occupied = [False] * len(forced); nodes = []; clock = [0]
+    segs = [_Tip(path=[np.array(e, float)], stamp=[0],
+                 dir=np.array(dv, float) / (np.hypot(*dv) or 1), birth=np.array(e, float))
+            for e, dv in contacts]
+    occupied = [False] * len(forced); nodes = []
 
-    def spawn_from(pt):
+    def spawn_from(pt, step):
         cvd = com - np.asarray(pt, float); cn = np.hypot(*cvd)
         if cn < w / 2.0:                               # already at the COM: no degenerate continuation
             return
-        paths.append([np.asarray(pt, float).copy()]); stamps.append([clock[0]]); dirs.append(cvd / cn)
-        births.append(np.asarray(pt, float).copy()); spawn.append(True)
-        active.append(True); matched.append(False); deep.append(False)
+        segs.append(_Tip(path=[np.asarray(pt, float).copy()], stamp=[step],
+                         dir=cvd / cn, birth=np.asarray(pt, float).copy(), spawn=True))
 
-    def land_on(i, fj):
-        paths[i].append(forced[fj].copy()); stamps[i].append(clock[0]); active[i] = False; matched[i] = True
+    def land_on(i, fj, step):
+        s = segs[i]
+        s.path.append(forced[fj].copy()); s.stamp.append(step); s.active = False; s.matched = True
         if not occupied[fj]:
-            occupied[fj] = True; nodes.append(forced[fj]); spawn_from(forced[fj])
+            occupied[fj] = True; nodes.append(forced[fj]); spawn_from(forced[fj], step)
 
     def cone_dist(p, d):
         # The result is only ever tested against w/2 (deep-latch / stop), never used as a real
@@ -256,35 +286,35 @@ def _simulate(contacts, grown, w, com, forced, final=False):
 
     def seg_ahead(i, p, d):
         ahead = cast(p, d, grown, 20 * w)
-        for j in range(len(paths)):
+        for j in range(len(segs)):
             if j == i:
                 continue
-            for q in paths[j]:
+            for q in segs[j].path:
                 rel = q - p; along = rel @ d
                 if 0 < along <= ahead + MEET_D and np.hypot(*(rel - along * d)) < w / 2.0:
                     return True
         return False
 
     for step in range(SAFETY_STEPS):
-        clock[0] = step
-        if not any(active):
+        if not any(s.active for s in segs):
             break
-        cur_n = len(paths); tips = [paths[m][-1] for m in range(cur_n)]
+        cur_n = len(segs); tips = [segs[m].path[-1] for m in range(cur_n)]
         for i in range(cur_n):
-            if not active[i]:
+            s = segs[i]
+            if not s.active:
                 continue
-            p, d = paths[i][-1], dirs[i]
+            p, d = s.path[-1], s.dir
             cd = cone_dist(p, d)
-            if not deep[i] and cd > w / 2.0:
-                deep[i] = True
-            if deep[i] and cd < w / 2.0 and not seg_ahead(i, p, d):
-                active[i] = False; continue
+            if not s.deep and cd > w / 2.0:
+                s.deep = True
+            if s.deep and cd < w / 2.0 and not seg_ahead(i, p, d):
+                s.active = False; continue
             perp = np.array([-d[1], d[0]])
             R = cast(p, perp, grown, 20 * w); lft = cast(p, -perp, grown, 20 * w)
             cvec = perp * (R - lft) / (2.0 * w)
             grav = np.zeros(2)
             for j2 in range(cur_n):
-                if j2 != i and active[j2]:
+                if j2 != i and segs[j2].active:
                     v = tips[j2] - p; dd = np.hypot(*v)
                     if dd > 1e-6:
                         grav += v / dd * (w / dd) ** 2
@@ -295,37 +325,37 @@ def _simulate(contacts, grown, w, com, forced, final=False):
 
             fj = next((f for f in range(len(forced)) if np.hypot(*(newp - forced[f])) < feps), -1)
             if fj >= 0:                                 # (a) first-reacher arrives at a forced point
-                land_on(i, fj); continue
-            near_birth = spawn[i] and np.hypot(*(newp - births[i])) < grace
+                land_on(i, fj, step); continue
+            near_birth = s.spawn and np.hypot(*(newp - s.birth)) < grace
             cross = None; cstamp = 0
             if not near_birth:                          # (b) crossing another segment's committed path
-                for j in range(len(paths)):
+                for j in range(len(segs)):
                     if j == i:
                         continue
                     # vectorized proximity to path j's committed points; np.hypot (not d^2 < r^2)
                     # keeps the compared value bitwise-identical to the scalar scan. argmax takes
                     # the FIRST hit in index order -- load-bearing: cross/cstamp must be the earliest
                     # committed point (it drives the fixpoint rewind), not the nearest. Do NOT argmin.
-                    P = np.asarray(paths[j])
+                    P = np.asarray(segs[j].path)
                     hit = np.hypot(newp[0] - P[:, 0], newp[1] - P[:, 1]) < MEET_D
                     if hit.any():
                         kk = int(np.argmax(hit))
-                        cross = paths[j][kk]; cstamp = stamps[j][kk]; break
+                        cross = segs[j].path[kk]; cstamp = segs[j].stamp[kk]; break
             if cross is not None:
                 fj = next((f for f in range(len(forced)) if np.hypot(*(cross - forced[f])) < joinr), -1)
                 if fj >= 0:
-                    paths[i].append(newp); stamps[i].append(step); land_on(i, fj); continue
+                    s.path.append(newp); s.stamp.append(step); land_on(i, fj, step); continue
                 if final:                               # non-converged: terminate on the crossing
                     cp = np.asarray(cross, float).copy()
-                    paths[i].append(cp); stamps[i].append(step); active[i] = False; matched[i] = True
+                    s.path.append(cp); s.stamp.append(step); s.active = False; s.matched = True
                     nodes.append(cp); continue
-                return ('split', np.asarray(cross, float).copy(), cstamp)
-            if len(paths[i]) > self_skip:               # (c) self-intersection
-                Q = np.asarray(paths[i][:-self_skip])
+                return _Split(np.asarray(cross, float).copy(), cstamp)
+            if len(s.path) > self_skip:                 # (c) self-intersection
+                Q = np.asarray(s.path[:-self_skip])
                 if (np.hypot(newp[0] - Q[:, 0], newp[1] - Q[:, 1]) < MEET_D).any():
-                    active[i] = False; continue
-            paths[i].append(newp); stamps[i].append(step); dirs[i] = nd
-    return ('done', paths, nodes, matched)
+                    s.active = False; continue
+            s.path.append(newp); s.stamp.append(step); s.dir = nd
+    return _Done([s.path for s in segs], nodes, [s.matched for s in segs])
 
 
 def grow(contacts, grown, w, com):
@@ -337,16 +367,16 @@ def grow(contacts, grown, w, com):
     forced = []; seen = set()
     for _ in range(600):                                    # fixpoint with a true rewind: prune the future
         res = _simulate(contacts, grown, w, com, [p for p, _ in forced])
-        if res[0] != 'split':
-            return res[1], res[2], res[3]
-        P, sp = res[1], res[2]
+        if isinstance(res, _Done):
+            return res.paths, res.nodes, res.matched
+        P, sp = res.pt, res.stamp
         forced = [(p, s) for p, s in forced if s <= sp]     # delete every junction created after sp
         key = (round(float(P[0]), 1), round(float(P[1]), 1), int(sp))
         if key in seen:
             break
         seen.add(key); forced.append((P, sp))
     res = _simulate(contacts, grown, w, com, [p for p, _ in forced], final=True)
-    return res[1], res[2], res[3]
+    return res.paths, res.nodes, res.matched
 
 
 # ----------------------------------------------------------------------------- rasterize / boundary
