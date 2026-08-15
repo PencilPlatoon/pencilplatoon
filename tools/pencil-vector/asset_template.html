@@ -4,24 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pencil Vector · Asset tool</title>
+<link rel="stylesheet" href="/pv-common.css">
 <style>
-  :root{
-    --bg:#16171b; --panel:#1e2026; --hair:#31333c; --ink:#e9e7e0; --muted:#9a978d;
-    --paper:#f6f1e6; --blue:#5878e6; --red:#e8402f; --green:#37b26a;
-    --btn:#3a3f4d; --btn-line:#4c5264;   /* buttons: lighter than the dark inputs/panels so they read as buttons */
-    --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
-  }
-  *{box-sizing:border-box} html,body{margin:0;height:100%}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
-  header{display:flex;align-items:center;gap:16px;padding:12px 18px;border-bottom:1px solid var(--hair)}
-  header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
   header .sc-toggle{margin-left:auto}
-  .tabs{display:flex;gap:4px}
-  .tab{font:inherit;font-size:12.5px;padding:6px 13px;border-radius:7px;cursor:pointer;
-    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
-  .tab:hover:not(.on):not(:disabled){border-color:var(--blue)}
-  .tab.on{background:var(--blue);border-color:var(--blue);color:#fff;cursor:default}
-  .tab:disabled{opacity:.4;cursor:not-allowed}
   .subjectbar{display:flex;align-items:center;gap:6px;padding:8px 18px;border-bottom:1px solid var(--hair);overflow-x:auto}
   .subjects{display:flex;gap:6px;flex-wrap:wrap}
   .subjects button{position:relative;font:inherit;font-size:12px;padding:5px 12px;border-radius:16px;cursor:pointer;
@@ -39,14 +24,6 @@
     background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
   .sc-toggle:hover{border-color:var(--blue)}
   .sc-toggle.on{background:var(--blue);border-color:var(--blue);color:#fff}
-  .stage{flex:1;display:flex;min-height:0}
-  .scans{width:190px;flex:none;border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
-  .scans h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
-  #scanlist{margin:0;padding:8px;list-style:none;overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px}
-  #scanlist li{flex:none;font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
-  #scanlist li:hover:not(.on){background:var(--panel)}
-  #scanlist li.on{background:var(--blue);color:#fff}
   .guide,.shortcuts{flex:none;border-left:1px solid var(--hair);padding:14px 16px;overflow:auto}
   .guide{width:210px} .shortcuts{width:172px} .shortcuts[hidden]{display:none}
   .guide h3,.shortcuts h3{margin:0 0 10px;font:600 11px/1 var(--mono);text-transform:uppercase;letter-spacing:.1em;color:var(--muted)}
@@ -189,13 +166,9 @@
     </table>
   </aside>
 </div>
+<script src="/pv-common.js"></script>
 <script>
 let MODELS = {}, SCAN = null, SCANBOXES = [];
-const SVGNS = "http://www.w3.org/2000/svg";
-const $ = s => document.querySelector(s);
-const TRASH = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" '
-  + 'stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/>'
-  + '<path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>';
 
 let model, baseModel, adj, selected, hidden, rot = 0, flipX = false, flipY = false;
 let currentAsset = null;                                          // the saved asset currently loaded (its id), or null for a fresh box
@@ -279,9 +252,9 @@ function colorStyle(c){                                          // base colour 
   return p ? ` style="--col:rgb(${p[0]},${p[1]},${p[2]})"` : "";
 }
 function draw(){
-  const m = model, sw = Math.max(1, m.w); let n = 0;
+  const m = model, sw = Math.max(1, m.w), svg = $("#view"); let n = 0;
   // number blobs first, then edges -- same order as the comparison page's tabs
-  const parts = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
+  const parts = [];
   for(const b of m.blobs){
     const d = blobPathD(b);
     parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"${colorStyle(b.color)}><path class="blob" d="${d}" fill-rule="evenodd"/>`
@@ -293,10 +266,8 @@ function draw(){
       + `<polyline class="edge" points="${pts}" stroke-width="${sw}"/>`
       + `<polyline class="hit" points="${pts}" stroke-width="${sw*2.8}"/></g>`);
   }
-  parts.push("</svg>");
-  const wrap = document.createElement("div"); wrap.innerHTML = parts.join("");
-  const svg = wrap.firstChild; svg.id = "view";     // id BEFORE it replaces the old node
-  $("#view").replaceWith(svg);
+  svg.setAttribute("viewBox", `0 0 ${m.size[0]} ${m.size[1]}`);
+  svg.innerHTML = parts.join("");                   // repopulate the SAME node -> its once-wired listeners survive
 }
 
 function transformModel(base, rotDeg, fx, fy){        // rigid rotate + flip about the content centre, re-cropped to fit
@@ -325,7 +296,7 @@ function placeRotcol(){                                            // span the d
   col.style.height = (canvas.clientHeight - padT - padB) + "px";
   col.style.left = (s.right - c.left) + "px";                      // still tracks the drawing's right edge horizontally
 }
-function refresh(){ draw(); render(); wireCanvas(); placeRotcol(); }
+function refresh(){ draw(); render(); placeRotcol(); }   // wireCanvas() runs once at init -- the #view node is stable
 function applyTransform(){ model = transformModel(baseModel, rot, flipX, flipY); refresh(); }
 
 function setTransform(r, fx, fy){                                  // write the transform state to the globals AND their widgets
@@ -523,9 +494,6 @@ function renderExports(subject){                                  // thumbnail o
     box.appendChild(fig);
   }
 }
-function postJSON(url, body){                                     // POST a json body, resolve to the parsed json response
-  return fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)}).then(r => r.json());
-}
 async function syncBoxes(){                                        // reload this scan's boxes and re-render every view that reads them
   const bd = await (await fetch("/boxes")).json();
   if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
@@ -575,6 +543,7 @@ function saveAsset(assetId){                                     // assetId null
 }
 
 // wire buttons
+wireCanvas();                                                    // once: #view is a stable node, draw() only repopulates it
 $("#saveBtn").onclick = () => saveAsset(currentAsset);           // null -> new asset; set -> update it in place
 $("#tabBoxer").onclick = () => { if(!$("#tabBoxer").disabled) location.href = "/?scan=" + encodeURIComponent(SCAN); };
 $("#scBtn").onclick = () => {                                    // toggle the shortcuts panel (rightmost box)
@@ -654,21 +623,10 @@ function openScan(name){                                        // switch the as
   const last = localStorage.getItem("pv:lastbox:" + name);
   location.href = "/asset?scan=" + encodeURIComponent(name) + (last ? "&subject=" + encodeURIComponent(last) : "");
 }
-async function loadScanList(){                                  // the same scan picker as the boxer, current scan highlighted
-  let list = [];
-  try { list = await (await fetch("/scans")).json(); } catch(e) { return; }
-  const ul = $("#scanlist");
-  ul.innerHTML = list.map(n => `<li data-scan="${encodeURIComponent(n)}">${n}</li>`).join("");
-  for(const li of ul.children){
-    const name = decodeURIComponent(li.dataset.scan);
-    li.classList.toggle("on", name === SCAN);
-    li.onclick = () => openScan(name);
-  }
-}
 async function boot(){
   const p = new URLSearchParams(location.search);
   SCAN = p.get("scan"); const want = p.get("subject");
-  loadScanList();
+  renderScanList(SCAN, openScan).catch(() => {});                // the same scan picker as the boxer, current scan highlighted
   const [, boxData] = await Promise.all([loadModels(), fetch("/boxes").then(r => r.json())]);   // independent -> parallel
   if(SCAN){
     SCANBOXES = (boxData.boxes || []).filter(b => b.scan === SCAN);

@@ -1,0 +1,27 @@
+/* Shared design system for the two pencil-vector tool pages (boxer + asset tool).
+   Served by server.py at /pv-common.css; each page's own <style> holds only its unique rules
+   and, coming later in the cascade, overrides these on ties. */
+:root{
+  --bg:#16171b; --panel:#1e2026; --hair:#31333c; --ink:#e9e7e0; --muted:#9a978d;
+  --paper:#f6f1e6; --blue:#5878e6; --red:#e8402f; --green:#37b26a;
+  --btn:#3a3f4d; --btn-line:#4c5264;   /* buttons: lighter than the dark inputs/panels so they read as buttons */
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box} html,body{margin:0;height:100%}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
+header{display:flex;align-items:center;gap:16px;padding:12px 18px;border-bottom:1px solid var(--hair)}
+header h1{font-size:15px;margin:0;font-weight:600;letter-spacing:.01em}
+.tabs{display:flex;gap:4px}
+.tab{font:inherit;font-size:12.5px;padding:6px 13px;border-radius:7px;cursor:pointer;
+  background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
+.tab:hover:not(.on):not(:disabled){border-color:var(--blue)}
+.tab.on{background:var(--blue);border-color:var(--blue);color:#fff;cursor:default}
+.tab:disabled{opacity:.4;cursor:not-allowed}
+.stage{flex:1;display:flex;min-height:0}
+.scans{width:190px;flex:none;border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
+.scans h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
+#scanlist{margin:0;padding:8px;list-style:none;overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px}
+#scanlist li{flex:none;font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
+#scanlist li:hover:not(.on){background:var(--panel)}
+#scanlist li.on{background:var(--blue);color:#fff}

@@ -44,8 +44,8 @@ PORT = 8889
 app = Flask(__name__)
 
 
-def _page(name: str) -> Response:
-    return Response(open(os.path.join(HERE, name), encoding="utf-8").read(), mimetype="text/html")
+def _file(name: str, mimetype: str) -> Response:      # a tool source file, served fresh (no strong caching in dev)
+    return Response(open(os.path.join(HERE, name), encoding="utf-8").read(), mimetype=mimetype)
 
 
 def _now() -> str:
@@ -54,12 +54,22 @@ def _now() -> str:
 
 @app.get("/")
 def boxer():
-    return _page("scan_boxer.html")
+    return _file("scan_boxer.html", "text/html")
 
 
 @app.get("/asset")
 def asset_tool():
-    return _page("asset_template.html")
+    return _file("asset_template.html", "text/html")
+
+
+@app.get("/pv-common.css")
+def pv_css():                                         # design system shared by both pages
+    return _file("pv-common.css", "text/css")
+
+
+@app.get("/pv-common.js")
+def pv_js():                                          # helpers shared by both pages
+    return _file("pv-common.js", "application/javascript")
 
 
 @app.get("/scans")

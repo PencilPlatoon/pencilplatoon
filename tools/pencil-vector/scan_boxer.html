@@ -4,28 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Pencil Vector · Scan Boxer</title>
+<link rel="stylesheet" href="/pv-common.css">
 <style>
-  :root{--bg:#16171b;--panel:#1e2026;--hair:#31333c;--ink:#e9e7e0;--muted:#9a978d;
-    --blue:#5878e6;--red:#e8402f;--green:#37b26a;--btn:#3a3f4d;--btn-line:#4c5264;
-    --sans:system-ui,-apple-system,"Segoe UI",sans-serif;--mono:ui-monospace,Menlo,Consolas,monospace;}
-  *{box-sizing:border-box} html,body{margin:0;height:100%}
-  body{background:var(--bg);color:var(--ink);font-family:var(--sans);display:flex;flex-direction:column;height:100vh}
-  header{display:flex;align-items:center;gap:14px;padding:12px 18px;border-bottom:1px solid var(--hair)}
-  header h1{font-size:15px;margin:0;font-weight:600}
-  .tabs{display:flex;gap:4px}
-  .tab{font:inherit;font-size:12.5px;padding:6px 13px;border-radius:7px;cursor:pointer;
-    background:var(--btn);border:1px solid var(--btn-line);color:var(--ink)}
-  .tab:hover:not(.on):not(:disabled){border-color:var(--blue)}
-  .tab.on{background:var(--blue);border-color:var(--blue);color:#fff;cursor:default}
-  .tab:disabled{opacity:.4;cursor:not-allowed}
-  .stage{flex:1;display:flex;min-height:0}
-  .scans{width:190px;flex:none;border-right:1px solid var(--hair);display:flex;flex-direction:column;min-height:0}
-  .scans h3{margin:0;padding:12px 16px 6px;font-size:11px;text-transform:uppercase;letter-spacing:.12em;color:var(--muted)}
-  #scanlist{margin:0;padding:8px;list-style:none;overflow:auto;flex:1;display:flex;flex-direction:column;gap:3px}
-  #scanlist li{flex:none;font-family:var(--mono);font-size:12px;padding:6px 9px;border-radius:6px;cursor:pointer;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border:1px solid transparent}
-  #scanlist li:hover:not(.on){background:var(--panel)}
-  #scanlist li.on{background:var(--blue);color:#fff}
   .canvas{flex:1;display:grid;place-items:center;padding:16px;overflow:auto;position:relative}
   .drop{color:var(--muted);font-size:14px;text-align:center;padding:48px 32px;border:2px dashed var(--hair);border-radius:12px;max-width:420px}
   .imgwrap{position:relative;line-height:0;box-shadow:0 12px 40px -16px #000;border-radius:4px}
@@ -78,20 +58,12 @@
     <div class="hint">drag = new box · click a box = open it in the asset tool · rename in the list</div>
   </aside>
 </div>
+<script src="/pv-common.js"></script>
 <script>
-const $ = s => document.querySelector(s);
-const SVGNS = "http://www.w3.org/2000/svg";
-const TRASH = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" '
-  + 'stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16"/><path d="M9 7V5h6v2"/>'
-  + '<path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>';
 const ov = $("#ov"), img = $("#scan");
 let scanName = null, boxes = [], seq = 0, LBL = 14;
-const post = (url, body) => fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
 
-fetch("/scans").then(r => r.json()).then(list => {
-  const ul = $("#scanlist");
-  ul.innerHTML = list.map(n => `<li data-scan="${encodeURIComponent(n)}">${n}</li>`).join("");
-  for(const li of ul.children) li.onclick = () => selectScan(decodeURIComponent(li.dataset.scan));
+renderScanList(null, selectScan).then(list => {
   const want = new URLSearchParams(location.search).get("scan");   // came back from the asset tool -> reopen that scan
   if(want && list.includes(want)) selectScan(want);
 }).catch(() => console.error("no server — run: npm run vector-server"));
@@ -159,7 +131,7 @@ ov.addEventListener("pointerup", () => {
 
 function saveBox(b){                                            // persist a drawn box def at once so it survives navigation
   const name = b.name;                                          // capture: a rename before this lands leaves serverName != name
-  post("/box", {name, scan:scanName, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1})
+  postJSON("/box", {name, scan:scanName, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1})
     .then(() => { b.serverName = name; })
     .catch(() => console.error("failed to save box (is the server running?)"));
 }
@@ -169,7 +141,7 @@ function openBox(b){
   const url = `/asset?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`
             + `&box=${b.x0},${b.y0},${b.x1},${b.y1}`;
   if(b.serverName && b.name !== b.serverName){                   // renamed since it was persisted -> propagate first
-    post("/rename", {old:b.serverName, new:b.name})
+    postJSON("/rename", {old:b.serverName, new:b.name})
       .then(() => { b.serverName = b.name; location.href = url; })
       .catch(() => console.error("rename failed (is the server running?)"));
     return;
@@ -209,13 +181,13 @@ function render(){
     inp.oninput = () => { b.name = inp.value; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
     inp.onchange = () => {                                        // commit a rename -> propagate to the persisted box def
       if(b.serverName && b.name && b.name !== b.serverName)
-        post("/rename", {old:b.serverName, new:b.name}).then(() => { b.serverName = b.name; });
+        postJSON("/rename", {old:b.serverName, new:b.name}).then(() => { b.serverName = b.name; });
     };
     const go = document.createElement("button"); go.className = "go"; go.textContent = "→"; go.title = "open in asset tool";
     go.onclick = () => openBox(b);
     const del = document.createElement("button"); del.className = "del"; del.title = "delete box"; del.innerHTML = TRASH;
     del.onclick = () => {                                         // drop it on the server too, so it stays gone
-      post("/box/delete", {name: b.serverName || b.name});
+      postJSON("/box/delete", {name: b.serverName || b.name});
       boxes.splice(i,1); render();
     };
     li.append(del, inp, go);                                      // trash on the left, then name, then open
