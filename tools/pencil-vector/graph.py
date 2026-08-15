@@ -394,6 +394,32 @@ CONTACT_GRAZE_W = 2.5    # split only where the near-blob run is shorter than th
 CONTACT_ARM_W = 1.0      # ...and each resulting half is at least this*w long (never leave a tiny stub)
 
 
+def _best_blob_contact(p, seglen, dts, reach, w):
+    """The nearest mid-edge blob graze on polyline `p`: (blob nid, index k) of the closest contact
+    within `reach` whose near-blob run is short enough to be a graze -- not a long run lying ALONG
+    the blob, which the overlap attach owns -- or None. Pure geometry (no graph mutation)."""
+    best = None
+    for nid, (dt, y0, x0) in dts.items():
+        H, W = dt.shape
+        py, px = p[:, 1].astype(int) - y0, p[:, 0].astype(int) - x0
+        inb = (py >= 0) & (py < H) & (px >= 0) & (px < W)
+        d = np.full(len(p), np.inf)
+        d[inb] = dt[py[inb], px[inb]]                      # points outside the window stay > reach
+        k = int(d.argmin())
+        if d[k] >= reach:
+            continue
+        lo = hi = k                                        # the contiguous near-blob run around k
+        while lo > 0 and d[lo - 1] < reach:
+            lo -= 1
+        while hi < len(p) - 1 and d[hi + 1] < reach:
+            hi += 1
+        if seglen[hi] - seglen[lo] > CONTACT_GRAZE_W * w:
+            continue                                       # a long run = lies ALONG the blob, overlap owns it
+        if best is None or d[k] < best[1]:
+            best = (nid, d[k], k)
+    return None if best is None else (best[0], best[2])
+
+
 def split_edges_at_blob_contacts(g: Graph, blob_masks: dict, w: float) -> Graph:
     """Separate a stroke that only GRAZES a blob mid-edge (a tangential contact, not an endpoint) at the
     contact: insert a valence-2 node there and cut the edge in two, so the boundary fit anchors to it (the
@@ -420,28 +446,10 @@ def split_edges_at_blob_contacts(g: Graph, blob_masks: dict, w: float) -> Graph:
         if len(p) < 5:
             continue
         seglen = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(p, axis=0).T))])
-        best = None
-        for nid, (dt, y0, x0) in dts.items():
-            H, W = dt.shape
-            py, px = p[:, 1].astype(int) - y0, p[:, 0].astype(int) - x0
-            inb = (py >= 0) & (py < H) & (px >= 0) & (px < W)
-            d = np.full(len(p), np.inf)
-            d[inb] = dt[py[inb], px[inb]]                   # points outside the window stay > reach
-            k = int(d.argmin())
-            if d[k] >= reach:
-                continue
-            lo = hi = k                                    # the contiguous near-blob run around k
-            while lo > 0 and d[lo - 1] < reach:
-                lo -= 1
-            while hi < len(p) - 1 and d[hi + 1] < reach:
-                hi += 1
-            if seglen[hi] - seglen[lo] > CONTACT_GRAZE_W * w:
-                continue                                   # a long run = lies ALONG the blob, overlap owns it
-            if best is None or d[k] < best[1]:
-                best = (nid, d[k], k)
-        if best is None:
+        contact = _best_blob_contact(p, seglen, dts, reach, w)
+        if contact is None:
             continue
-        nid, _, k = best
+        nid, k = contact
         if seglen[k] < CONTACT_ARM_W * w or seglen[-1] - seglen[k] < CONTACT_ARM_W * w:
             e.ann.setdefault("blob_contact_ends", [])      # contact AT an endpoint (splitting would leave a
             if nid not in e.ann["blob_contact_ends"]:      # stub) -> the endpoint exists; just attach the edge

@@ -74,15 +74,7 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
-            if primitives and charm == 0.0 and nd.ann.get("fit_ok"):
-                d = path_d(nd.ann["fit"])                    # primitives: emit the fill's edge as real arc/line commands
-                for hf in nd.ann.get("fit_holes", []):
-                    d += " " + path_d(hf)
-            else:                                            # sampled / fallback: idealized polygon
-                d = _d(nd.boundary, close=True)
-                for hole in nd.ann.get("holes", []):
-                    if len(hole) >= 3:
-                        d += " " + _d(hole, close=True)
+            d = blob_d(nd, charm, primitives)                # real arc/line commands (fit_ok) or idealized polygon
             vis = '<path data-blob="%d"%s d="%s" fill="%s" fill-rule="evenodd"/>' % (nd.id, _sid(nd), d, _color(nd, g))
             hit = '<path class="hit" d="%s" fill="transparent" fill-rule="evenodd"/>' % d
             comps.append((nd.pos[0], nd.pos[1], vis, hit))
