@@ -10,7 +10,7 @@ against the ink (ORANGE where the render is bigger than the scan, LAVENDER where
 identifies an element (mirrors red onto the scan); the Skeleton toggle overlays the cyan centerlines.
 
     python pipeline_stages.py [out.html]     # default: pipeline_stages.html next to this script"""
-import base64, io, os, re, sys
+import base64, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
@@ -25,6 +25,7 @@ from export_model import model_dict
 from graph import build
 from ink import Ink, ingest
 from model import Graph
+from pv_common import png_b64
 from svgdump import dump
 
 OUT = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, "pipeline_stages.html")
@@ -75,12 +76,6 @@ def pre_grow(key):
     return g
 
 
-def _png_b64(arr):
-    bio = io.BytesIO()
-    Image.fromarray(arr).save(bio, format="PNG", optimize=True)
-    return base64.b64encode(bio.getvalue()).decode()
-
-
 def _color_base(g):
     """The stage rendered exactly as the ASSET TOOL draws it: blobs in node order, each filled in its
     palette colour with holes cut to reveal what's underneath (not painted black-last), then strokes at
@@ -122,7 +117,7 @@ def coverage_datauri(g, ink, prim=False):
     diff = np.zeros((*inkm.shape, 4), np.uint8)            # transparent everywhere it matches
     diff[inkm & ~render] = (*LAVENDER, 255)               # pen in the scan, missing in the render
     diff[render & ~inkm] = (*ORANGE, 255)                 # bigger than the scan (overshoot)
-    return _png_b64(base), _png_b64(diff), int((render & ~inkm).sum())
+    return png_b64(base), png_b64(diff), int((render & ~inkm).sum())
 
 
 def phase_svg(g, ink, clines=False, prim=False):

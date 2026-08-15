@@ -8,8 +8,6 @@ the leftover lobe whose inscribed radius keeps the region a blob), and a pixel-c
 
     python growth_study.py [out.html]        # default: grow.html next to this script
 """
-import base64
-import io
 import os
 import sys
 
@@ -19,6 +17,7 @@ from scipy import ndimage as ndi
 
 import growth as G
 from ink import ingest
+from pv_common import png_datauri
 
 ISO = os.path.join(os.path.dirname(os.path.abspath(__file__)), "subjects", "%s_iso.png")
 SUBJECTS = [("dying", "Hit soldier"), ("cannon", "Wheeled cannon"), ("soldier", "Gunner’s SMG"),
@@ -122,19 +121,15 @@ def render(key):
     return whole, wbox, crops, len(candidates)
 
 
-def _datauri(pil):
-    b = io.BytesIO(); pil.save(b, "PNG"); return "data:image/png;base64," + base64.b64encode(b.getvalue()).decode()
-
-
 def build(out_path):
     rows = ""
     for key, name in SUBJECTS:
         whole, wbox, crops, nreg = render(key)
         cropimgs = "".join('<figure class="cf"><img data-box="%d,%d,%d,%d" src="%s"/><figcaption>#%d &middot; %d seg &middot; %d met</figcaption></figure>'
-                           % (cb[0], cb[1], cb[2], cb[3], _datauri(ci), i + 1, ne, nm) for i, (ci, cb, ne, nm) in enumerate(crops))
+                           % (cb[0], cb[1], cb[2], cb[3], png_datauri(ci), i + 1, ne, nm) for i, (ci, cb, ne, nm) in enumerate(crops))
         rows += ('<section class="row"><div class="rowhead"><h3>%s</h3><p>%d regions</p></div>'
                  '<div class="iw"><img data-box="%d,%d,%d,%d" src="%s"/></div><div class="crops">%s</div></section>'
-                 % (name, nreg, wbox[0], wbox[1], wbox[2], wbox[3], _datauri(whole), cropimgs))
+                 % (name, nreg, wbox[0], wbox[1], wbox[2], wbox[3], png_datauri(whole), cropimgs))
     html = ('<title>Segment growth into blobs</title><style>body{margin:0}*{box-sizing:border-box}'
             '.wrap{background:#16171b;color:#e9e6de;font-family:system-ui,sans-serif;padding:clamp(18px,3vw,44px);line-height:1.5}'
             '.wrap>*{max-width:1000px;margin-inline:auto}h1{font-family:Georgia,serif;font-size:clamp(26px,4vw,40px);margin:0 0 8px}'

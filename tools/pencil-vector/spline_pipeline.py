@@ -1,7 +1,7 @@
 """spline pipeline inspector: the smoothing-spline stages for EVERY scan (switcher at top), at fixed
 smoothing (SPLINE_LAMBDA=5) -- resample, corners, the smoothed curve, and its curvature, each drawn over
 the ink with per-component hover. Generated -> spline_pipeline.html (artifact)."""
-import os, sys, math, base64, io, warnings
+import os, sys, math, warnings
 warnings.filterwarnings("ignore")
 HERE = os.path.dirname(os.path.abspath(__file__)); sys.path.insert(0, HERE)
 import numpy as np
@@ -10,6 +10,7 @@ from skimage.restoration import denoise_tv_chambolle
 from PIL import Image
 import fit
 from fit import (resample_corners, RESAMPLE_W, MIN_STEP)
+from pv_common import png_b64
 from vectorize import Stage, vectorize
 from ink import ingest
 from model import BLOB
@@ -54,18 +55,9 @@ def trace_base(P, w, closed, anchors):
         k = int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
         if 0 <= k < M:
             anchor_ix.append(k)
-    breaks = cornerset | set(anchor_ix)
-    d_rows = []
-    for k in (range(M) if closed else range(1, M - 1)):
-        km, kp = (k - 1) % M, (k + 1) % M
-        if k in breaks or km in breaks or kp in breaks:
-            continue
-        row = np.zeros(M); row[km] += 1.0; row[k] += -2.0; row[kp] += 1.0
-        d_rows.append(row)
-    D = np.array(d_rows) if d_rows else np.zeros((0, M))
-    C = np.linalg.solve(np.eye(M) + LAM * (D.T @ D), S)
-    for k in anchor_ix:
-        lo, hi = max(0, k - 1), min(M, k + 2); C[lo:hi] = S[lo:hi]
+    # Solve the smoothing spline with the SAME code production runs (fit.SPLINE_LAMBDA is pinned to LAM
+    # above), so this inspector never drifts from the real fit.
+    C = fit._smoothing_spline(S, cornerset | set(anchor_ix), anchor_ix, closed)
     kappa = denoise_tv_chambolle(_turning(C, closed), weight=TV_KAPPA_W * w * step) / step
     ts = gaussian_filter1d(_turning(S, closed), 0.5, mode="wrap" if closed else "nearest")
     return dict(S=S, C=C, step=step, closed=closed, arclen=float(s_arc[-1]), kap=kappa,
@@ -75,8 +67,7 @@ def trace_base(P, w, closed, anchors):
 # ---- precompute every scan ----
 def ink_png(mask):
     rgba = np.zeros((*mask.shape, 4), np.uint8); rgba[mask] = (150, 145, 135, 90)
-    b = io.BytesIO(); Image.fromarray(rgba).save(b, format="PNG", optimize=True)
-    return base64.b64encode(b.getvalue()).decode()
+    return png_b64(rgba)
 
 
 SCANS, allkap = [], []
