@@ -480,9 +480,10 @@ def resolve(ink, force_fill=None):
     fills = []
 
     def add_fill(mask):
-        if mask.any():                                     # boundary + holes traced later, once the mask
-            ys, xs = np.where(mask)                        # is final (post rim-stub absorption)
-            fills.append((mask, (float(xs.mean()), float(ys.mean()))))
+        sl = WC.bbox_slice(mask, pad=0)                    # centroid off the blob's window, not a full-frame where()
+        if sl is not None:                                 # boundary + holes traced later, once the mask
+            ys, xs = np.where(mask[sl])                    # is final (post rim-stub absorption)
+            fills.append((mask, (float(xs.mean()) + sl[1].start, float(ys.mean()) + sl[0].start)))
 
     for c in kept:
         add_fill(c)

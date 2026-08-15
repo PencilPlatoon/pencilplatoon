@@ -538,16 +538,27 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
                 stubs.append(e)
         if not stubs:
             continue
-        im = Image.new("L", (mask.shape[1], mask.shape[0]), 0)
+        # rasterize the stubs in a window over the blob + its (rim-hugging) stubs, not the full frame
+        ms = bbox_slice(mask, pad=0)
+        allx = np.concatenate([e.pts[:, 0] for e in stubs])
+        ally = np.concatenate([e.pts[:, 1] for e in stubs])
+        H, W = mask.shape
+        y0 = max(0, min(ms[0].start, int(ally.min()) - sw))
+        y1 = min(H, max(ms[0].stop, int(ally.max()) + sw + 1))
+        x0 = max(0, min(ms[1].start, int(allx.min()) - sw))
+        x1 = min(W, max(ms[1].stop, int(allx.max()) + sw + 1))
+        im = Image.new("L", (x1 - x0, y1 - y0), 0)
         d = ImageDraw.Draw(im)
         for e in stubs:                                   # reconstruct each stub's ink at pen width
-            pts = [(float(x), float(y)) for x, y in e.pts]
+            pts = [(float(x) - x0, float(y) - y0) for x, y in e.pts]
             if len(pts) >= 2:
                 d.line(pts, fill=255, width=sw, joint="curve")
             for q in (pts[0], pts[-1]):
                 d.ellipse([q[0] - sw / 2, q[1] - sw / 2, q[0] + sw / 2, q[1] + sw / 2], fill=255)
-        blob_masks[nid] = mask | ((np.asarray(im) > 0) & ink_mask)   # fold the stubs' ink into the blob mask;
-        removed.update(e.id for e in stubs)                          # the boundary is (re)traced once, later
+        nm = mask.copy()                                  # fold the stubs' ink into the blob mask (clamped to
+        nm[y0:y1, x0:x1] |= (np.asarray(im) > 0) & ink_mask[y0:y1, x0:x1]   # ink); boundary (re)traced later
+        blob_masks[nid] = nm
+        removed.update(e.id for e in stubs)
 
     for eid in removed:
         g.edges.pop(eid, None)
