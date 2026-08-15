@@ -22,6 +22,7 @@ from scipy import ndimage
 from skimage.measure import approximate_polygon, find_contours
 from skimage.morphology import skeletonize
 
+from geom import rowcol_to_xy as _xy
 from ink import MIN_HOLE_W2
 
 # A region is solid where the ink is 2D-thick: a pen-diameter disc fits inside it (its
@@ -74,10 +75,6 @@ def poly_area(poly: np.ndarray) -> float:
     """Shoelace area. abs() makes it invariant to (x,y) vs (row,col) point order."""
     x, y = poly[:, 0], poly[:, 1]
     return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
-
-
-def _xy(poly: np.ndarray) -> np.ndarray:
-    return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
 
 
 def point_in_poly(x: float, y: float, poly: np.ndarray) -> bool:

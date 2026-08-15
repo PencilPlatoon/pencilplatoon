@@ -17,6 +17,7 @@ import numpy as np
 from scipy import ndimage
 from skimage.morphology import skeletonize
 
+from geom import NEIGHBORS_8, in_bounds
 from ink import Ink
 from model import BLOB, ENDPOINT, JUNCTION, Edge, Graph, Node
 from widthclass import bbox_slice, windowed_dilation
@@ -45,17 +46,14 @@ def _trace_run(start, came_from, skel, node_at):
     while True:
         run.append((y, x))
         nxt = None
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                if dy == 0 and dx == 0:
-                    continue
-                ny, nx = y + dy, x + dx
-                if (ny, nx) == (py, px):
-                    continue
-                if 0 <= ny < skel.shape[0] and 0 <= nx < skel.shape[1] and skel[ny, nx]:
-                    if node_at[ny, nx] >= 0:
-                        return run, (ny, nx)          # hit the next node
-                    nxt = (ny, nx)
+        for dy, dx in NEIGHBORS_8:
+            ny, nx = y + dy, x + dx
+            if (ny, nx) == (py, px):
+                continue
+            if in_bounds(ny, nx, skel.shape) and skel[ny, nx]:
+                if node_at[ny, nx] >= 0:
+                    return run, (ny, nx)              # hit the next node
+                nxt = (ny, nx)
         if nxt is None:
             return run, None                          # dangling (shouldn't happen)
         py, px = y, x
@@ -99,30 +97,27 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
     eid = 0
     for nid in range(n):
         for y, x in zip(npx_ys[nid], npx_xs[nid]):
-            for dy in (-1, 0, 1):
-                for dx in (-1, 0, 1):
-                    if dy == 0 and dx == 0:
-                        continue
-                    ny, nx = y + dy, x + dx
-                    if not (0 <= ny < skel.shape[0] and 0 <= nx < skel.shape[1]):
-                        continue
-                    if not skel[ny, nx] or node_at[ny, nx] >= 0:
-                        continue
-                    if (ny, nx) in seen:
-                        continue
-                    run, end = _trace_run((ny, nx), (y, x), skel, node_at)
-                    for p in run:
-                        seen.add(p)
-                    if end is None:
-                        continue
-                    b = node_at[end]
-                    px_path = [(x, y)] + [(rx, ry) for ry, rx in run] + [
-                        (float(nodes[b].pos[0]), float(nodes[b].pos[1]))]
-                    pts = np.array(px_path, dtype=float)
-                    r = ink.dist[np.clip(pts[:, 1].astype(int), 0, skel.shape[0] - 1),
-                                 np.clip(pts[:, 0].astype(int), 0, skel.shape[1] - 1)]
-                    edges[eid] = Edge(id=eid, a=nid, b=int(b), pts=pts, r=r.astype(float))
-                    eid += 1
+            for dy, dx in NEIGHBORS_8:
+                ny, nx = y + dy, x + dx
+                if not in_bounds(ny, nx, skel.shape):
+                    continue
+                if not skel[ny, nx] or node_at[ny, nx] >= 0:
+                    continue
+                if (ny, nx) in seen:
+                    continue
+                run, end = _trace_run((ny, nx), (y, x), skel, node_at)
+                for p in run:
+                    seen.add(p)
+                if end is None:
+                    continue
+                b = node_at[end]
+                px_path = [(x, y)] + [(rx, ry) for ry, rx in run] + [
+                    (float(nodes[b].pos[0]), float(nodes[b].pos[1]))]
+                pts = np.array(px_path, dtype=float)
+                r = ink.dist[np.clip(pts[:, 1].astype(int), 0, skel.shape[0] - 1),
+                             np.clip(pts[:, 0].astype(int), 0, skel.shape[1] - 1)]
+                edges[eid] = Edge(id=eid, a=nid, b=int(b), pts=pts, r=r.astype(float))
+                eid += 1
 
     h, w_img = skel.shape
     return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h), scale=ink.scale)
@@ -158,7 +153,6 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
     # removed (one convolution up front, then O(1) per removed pixel). Each worklist entry carries how
     # many pixels have been eaten from its free end, so the cap can stop a run without a full re-scan.
     deg = neighbour_count(sk)
-    H, W = sk.shape
     ys, xs = np.where(sk & erodable & (deg <= 1))
     stack = [(int(y), int(x), 0) for y, x in zip(ys, xs)]
     while stack:
@@ -166,14 +160,12 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
         if not sk[y, x] or not erodable[y, x] or deg[y, x] > 1 or d > cap_len:
             continue                                    # gone / not a leaf / retracted a full cap-length
         sk[y, x] = False
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                if dy or dx:
-                    ny, nx = y + dy, x + dx
-                    if 0 <= ny < H and 0 <= nx < W and sk[ny, nx]:
-                        deg[ny, nx] -= 1
-                        if erodable[ny, nx] and deg[ny, nx] <= 1:
-                            stack.append((ny, nx, d + 1))
+        for dy, dx in NEIGHBORS_8:
+            ny, nx = y + dy, x + dx
+            if in_bounds(ny, nx, sk.shape) and sk[ny, nx]:
+                deg[ny, nx] -= 1
+                if erodable[ny, nx] and deg[ny, nx] <= 1:
+                    stack.append((ny, nx, d + 1))
     return sk
 
 
@@ -210,15 +202,10 @@ def skel_walk_back(sk: np.ndarray, y: int, x: int, span: int):
     prev, cur = (y, x), (y, x)
     for _ in range(span):
         nxt = None
-        for dy in (-1, 0, 1):
-            for dx in (-1, 0, 1):
-                if dy == 0 and dx == 0:
-                    continue
-                ny, nx = cur[0] + dy, cur[1] + dx
-                if 0 <= ny < sk.shape[0] and 0 <= nx < sk.shape[1] and sk[ny, nx] and (ny, nx) != prev:
-                    nxt = (ny, nx)
-                    break
-            if nxt:
+        for dy, dx in NEIGHBORS_8:
+            ny, nx = cur[0] + dy, cur[1] + dx
+            if in_bounds(ny, nx, sk.shape) and sk[ny, nx] and (ny, nx) != prev:
+                nxt = (ny, nx)
                 break
         if nxt is None:
             break

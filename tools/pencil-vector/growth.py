@@ -26,6 +26,7 @@ from skimage.morphology import skeletonize
 
 import graph as GR
 import widthclass as WC
+from geom import NEIGHBORS_8, in_bounds, rowcol_to_xy
 from ink import MIN_HOLE_W2
 
 # --- growth-sim weights / tolerances (all in px or w) ---
@@ -103,7 +104,6 @@ def snap_overshoot(skel, grown, w):
     """A free end whose tail runs a few px PAST a region contact is an overshoot: trim it so the
     segment terminates AT the contact. Returns (skel, set of the contact endpoints it created)."""
     sk = skel.copy()
-    H, W = sk.shape
     gdil = ndimage.binary_dilation(grown)
     reach = max(2, int(round(1.5 * w)))
     snapped = set()
@@ -115,14 +115,10 @@ def snap_overshoot(skel, grown, w):
             prev, cur, path, hit = (y, x), (y, x), [(y, x)], -1
             for _ in range(1, reach + 1):
                 nxt = None
-                for dy in (-1, 0, 1):
-                    for dx in (-1, 0, 1):
-                        if (dy or dx):
-                            ny, nx = cur[0] + dy, cur[1] + dx
-                            if 0 <= ny < sk.shape[0] and 0 <= nx < sk.shape[1] and sk[ny, nx] and (ny, nx) != prev:
-                                nxt = (ny, nx); break
-                    if nxt:
-                        break
+                for dy, dx in NEIGHBORS_8:
+                    ny, nx = cur[0] + dy, cur[1] + dx
+                    if in_bounds(ny, nx, sk.shape) and sk[ny, nx] and (ny, nx) != prev:
+                        nxt = (ny, nx); break
                 if nxt is None:
                     break
                 path.append(nxt); prev, cur = cur, nxt
@@ -130,9 +126,10 @@ def snap_overshoot(skel, grown, w):
                     hit = len(path) - 1; break
             if hit >= MIN_OVERSHOOT:
                 contact = path[hit]; pathset = set(map(tuple, path))
-                cont = any(0 <= contact[0] + dy < H and 0 <= contact[1] + dx < W
-                           and sk[contact[0] + dy, contact[1] + dx] and (contact[0] + dy, contact[1] + dx) not in pathset
-                           for dy in (-1, 0, 1) for dx in (-1, 0, 1) if (dy or dx))
+                cont = any(in_bounds(contact[0] + dy, contact[1] + dx, sk.shape)
+                           and sk[contact[0] + dy, contact[1] + dx]
+                           and (contact[0] + dy, contact[1] + dx) not in pathset
+                           for dy, dx in NEIGHBORS_8)
                 if cont:                                   # segment continues PAST the contact -> real overshoot
                     for py, px in path[:hit]:
                         sk[py, px] = False
@@ -155,8 +152,8 @@ def blob_contacts(skel, grown, w):
     H, W = skel.shape
 
     def sk_nbrs(y, x):
-        return [(y + dy, x + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
-                if (dy or dx) and 0 <= y + dy < H and 0 <= x + dx < W and skel[y + dy, x + dx]]
+        return [(y + dy, x + dx) for dy, dx in NEIGHBORS_8
+                if in_bounds(y + dy, x + dx, skel.shape) and skel[y + dy, x + dx]]
 
     reach = int(np.ceil(thresh))
     raw = []
@@ -425,7 +422,7 @@ def fill_boundary(mask, w, holes_mask=None):
                 continue
             hpoly = approximate_polygon(max(cs, key=len), WC.POLY_TOL_W * w)
             if len(hpoly) >= 3:
-                holes.append(np.column_stack([hpoly[:, 1], hpoly[:, 0]]))   # (row,col) -> (x,y)
+                holes.append(rowcol_to_xy(hpoly))
     return outer + off, [hp + off for hp in holes]
 
 
