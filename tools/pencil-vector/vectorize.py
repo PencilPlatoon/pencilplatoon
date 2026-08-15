@@ -55,12 +55,32 @@ def vectorize(in_path: str, stage: Stage = Stage.FIT_IDEAL_GEOMETRY, thresh_bias
     pen width so small holes / thin walls resolve instead of pinching shut."""
     rgb = np.asarray(Image.open(in_path).convert("RGB"))
     ink = ingest(rgb, thresh_bias=thresh_bias, scale=scale)
+    g, blob_masks = _build_layers(ink, stage)
+    if stage <= Stage.SKELETONIZE:
+        return g                            # a bare skeleton -- no fills, so no contiguity base
+    g.labels = ink.labels                   # carry the colour map for the render's fill base
+    _identify_elements(g, blob_masks, ink)
+    if stage >= Stage.FREEZE_TOPOLOGY:
+        _freeze_topology(g, blob_masks)
+    if stage >= Stage.JUNCTIONIZE:          # junction resolution for continuity flood (§6.4)
+        resolve_continuity(g)
+    if stage >= Stage.PLANAR_EMBED:         # planar embedding (§8)
+        rotational_order(g)
+        containment(g)
+    if stage >= Stage.FIT_IDEAL_GEOMETRY:   # geometry fitting (§9)
+        fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
+        _idealize_blob_boundaries(g, ink)    # idealize/emit only where it keeps strokes in contact
+    return g
 
-    # Skeletonization runs PER COLOUR LAYER (§5): each colour's ink is skeletonized and
-    # width-classed on its own, so a black line abutting a red fill is measured on the black
-    # layer alone -- it stays a thin stroke instead of fusing with the fill into one blob. The
-    # layers' subgraphs merge into one graph; cross-colour contiguity is then restored below
-    # by attaching each stroke to whatever blob it meets, of any colour.
+
+def _build_layers(ink: Ink, stage: Stage) -> tuple[Graph, dict]:
+    """Skeletonize + width-class each colour layer on its own and merge the subgraphs into one graph
+    (§5), returning (graph, blob_masks). At SKELETONIZE it stops at the raw per-colour skeleton.
+
+    Skeletonization runs PER COLOUR LAYER: a black line abutting a red fill is measured on the black
+    layer alone -- it stays a thin stroke instead of fusing with the fill into one blob. Cross-colour
+    contiguity is restored later (attach_edges_to_blobs) by attaching each stroke to whatever blob it
+    meets, of any colour."""
     g = Graph(nodes={}, edges={}, w=ink.w, size=(ink.mask.shape[1], ink.mask.shape[0]),
               scale=ink.scale, palette=ink.palette)
     nc, ec = [0], [0]                       # global node / edge id counters across layers
@@ -88,30 +108,25 @@ def vectorize(in_path: str, stage: Stage = Stage.FIT_IDEAL_GEOMETRY, thresh_bias
             g.nodes[nid] = Node(id=nid, kind=BLOB, pos=centroid, boundary=None,
                                 ann={"color": c, "width_class": "blob", "holes": []})
             blob_masks[nid] = mask
-    if stage <= Stage.SKELETONIZE:
-        return g                            # a bare skeleton -- no fills, so no contiguity base
-    g.labels = ink.labels                   # carry the colour map for the render's fill base
-    # Element identification's own cleanups: fold rim fray into the fill it bumps off, and separate a
-    # stroke that GRAZES a blob mid-edge at the contact. Both are stroke<->blob geometry, so they run
-    # here (before the boundary is traced / topology is frozen), not as a later reshape.
+    return g, blob_masks
+
+
+def _identify_elements(g: Graph, blob_masks: dict, ink: Ink) -> None:
+    """Element-identification cleanups, all stroke<->blob geometry, so they run before the boundary is
+    traced / topology is frozen (not as a later reshape): fold rim fray into the fill it bumps off,
+    trace each blob's boundary + holes ONCE from its final mask, then split a stroke that GRAZES a blob
+    mid-edge at the contact."""
     absorb_rim_stubs(g, blob_masks, ink.mask, ink.w)
-    _trace_blobs(g, blob_masks, ink)                   # trace each blob's boundary + holes ONCE, from its final mask
+    _trace_blobs(g, blob_masks, ink)
     split_edges_at_blob_contacts(g, blob_masks, ink.w)
 
-    if stage >= Stage.FREEZE_TOPOLOGY:      # stable IDs + freeze + blob incidence
-        # (no spur-prune: the contact-aware skeleton already drops sub-pen twigs at the source, §6.2)
-        assign(g)
-        attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
-        attach_contact_splits(g)               # wire the graze-split incidence (endpoint attach can't see it)
-    if stage >= Stage.JUNCTIONIZE:          # junction resolution for continuity flood (§6.4)
-        resolve_continuity(g)
-    if stage >= Stage.PLANAR_EMBED:         # planar embedding (§8)
-        rotational_order(g)
-        containment(g)
-    if stage >= Stage.FIT_IDEAL_GEOMETRY:   # geometry fitting (§9)
-        fit_graph(g, ink.w)                 # strokes AND fills fit to primitives (annotations)
-        _idealize_blob_boundaries(g, ink)    # idealize/emit only where it keeps strokes in contact
-    return g
+
+def _freeze_topology(g: Graph, blob_masks: dict) -> None:
+    """Stable IDs + topology freeze + blob incidence (§7). No spur-prune: the contact-aware skeleton
+    already drops sub-pen twigs at the source (§6.2)."""
+    assign(g)
+    attach_edges_to_blobs(g, blob_masks)   # cross-colour: a stroke attaches to any blob it meets
+    attach_contact_splits(g)               # wire the graze-split incidence (endpoint attach can't see it)
 
 
 def _fill_polygon(poly: np.ndarray, w: float):
