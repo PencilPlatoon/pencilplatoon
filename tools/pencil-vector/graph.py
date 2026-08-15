@@ -60,38 +60,43 @@ def _trace_run(start, came_from, skel, node_at):
         y, x = nxt
 
 
-def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
-    # `mask` defaults to all ink (the naive skeleton). Element identification passes the thin
-    # (stroke-only) mask so blob interiors aren't skeletonized into centerlines (§6.2).
-    skel = skeletonize(ink.mask if mask is None else mask)
-    deg = _degree(skel)
+def _cluster_nodes(skel: np.ndarray, deg: np.ndarray):
+    """Cluster the non-corridor pixels (endpoints deg==1, junctions deg>=3) into nodes by connectivity,
+    so a fat junction of several touching pixels is ONE node rather than several (§6.3, "collapse
+    valence-2 nodes"). Returns (node_at, npx_ys, npx_xs, n): `node_at` maps each pixel to its node id
+    (-1 off-node); `npx_ys`/`npx_xs[nid]` list that node's pixel coords.
 
-    # Cluster the non-corridor pixels (endpoints deg==1, junctions deg>=3) into
-    # nodes by connectivity, so a fat junction of several touching pixels is ONE
-    # node rather than several (§6.3, "collapse valence-2 nodes").
+    Node pixels are grouped by label in ONE pass -- np.where(lab == nid+1) per node was an O(image)
+    scan repeated 2n times (once here, once in the edge trace) and dominated build on the supersampled
+    masks. Node pixels (deg != 2) are few, so this pass is cheap."""
     node_px = skel & (deg != 2)
     lab, n = ndimage.label(node_px, structure=_N8)
     node_at = np.full(skel.shape, -1, dtype=int)      # pixel -> node id (or -1)
     node_at[lab > 0] = lab[lab > 0] - 1
-
-    # group node pixels by label in ONE pass -- was np.where(lab == nid+1) per node, an O(image)
-    # scan repeated 2n times (once here, once in the edge trace); on the supersampled masks that
-    # scan dominated build. Node pixels (deg != 2) are few, so this pass is cheap.
     npx_ys: list[list[int]] = [[] for _ in range(n)]
     npx_xs: list[list[int]] = [[] for _ in range(n)]
     nys, nxs = np.where(node_px)
     for y, x in zip(nys.tolist(), nxs.tolist()):
         L = int(lab[y, x]) - 1
         npx_ys[L].append(y); npx_xs[L].append(x)
+    return node_at, npx_ys, npx_xs, n
 
+
+def _make_nodes(deg: np.ndarray, npx_ys, npx_xs, n: int) -> dict[int, Node]:
+    """One Node per cluster, positioned at its pixel centroid; an endpoint (max degree 1) vs a
+    junction (a corridor pixel would be degree 2, so anything left is >=3)."""
     nodes: dict[int, Node] = {}
     for nid in range(n):
         ys, xs = np.asarray(npx_ys[nid]), np.asarray(npx_xs[nid])
         maxdeg = deg[ys, xs].max()
         kind = ENDPOINT if maxdeg == 1 else JUNCTION
         nodes[nid] = Node(id=nid, kind=kind, pos=(float(xs.mean()), float(ys.mean())))
+    return nodes
 
-    # Trace one edge out of each corridor pixel adjacent to a node.
+
+def _trace_edges(ink: Ink, skel: np.ndarray, node_at, npx_ys, npx_xs, n, nodes) -> dict[int, Edge]:
+    """Trace one edge out of each corridor pixel adjacent to a node, walking the degree-2 run to the
+    node at its far end. Each edge carries its pixel polyline and the ink distance (radius) along it."""
     edges: dict[int, Edge] = {}
     seen: set = set()
     eid = 0
@@ -118,7 +123,17 @@ def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
                              np.clip(pts[:, 0].astype(int), 0, skel.shape[1] - 1)]
                 edges[eid] = Edge(id=eid, a=nid, b=int(b), pts=pts, r=r.astype(float))
                 eid += 1
+    return edges
 
+
+def build(ink: Ink, mask: np.ndarray | None = None) -> Graph:
+    # `mask` defaults to all ink (the naive skeleton). Element identification passes the thin
+    # (stroke-only) mask so blob interiors aren't skeletonized into centerlines (§6.2).
+    skel = skeletonize(ink.mask if mask is None else mask)
+    deg = _degree(skel)
+    node_at, npx_ys, npx_xs, n = _cluster_nodes(skel, deg)
+    nodes = _make_nodes(deg, npx_ys, npx_xs, n)
+    edges = _trace_edges(ink, skel, node_at, npx_ys, npx_xs, n, nodes)
     h, w_img = skel.shape
     return Graph(nodes=nodes, edges=edges, w=ink.w, size=(w_img, h), scale=ink.scale)
 
@@ -243,7 +258,6 @@ def merge_close_junctions(g: Graph, w: float) -> Graph:
     """Collapse the skeletonizer's 'H': two deg>=3 nodes joined by a sub-MERGE_THR stub become one node
     at their midpoint (stub deleted, its neighbours re-pointed). This is the only junction cleanup the
     contact-aware skeleton needs -- the blunt-end forks the old skeleton made at fills are gone."""
-    from model import BLOB
     changed = True
     while changed:
         changed = False
@@ -508,8 +522,6 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     a radial stroke *ending* at the blob (only its tip is near) and a long stroke running tangent to
     it (length gate) as strokes. Same-colour only, so a coloured detail over a black fill isn't lost."""
     from PIL import Image, ImageDraw
-
-    from model import BLOB
 
     sw = max(1, int(round(w)))
     it = max(1, int(round(STUB_NEAR * w)))
