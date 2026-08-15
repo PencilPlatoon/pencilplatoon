@@ -63,6 +63,3 @@ class Graph:
     frozen: bool = False                  # set once stable IDs are assigned (freeze-topology)
     palette: list = field(default_factory=lambda: [(35, 35, 35)])   # colour id -> (r,g,b) (§5)
     labels: np.ndarray | None = None      # per-pixel colour id (§5); the render's contiguity base
-
-    def neighbors(self, node_id: int) -> list[Edge]:
-        return [e for e in self.edges.values() if e.a == node_id or e.b == node_id]

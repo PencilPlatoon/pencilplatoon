@@ -18,6 +18,7 @@ import numpy as np
 
 from graph import _dir_from
 from model import BLOB, Graph
+from widthclass import point_in_poly
 
 
 def rotational_order(g: Graph) -> Graph:
@@ -31,25 +32,6 @@ def rotational_order(g: Graph) -> Graph:
         inc.sort(key=lambda e: math.atan2(_dir_from(e, pos)[1], _dir_from(e, pos)[0]))
         nd.ann["rot"] = [e.sid for e in inc]
     return g
-
-
-def _poly_area(poly: np.ndarray) -> float:
-    x, y = poly[:, 0], poly[:, 1]
-    return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
-
-
-def _point_in_poly(pt, poly: np.ndarray) -> bool:
-    x, y = pt
-    inside = False
-    n = len(poly)
-    j = n - 1
-    for i in range(n):
-        xi, yi = poly[i]
-        xj, yj = poly[j]
-        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi):
-            inside = not inside
-        j = i
-    return inside
 
 
 def _closed_regions(g: Graph):
@@ -77,7 +59,7 @@ def containment(g: Graph) -> Graph:
             continue
         c = nd.pos
         nd.ann["z"] = sum(1 for poly, owner in regions
-                          if owner != nd.id and _point_in_poly(c, poly))
+                          if owner != nd.id and point_in_poly(c[0], c[1], poly))
     return g
 
 
@@ -120,7 +102,7 @@ def count_crossings(edges) -> int:
     return n
 
 
-def validate_embedding(before, after, tol: float = 1e-6) -> list[str]:
+def validate_embedding(before, after) -> list[str]:
     """After a geometric fit, the embedding must hold (§8): no crossing that
     wasn't in the input. Returns a list of violations (empty == valid)."""
     problems = []

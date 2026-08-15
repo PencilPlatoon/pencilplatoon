@@ -23,11 +23,9 @@ import math
 from dataclasses import dataclass, field
 
 import numpy as np
-from skimage.restoration import denoise_tv_chambolle
 
 RESAMPLE_W = 0.5        # resample step, in units of w
 MIN_STEP = 1.5          # ...but never finer than this many px
-TV_RADIUS = 0.8         # TV weight on r(s)
 SPLIT_PEN_W = 0.35      # per-segment description-length penalty, as (SPLIT_PEN_W*w)^2 of SSE
 ARC_EXTRA_W = 0.15      # an arc costs this much (in the same SSE units) more than a line
 MIN_SEG = 4             # a primitive spans at least this many samples
@@ -68,7 +66,6 @@ class Fit:
     samples: np.ndarray             # (M,2) the resampled curve the fit was measured on
     prims: list = field(default_factory=list)
     resid: np.ndarray | None = None # (M,2) per-sample offset (samples - cleaned), for charm
-    width: np.ndarray | None = None # (M,) TV-denoised half-width r(s), strokes only
 
 
 # ---------------------------------------------------------------- resample / turning
@@ -294,14 +291,6 @@ def _corners(S: np.ndarray, w: float, step: float, closed: bool) -> list:
     return out if closed else [i for i in out if CORNER_END_MARGIN <= i <= M - 1 - CORNER_END_MARGIN]
 
 
-def _width(P, r, w, M):
-    if r is None or len(r) < 2:
-        return None
-    s0 = np.concatenate([[0.0], np.cumsum(np.hypot(*np.diff(P, axis=0).T))])
-    rr = np.interp(np.linspace(0, s0[-1], M), s0, np.asarray(r, float))
-    return denoise_tv_chambolle(rr, weight=TV_RADIUS * w)
-
-
 def _nearest_index(S, ax, ay):
     """Index of the resample sample closest to an anchor point (ax, ay)."""
     return int(np.hypot(S[:, 0] - ax, S[:, 1] - ay).argmin())
@@ -313,7 +302,7 @@ def _pin(C, S, k):
     C[lo:hi] = S[lo:hi]
 
 
-def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: bool, r, anchors, cornerset):
+def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, closed: bool, r, anchors, cornerset):
     """Local-support alternative to curv-fit. Instead of integrating kappa (global support -> the drift
     accumulates over arc length), fit x(s), y(s) DIRECTLY with a corner-aware curvature-smoothing penalty
     -- a discrete smoothing spline. Every point is pulled by its OWN sample (data term) and only coupled
@@ -363,7 +352,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, step: float, closed: boo
         p = Primitive(kind, i, j, params, _rms(S[i:j], seg))
         p.corner_in = i in cornerset
         prims.append(p)
-    return Fit(closed=closed, samples=S, prims=prims, resid=S - C, width=_width(P, r, w, M))
+    return Fit(closed=closed, samples=S, prims=prims, resid=S - C)
 
 
 def _segment(P: np.ndarray, pre: _Prefix, w: float, breaks):
@@ -446,7 +435,7 @@ def fit_curve(P: np.ndarray, w: float, closed: bool, r: np.ndarray | None = None
         cl = _clean_line(S, p0, dr)
         prim = Primitive("line", 0, M, {"p0": p0.tolist(), "dir": dr.tolist()}, _rms(S, cl))
         return Fit(closed=closed, samples=S, prims=[prim], resid=S - cl)
-    return _fit_spline(S, P, w, step, closed, r, anchors, corners)  # smoothing spline, no integration drift
+    return _fit_spline(S, P, w, closed, r, anchors, corners)  # smoothing spline, no integration drift
 
 
 def path_d(fit: Fit) -> str:

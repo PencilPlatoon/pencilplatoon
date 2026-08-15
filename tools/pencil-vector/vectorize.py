@@ -114,11 +114,6 @@ def vectorize(in_path: str, stage: Stage = Stage.FIT_IDEAL_GEOMETRY, thresh_bias
     return g
 
 
-def _poly_area(p: np.ndarray) -> float:
-    x, y = p[:, 0], p[:, 1]
-    return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
-
-
 def _fill_polygon(poly: np.ndarray, w: float):
     """Rasterize a (possibly self-intersecting) fitted boundary and re-trace its solid outer
     outline -- raster is a scratch step, the result is a vector polygon. This does NOT re-assert
@@ -132,7 +127,7 @@ def _fill_polygon(poly: np.ndarray, w: float):
     cs = find_contours(mask.astype(float), 0.5)
     if not cs:
         return None
-    outer = max(cs, key=lambda c: _poly_area(c[:, ::-1]))
+    outer = max(cs, key=lambda c: WC.poly_area(c))
     p = approximate_polygon(outer, 0.1 * w)
     return np.column_stack([p[:, 1] + x0, p[:, 0] + y0]) if len(p) >= 3 else None
 
@@ -196,7 +191,7 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
             continue
         nd.ann["traced"] = nd.boundary                # keep the ink-faithful edge for the verifier
         ideal = _fill_polygon(reconstruct(nd.ann["fit"], 0.0), ink.w)
-        if ideal is None or _poly_area(ideal) < 0.9 * _poly_area(nd.boundary):
+        if ideal is None or WC.poly_area(ideal) < 0.9 * WC.poly_area(nd.boundary):
             continue                                  # fit pinched / lost area -> keep traced edge
         edges = nd.ann.get("edges", [])
         traced = gaps(_d(nd.boundary, close=True), edges)  # attachment gaps on the traced edge
@@ -205,7 +200,7 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
         nd.boundary = ideal
         nd.ann["holes"] = [reconstruct(hh, 0.0) for hh in nd.ann.get("fit_holes", [])]
         arc = path_d(nd.ann["fit"])
-        if raster.is_intact(arc, _poly_area(ideal)) and not opens(arc, edges, traced):
+        if raster.is_intact(arc, WC.poly_area(ideal)) and not opens(arc, edges, traced):
             nd.ann["fit_ok"] = True                   # arcs render intact AND keep every attachment
 
 

@@ -70,8 +70,9 @@ def _is_line(comp: np.ndarray, dist: np.ndarray, w: float) -> bool:
     return aspect > LINE_ASPECT and 2.0 * d.max() < LINE_MAX_W * w
 
 
-def _poly_area(c: np.ndarray) -> float:
-    x, y = c[:, 1], c[:, 0]
+def poly_area(poly: np.ndarray) -> float:
+    """Shoelace area. abs() makes it invariant to (x,y) vs (row,col) point order."""
+    x, y = poly[:, 0], poly[:, 1]
     return 0.5 * abs(float(np.dot(x, np.roll(y, 1)) - np.dot(y, np.roll(x, 1))))
 
 
@@ -79,15 +80,16 @@ def _xy(poly: np.ndarray) -> np.ndarray:
     return np.column_stack([poly[:, 1], poly[:, 0]])   # (row,col) -> (x,y)
 
 
-def _pt_in_poly(x: float, y: float, poly: np.ndarray) -> bool:
-    """Ray cast: is (x,y) inside the (x,y)-ordered polygon `poly`?"""
+def point_in_poly(x: float, y: float, poly: np.ndarray) -> bool:
+    """Ray cast: is (x,y) inside the (x,y)-ordered polygon `poly`? (The `(yi>y)!=(yj>y)`
+    entry test guarantees yi!=yj before the divide, so the 1e-12 is a defensive no-op.)"""
     inside = False
     n = len(poly)
     j = n - 1
     for i in range(n):
         xi, yi = poly[i]
         xj, yj = poly[j]
-        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi) + xi):
+        if ((yi > y) != (yj > y)) and (x < (xj - xi) * (y - yi) / (yj - yi + 1e-12) + xi):
             inside = not inside
         j = i
     return inside
@@ -99,7 +101,7 @@ def _boundaries(comp: np.ndarray, w: float):
     cs = find_contours(comp.astype(float), 0.5)
     if not cs:
         return None, []
-    cs = sorted(cs, key=_poly_area, reverse=True)      # largest area = outer boundary
+    cs = sorted(cs, key=poly_area, reverse=True)      # largest area = outer boundary
     outer = approximate_polygon(cs[0], tolerance=POLY_TOL_W * w)
     if len(outer) < 3:
         return None, []
@@ -107,7 +109,7 @@ def _boundaries(comp: np.ndarray, w: float):
     hole_floor = MIN_HOLE_W2 * w * w
     holes = []
     for c in cs[1:]:
-        if _poly_area(c) < hole_floor:
+        if poly_area(c) < hole_floor:
             continue
         h = approximate_polygon(c, tolerance=POLY_TOL_W * w)
         if len(h) < 3:
@@ -116,7 +118,7 @@ def _boundaries(comp: np.ndarray, w: float):
         # A hole must nest INSIDE the (independently decimated) outer, else even-odd fills the overflow.
         # A separate mask piece, or a hole inside a thin tendril the outer got simplified away, does not
         # nest -- keep a hole only if most of its vertices land inside the simplified outer (§6.2).
-        if np.mean([_pt_in_poly(float(x), float(y), outer_xy) for x, y in hxy]) >= 0.5:
+        if np.mean([point_in_poly(float(x), float(y), outer_xy) for x, y in hxy]) >= 0.5:
             holes.append(hxy)
     return outer_xy, holes
 
