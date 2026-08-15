@@ -15,7 +15,6 @@ from __future__ import annotations
 from fit import path_d, reconstruct
 from model import BLOB, Graph
 
-STROKE = "#111"
 CHARM = 0.0             # fraction of the fitted residual to reapply as wobble (§9/§11):
                         # 0 = crisp idealized geometry, 1 = the original hand. The fitted render is crisp.
 HIT_W = 2.8             # wide invisible hit stroke, in units of w

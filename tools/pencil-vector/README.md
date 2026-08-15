@@ -78,8 +78,8 @@ intermediates.
 
 ## Asset tool
 
-`./build.sh` generates a standalone **`cleanup.html`** (all subjects' models inlined —
-no server needed). Open it in a browser to extract an asset by hand:
+Served by `server.py` at `/asset` (see **Server** above). Open a vectorized box to extract an asset by
+hand:
 
 - **hover** highlights a segment (unit = one junction-to-junction edge);
 - **click** toggles one segment; **shift-click** fills the connected component, or
@@ -88,11 +88,10 @@ no server needed). Open it in a browser to extract an asset by hand:
 - flood is **continuity-aware** (junctionize, §6.4): it follows a stroke through a junction but does
   not leak across a crossing (an arm crossing a sword shaft doesn't drag in the
   figure), and it stops at deleted (masked) segments;
-- **Delete → mask** hides the selection (recorded, never mutating the model);
-- **Export asset…** emits the selection as a named SVG;
-- every op is appended to an **edit log** keyed on the stable `sid`s, downloadable as
-  JSON so it replays against a re-run of the pipeline (§10). Hints and free-cut are
-  later work.
+- **Delete → mask** hides the selection (recorded, never mutating the model); **U** undeletes a hovered
+  masked segment;
+- **Save asset** writes the kept selection as a vector `out/svg/<asset>.svg` and records its edit state
+  (hidden sids, rotation, flips) so it can be reloaded and re-edited. Hints and free-cut are later work.
 
 Freeze-topology note: IDs come from quantized geometry (a node's grid cell, an edge's midpoint
 cell), not traversal order, so re-running with tweaked tolerances keeps the same

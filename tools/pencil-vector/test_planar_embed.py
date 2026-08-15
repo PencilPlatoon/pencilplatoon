@@ -9,7 +9,7 @@ import os
 import numpy as np
 import pytest
 
-from embedding import containment, count_crossings, rotational_order, validate_embedding
+from embedding import containment, count_crossings, validate_embedding
 from model import BLOB, Edge, Graph, Node
 from vectorize import Stage, vectorize
 
