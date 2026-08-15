@@ -89,12 +89,36 @@ def is_intact(d: str, want_area: float, min_frac: float = 0.9) -> bool:
     return ndimage.label(m)[1] == 1 and m.sum() >= min_frac * want_area
 
 
-def full_fill_mask(d: str, w_img: int, h: int):
-    """Fill a path into a full-size (h, w_img) mask -- for measuring against absolute coords."""
-    m, x0, y0 = fill_mask(d)
-    full = np.zeros((h, w_img), bool)
-    _blit(full, m, x0, y0)
-    return full
+def edge_px(e, h: int, w_img: int):
+    """A frozen edge centerline clipped to integer (row, col) index arrays, or None if empty."""
+    if e is None or e.pts is None or len(e.pts) == 0:
+        return None
+    return (np.clip(e.pts[:, 1].astype(int), 0, h - 1),
+            np.clip(e.pts[:, 0].astype(int), 0, w_img - 1))
+
+
+def attachment_gaps(d: str, edges, esid, h: int, w_img: int) -> dict:
+    """For each edge sid in `edges`, the min distance (px) from its frozen centerline to the fill
+    rasterized from path `d` (absent from the result if the edge has no points). Probed on a window
+    spanning the fill and all probe points: the EDT runs off a small crop but returns distances
+    identical to a full-frame EDT, since the window contains the whole fill (hence every nearest-fill
+    pixel). One probe shared by the idealize GUARD (vectorize) and the post-hoc VERIFIER
+    (broken_attachments) -- both must measure attachment the same way (§12)."""
+    fm, fx0, fy0 = fill_mask(d)
+    probes = [(sid, edge_px(esid.get(sid), h, w_img)) for sid in edges]
+    probes = [(sid, p) for sid, p in probes if p is not None]
+    if not fm.any() or not probes:
+        return {sid: float("inf") for sid, _ in probes}
+    fh, fw = fm.shape
+    ys = [fy0, fy0 + fh - 1]; xs = [fx0, fx0 + fw - 1]   # fill bbox straight off its crop -- no where()
+    for _, (pr, pc) in probes:
+        ys += [int(pr.min()), int(pr.max())]; xs += [int(pc.min()), int(pc.max())]
+    y0, y1 = max(0, min(ys) - 1), min(h, max(ys) + 2)
+    x0, x1 = max(0, min(xs) - 1), min(w_img, max(xs) + 2)
+    win = np.zeros((y1 - y0, x1 - x0), bool)
+    _blit(win, fm, fx0 - x0, fy0 - y0)
+    dt = ndimage.distance_transform_edt(~win)
+    return {sid: float(dt[pr - y0, pc - x0].min()) for sid, (pr, pc) in probes}
 
 
 def _blit(full, m, x0, y0):
@@ -133,16 +157,12 @@ def broken_attachments(g, primitives: bool = True):
         traced = nd.ann.get("traced")
         if traced is None:                            # never idealized -> nothing could have broken
             continue
-        dt_cur = ndimage.distance_transform_edt(~full_fill_mask(blob_d(nd, 0.0, primitives), w_img, h))
-        dt_tr = ndimage.distance_transform_edt(~full_fill_mask(_d(traced, close=True), w_img, h))
-        for sid in nd.ann.get("edges", []):
-            e = esid.get(sid)
-            if e is None or e.pts is None or len(e.pts) == 0:
-                continue
-            yi = np.clip(e.pts[:, 1].astype(int), 0, h - 1)
-            xi = np.clip(e.pts[:, 0].astype(int), 0, w_img - 1)
-            if float(dt_cur[yi, xi].min()) > reach >= float(dt_tr[yi, xi].min()):
-                broken.append((nd.id, sid, round(float(dt_cur[yi, xi].min()), 1)))
+        edges = nd.ann.get("edges", [])
+        cur = attachment_gaps(blob_d(nd, 0.0, primitives), edges, esid, h, w_img)   # rendered edge
+        tr = attachment_gaps(_d(traced, close=True), edges, esid, h, w_img)          # ink-faithful edge
+        for sid, gap in cur.items():
+            if gap > reach >= tr[sid]:                # held within a half-pen when traced, not now -> break
+                broken.append((nd.id, sid, round(gap, 1)))
     return broken
 
 

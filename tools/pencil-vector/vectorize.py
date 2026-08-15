@@ -151,40 +151,10 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
     h, w_img = ink.mask.shape
     reach = 0.5 * ink.w                               # a stroke within a half-pen of the edge touches
     esid = {e.sid: e for e in g.edges.values()}
-    probe: dict = {}                                  # attached stroke -> its centerline pixel coords
 
-    def pts(sid):
-        if sid not in probe:
-            e = esid.get(sid)
-            if e is None or e.pts is None or len(e.pts) == 0:
-                probe[sid] = None
-            else:
-                probe[sid] = (np.clip(e.pts[:, 1].astype(int), 0, h - 1),
-                              np.clip(e.pts[:, 0].astype(int), 0, w_img - 1))
-        return probe[sid]
-
-    def gaps(dstr, edges):
-        fm, fx0, fy0 = raster.fill_mask(dstr)             # CROPPED fill raster + its origin (no full-frame alloc)
-        probes = [(sid, pts(sid)) for sid in edges]
-        probes = [(sid, p) for sid, p in probes if p is not None]
-        if not fm.any() or not probes:
-            return {sid: float("inf") for sid, _ in probes}
-        # each edge's gap is min distance from ITS points to the fill; the nearest fill pixel is inside a
-        # window spanning the fill and all probe points, so the EDT runs on that window, not the full frame.
-        fh, fw = fm.shape
-        ys = [fy0, fy0 + fh - 1]; xs = [fx0, fx0 + fw - 1]   # fill bbox straight off its crop -- no where()
-        for _, (pr, pc) in probes:
-            ys += [int(pr.min()), int(pr.max())]; xs += [int(pc.min()), int(pc.max())]
-        y0, y1 = max(0, min(ys) - 1), min(h, max(ys) + 2)
-        x0, x1 = max(0, min(xs) - 1), min(w_img, max(xs) + 2)
-        win = np.zeros((y1 - y0, x1 - x0), bool)
-        raster._blit(win, fm, fx0 - x0, fy0 - y0)         # drop the fill into the window frame (clips at edges)
-        dt = ndimage.distance_transform_edt(~win)
-        return {sid: float(dt[pr - y0, pc - x0].min()) for sid, (pr, pc) in probes}
-
-    def opens(cand, edges, ref):
-        g2 = gaps(cand, edges)                        # would a contact the traced edge held within
-        return any(v > reach and ref.get(sid, 1e9) <= reach for sid, v in g2.items())  # reach fall out?
+    def opens(cand, edges, ref):                      # does a contact the traced edge held within reach
+        g2 = raster.attachment_gaps(cand, edges, esid, h, w_img)   # fall out under this candidate boundary?
+        return any(v > reach and ref.get(sid, 1e9) <= reach for sid, v in g2.items())
 
     for nd in g.nodes.values():
         if nd.kind != BLOB or "fit" not in nd.ann:
@@ -194,7 +164,7 @@ def _idealize_blob_boundaries(g: Graph, ink: Ink) -> None:
         if ideal is None or WC.poly_area(ideal) < 0.9 * WC.poly_area(nd.boundary):
             continue                                  # fit pinched / lost area -> keep traced edge
         edges = nd.ann.get("edges", [])
-        traced = gaps(_d(nd.boundary, close=True), edges)  # attachment gaps on the traced edge
+        traced = raster.attachment_gaps(_d(nd.boundary, close=True), edges, esid, h, w_img)  # gaps on traced edge
         if opens(_d(ideal, close=True), edges, traced):
             continue                                  # idealizing drops a real contact -> keep traced
         nd.boundary = ideal
