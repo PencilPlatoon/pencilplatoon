@@ -19,8 +19,12 @@ from model import BLOB
 from vectorize import Stage, vectorize
 
 
+def _pt(p):
+    return [round(float(p[0]), 1), round(float(p[1]), 1)]
+
+
 def _pts(a):
-    return [[round(float(x), 1), round(float(y), 1)] for x, y in a]
+    return [_pt(p) for p in a]
 
 
 def _scan_b64(img, maxdim: int = 700) -> str:
@@ -48,7 +52,7 @@ def model_dict(g, subject: str, scan_b64: str | None = None, clean_b64: str | No
     for nd in g.nodes.values():
         if nd.kind == BLOB:
             blobs.append({"id": nd.id, "sid": nd.sid,
-                          "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)],
+                          "pos": _pt(nd.pos),
                           "boundary": _ideal(nd.ann, nd.boundary),
                           "holes": [_pts(h) for h in nd.ann.get("holes", [])],  # §6.2
                           "edges": nd.ann.get("edges", []),     # incident strokes (§6.3)
@@ -56,7 +60,7 @@ def model_dict(g, subject: str, scan_b64: str | None = None, clean_b64: str | No
                           "z": nd.ann.get("z", 0)})             # paint order (§8 containment)
         else:
             nodes.append({"id": nd.id, "sid": nd.sid, "kind": nd.kind,
-                          "pos": [round(nd.pos[0], 1), round(nd.pos[1], 1)]})
+                          "pos": _pt(nd.pos)})
     edges = [{"id": e.id, "sid": e.sid, "a": e.a, "b": e.b, "pts": _ideal(e.ann, e.pts),
               "blobs": e.ann.get("blobs", []),
               "color": e.ann.get("color", 0),                   # palette index (§5)

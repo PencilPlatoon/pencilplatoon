@@ -20,6 +20,10 @@ CHARM = 0.0             # fraction of the fitted residual to reapply as wobble (
 HIT_W = 2.8             # wide invisible hit stroke, in units of w
 NODE_FILL = {"endpoint": "#2a7", "junction": "#e8402f", "blob": "#39f"}
 
+CORNER_BUBBLE_W = 2.6   # hover corner-number bubble radius, in w (fixed top-left)
+NUM_BUBBLE_W = 1.4      # element-number overlay bubble radius, in w
+NUM_FONT_W = 1.8        # element-number font size, in w
+
 
 def _d(pts, close: bool = False) -> str:
     head = "M%.1f %.1f" % (pts[0][0], pts[0][1])
@@ -64,13 +68,9 @@ def blob_d(nd, charm: float, primitives: bool) -> str:
     return d
 
 
-def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: bool = False) -> str:
-    w_img, h = g.size
-    sw = max(1.0, g.w)
-    hitw = HIT_W * sw
-
-    # (cx, cy, vis, hit) in draw order: blobs first (filled, behind), then strokes.
-    # Node order keeps numbering stable; holes are cut out with the evenodd rule (§6.2).
+def _components(g: Graph, sw: float, hitw: float, charm: float, primitives: bool) -> list:
+    """(cx, cy, vis, hit) per drawable component in draw order: blobs first (filled, behind), then
+    strokes. Node order keeps numbering stable; holes are cut out with the evenodd rule (§6.2)."""
     comps = []
     for nd in g.nodes.values():
         if nd.kind == BLOB and nd.boundary is not None and len(nd.boundary) >= 3:
@@ -84,42 +84,57 @@ def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: b
                'stroke-linecap="round" stroke-linejoin="round"/>' % (e.id, _sid(e), d, _color(e, g), sw))
         hit = ('<path class="hit" d="%s" fill="none" stroke="transparent" '
                'stroke-width="%.1f" stroke-linecap="round"/>' % (d, hitw))
-        cx = float(e.pts[:, 0].mean())
-        cy = float(e.pts[:, 1].mean())
-        comps.append((cx, cy, vis, hit))
+        comps.append((float(e.pts[:, 0].mean()), float(e.pts[:, 1].mean()), vis, hit))
+    return comps
+
+
+def _corner_bubble(n: int, sw: float) -> str:
+    """The hover corner bubble (fixed top-left) carrying a component's number."""
+    r = sw * CORNER_BUBBLE_W
+    c = r + sw                              # inset from the corner by one pen
+    return ('<g class="corner"><circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f"/>'
+            '<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
+            'dominant-baseline="central" font-family="system-ui,sans-serif" '
+            'font-weight="700">%d</text></g>' % (c, c, r, c, c, r * 1.15, n))
+
+
+def _number_overlay(comps: list, sw: float) -> str:
+    """The `.nums` group: a numbered bubble on each component (the element-number toggle)."""
+    r, fs = sw * NUM_BUBBLE_W, sw * NUM_FONT_W
+    out = ['<g class="nums" font-family="system-ui,sans-serif" font-weight="700">']
+    for n, (cx, cy, _, _) in enumerate(comps, 1):
+        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f" stroke="#fff" '
+                   'stroke-width="%.1f"/>' % (cx, cy, r, sw * 0.3))
+        out.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
+                   'dominant-baseline="central">%d</text>' % (cx, cy, fs, n))
+    out.append("</g>")
+    return "".join(out)
+
+
+def _debug_nodes(g: Graph, sw: float) -> str:
+    """Debug overlay of node kinds (colour-coded discs)."""
+    out = ["<g>"]
+    for nd in g.nodes.values():
+        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'
+                   % (nd.pos[0], nd.pos[1], sw * (0.9 if nd.kind == BLOB else 0.7), NODE_FILL[nd.kind]))
+    out.append("</g>")
+    return "".join(out)
+
+
+def dump(g: Graph, show_nodes: bool = False, charm: float = CHARM, primitives: bool = False) -> str:
+    w_img, h = g.size
+    sw = max(1.0, g.w)
+    comps = _components(g, sw, HIT_W * sw, charm, primitives)
 
     # width/height give the SVG an intrinsic size, so it still sizes when a
     # container has no fixed height (e.g. the comparison page's zoom view).
     out = ['<svg xmlns="http://www.w3.org/2000/svg" width="%d" height="%d" viewBox="0 0 %d %d">'
            % (w_img, h, w_img, h)]
-
-    cr = sw * 2.6                           # corner number bubble (fixed top-left, on hover)
-    cx0 = cy0 = cr + sw
     for n, (_, _, vis, hit) in enumerate(comps, 1):
-        corner = ('<g class="corner"><circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f"/>'
-                  '<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
-                  'dominant-baseline="central" font-family="system-ui,sans-serif" '
-                  'font-weight="700">%d</text></g>' % (cx0, cy0, cr, cx0, cy0, cr * 1.15, n))
         out.append('<g class="seg" data-num="%d"><g class="vis">%s</g>%s%s</g>'
-                   % (n, vis, hit, corner))
-
-    br = sw * 1.4                            # numbered-bubble overlay (element-number toggle)
-    fs = sw * 1.8
-    out.append('<g class="nums" font-family="system-ui,sans-serif" font-weight="700">')
-    for n, (cx, cy, _, _) in enumerate(comps, 1):
-        out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="#e8402f" stroke="#fff" '
-                   'stroke-width="%.1f"/>' % (cx, cy, br, sw * 0.3))
-        out.append('<text x="%.1f" y="%.1f" font-size="%.1f" fill="#fff" text-anchor="middle" '
-                   'dominant-baseline="central">%d</text>' % (cx, cy, fs, n))
-    out.append("</g>")
-
-    if show_nodes:                          # debug overlay of node kinds
-        out.append("<g>")
-        for nd in g.nodes.values():
-            out.append('<circle cx="%.1f" cy="%.1f" r="%.1f" fill="%s"/>'
-                       % (nd.pos[0], nd.pos[1], sw * (0.9 if nd.kind == BLOB else 0.7),
-                          NODE_FILL[nd.kind]))
-        out.append("</g>")
-
+                   % (n, vis, hit, _corner_bubble(n, sw)))
+    out.append(_number_overlay(comps, sw))
+    if show_nodes:
+        out.append(_debug_nodes(g, sw))
     out.append("</svg>")
     return "".join(out)

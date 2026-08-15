@@ -14,6 +14,8 @@ import numpy as np
 from PIL import Image, ImageDraw
 from scipy import ndimage
 
+ARC_STEP_RAD = 0.2      # arc sampling: one point per this many radians of sweep
+
 
 def _arc_points(p0, p1, r, large, sweep):
     """SVG endpoint -> center parameterization for a circular arc, then sample it (spec §B.2.4)."""
@@ -34,7 +36,7 @@ def _arc_points(p0, p1, r, large, sweep):
         da -= 2 * np.pi
     if sweep == 1 and da < 0:
         da += 2 * np.pi
-    n = max(2, int(abs(da) / 0.2))
+    n = max(2, int(abs(da) / ARC_STEP_RAD))
     return [c + r * np.array([np.cos(a0 + da * t / n), np.sin(a0 + da * t / n)]) for t in range(1, n + 1)]
 
 
