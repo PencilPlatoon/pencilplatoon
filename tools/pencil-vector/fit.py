@@ -32,7 +32,7 @@ SPLIT_PEN_W = 0.35      # per-segment description-length penalty, as (SPLIT_PEN_
 ARC_EXTRA_W = 0.15      # an arc costs this much (in the same SSE units) more than a line
 MIN_SEG = 4             # a primitive spans at least this many samples
 # corner detector: arclength-weighted local-turn peaks + apex localization. Tuned on hand labels
-# (recall ~0.90, position median ~0.5px). See _corners_v3.
+# (recall ~0.90, position median ~0.5px). See _corners.
 CORNER_TAU_W = 0.33     # arclength decay of the side-direction fit, in w -- nearby samples dominate the turn
 CORNER_NMS3_W = 0.6     # turn-peak local-max radius, in w (small; apex + dedup merge one vertex's peaks)
 CORNER_ACCEPT = 38.0    # a turn peak this sharp (deg) is a corner...
@@ -106,8 +106,8 @@ def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
     fstep = max(MIN_STEP, CORNER_FINE_W * w)                  # finer resample where detection is reliable
     suf = np.linspace(0, total, max(2, int(round(total / fstep))) + (1 if closed else 0))
     Sf = _interp_at(P, s, suf, closed)
-    fine = _corners_v3(Sf, w, fstep, closed) if len(Sf) >= 6 else []
-    std = _corners_v3(Su, w, step, closed)                    # corners the uniform pass gets == the cornerset if no inserts
+    fine = _corners(Sf, w, fstep, closed) if len(Sf) >= 6 else []
+    std = _corners(Su, w, step, closed)                    # corners the uniform pass gets == the cornerset if no inserts
     if not fine:
         return Su, std
     std_pts = [Su[c] for c in std]
@@ -118,7 +118,7 @@ def resample_corners(P: np.ndarray, step: float, closed: bool, w: float):
     core = (su_u[:-1] if closed else su_u).tolist()
     su2 = sorted(set(core) | set(extra))
     S = _interp_at(P, s, np.array(su2 + [total]) if closed else np.array(su2), closed)
-    return S, _corners_v3(S, w, step, closed)                 # detect on the densified samples (what _fit_spline used to)
+    return S, _corners(S, w, step, closed)                 # detect on the densified samples (what _fit_spline used to)
 
 
 # ---------------------------------------------------------------- O(1) span residuals
@@ -269,7 +269,7 @@ def _is_turn_peak(S: np.ndarray, theta: np.ndarray, i: int, nms: int, w: float, 
     return True
 
 
-def _corners_v3(S: np.ndarray, w: float, step: float, closed: bool) -> list:
+def _corners(S: np.ndarray, w: float, step: float, closed: bool) -> list:
     """Corners = arclength-weighted local-turn peaks, apex-localized. A real corner turns sharply within a
     short arc (high LOCAL turn); an arc spreads its turn out (low local turn) -- so the local turn angle is
     itself the corner/arc separator. Peaks accept at CORNER_ACCEPT; in the [ACCEPT, STRONG) ambiguity band
