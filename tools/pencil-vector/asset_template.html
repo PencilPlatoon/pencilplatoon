@@ -249,8 +249,6 @@ function strokeChain(startSid){
   return out;
 }
 
-function elFor(sid){ return $(`.el[data-sid="${CSS.escape(sid)}"]`); }
-
 function render(){
   for(const el of document.querySelectorAll(".el")){
     const sid = el.dataset.sid;
@@ -259,22 +257,38 @@ function render(){
   }
 }
 
+// ---- shared geometry/colour emitters (one source of truth for the on-screen SVG and the exported one)
+function rgbOf(c){ return ((model.palette || [])[c || 0]) || [20, 20, 20]; }   // element colour id -> [r,g,b]
+function blobPathD(b){                                           // even-odd path: outer ring + holes (§6.2)
+  let d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
+  for(const h of (b.holes||[])) d += " M" + h.map(p=>p.join(" ")).join("L") + "Z";
+  return d;
+}
+function edgePts(e){ return e.pts.map(p=>p.join(",")).join(" "); }
+function contentBounds(m, map){                                  // bbox over every point of every element (map: optional pt transform)
+  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;
+  const grow = p => { const q = map ? map(p[0], p[1]) : p;
+    if(q[0]<x0)x0=q[0]; if(q[1]<y0)y0=q[1]; if(q[0]>x1)x1=q[0]; if(q[1]>y1)y1=q[1]; };
+  for(const b of m.blobs) b.boundary.forEach(grow);
+  for(const e of m.edges) e.pts.forEach(grow);
+  return {x0, y0, x1, y1};
+}
+
 function colorStyle(c){                                          // base colour via a CSS var, so hover/select rules still override
-  const p = (model.palette || [])[c || 0];
-  return (c && p) ? ` style="--col:rgb(${p[0]},${p[1]},${p[2]})"` : "";
+  const p = c && (model.palette || [])[c];
+  return p ? ` style="--col:rgb(${p[0]},${p[1]},${p[2]})"` : "";
 }
 function draw(){
   const m = model, sw = Math.max(1, m.w); let n = 0;
   // number blobs first, then edges -- same order as the comparison page's tabs
   const parts = [`<svg viewBox="0 0 ${m.size[0]} ${m.size[1]}" xmlns="${SVGNS}">`];
   for(const b of m.blobs){
-    let d = "M" + b.boundary.map(p=>p.join(" ")).join("L") + "Z";
-    for(const h of (b.holes||[])) d += " M" + h.map(p=>p.join(" ")).join("L") + "Z";   // §6.2 holes
+    const d = blobPathD(b);
     parts.push(`<g class="el" data-sid="${b.sid}" data-num="${++n}"${colorStyle(b.color)}><path class="blob" d="${d}" fill-rule="evenodd"/>`
       + `<path class="hit blobhit" d="${d}" fill-rule="evenodd"/></g>`);
   }
   for(const e of m.edges){
-    const pts = e.pts.map(p=>p.join(",")).join(" ");
+    const pts = edgePts(e);
     parts.push(`<g class="el" data-sid="${e.sid}" data-eid="${e.id}" data-num="${++n}"${colorStyle(e.color)}>`
       + `<polyline class="edge" points="${pts}" stroke-width="${sw}"/>`
       + `<polyline class="hit" points="${pts}" stroke-width="${sw*2.8}"/></g>`);
@@ -288,24 +302,18 @@ function draw(){
 function transformModel(base, rotDeg, fx, fy){        // rigid rotate + flip about the content centre, re-cropped to fit
   const th = rotDeg*Math.PI/180, cos = Math.cos(th), sin = Math.sin(th);
   const sx = fx ? -1 : 1, sy = fy ? -1 : 1;
-  let a=Infinity,b=Infinity,c=-Infinity,d=-Infinity;                 // base content bounds -> centre
-  const g0=(x,y)=>{if(x<a)a=x;if(y<b)b=y;if(x>c)c=x;if(y>d)d=y;};
-  for(const bl of base.blobs) for(const p of bl.boundary) g0(p[0],p[1]);
-  for(const e of base.edges) for(const p of e.pts) g0(p[0],p[1]);
-  const cx=(a+c)/2, cy=(b+d)/2;
+  const bb = contentBounds(base);                                  // base content bounds -> centre
+  const cx=(bb.x0+bb.x1)/2, cy=(bb.y0+bb.y1)/2;
   const pre = (x,y)=>{ const dx=x-cx, dy=y-cy;           // rotate first, then flip -> flip acts on the rotated result
     return [ (dx*cos - dy*sin)*sx, (dx*sin + dy*cos)*sy ]; };
-  let a2=Infinity,b2=Infinity,c2=-Infinity,d2=-Infinity;            // bounds AFTER transform -> grows to fit the rotation
-  const g1=(x,y)=>{if(x<a2)a2=x;if(y<b2)b2=y;if(x>c2)c2=x;if(y>d2)d2=y;};
-  for(const bl of base.blobs) for(const p of bl.boundary){ const q=pre(p[0],p[1]); g1(q[0],q[1]); }
-  for(const e of base.edges) for(const p of e.pts){ const q=pre(p[0],p[1]); g1(q[0],q[1]); }
+  const tb = contentBounds(base, pre);                             // bounds AFTER transform -> grows to fit the rotation
   const PAD = Math.max(2, base.w || 1);                             // keep stroke caps off the crop
-  const ox = PAD - a2, oy = PAD - b2;
+  const ox = PAD - tb.x0, oy = PAD - tb.y0;
   const T = pts => pts.map(p => { const q=pre(p[0],p[1]); return [ +(q[0]+ox).toFixed(1), +(q[1]+oy).toFixed(1) ]; });
   return { ...base,
     blobs: base.blobs.map(bl => ({ ...bl, boundary: T(bl.boundary), holes: (bl.holes||[]).map(T) })),
     edges: base.edges.map(e => ({ ...e, pts: T(e.pts) })),
-    size: [ +(c2-a2+2*PAD).toFixed(1), +(d2-b2+2*PAD).toFixed(1) ] };
+    size: [ +(tb.x1-tb.x0+2*PAD).toFixed(1), +(tb.y1-tb.y0+2*PAD).toFixed(1) ] };
 }
 
 function placeRotcol(){                                            // span the drawing PANEL's full height, not the SVG's:
@@ -317,15 +325,22 @@ function placeRotcol(){                                            // span the d
   col.style.height = (canvas.clientHeight - padT - padB) + "px";
   col.style.left = (s.right - c.left) + "px";                      // still tracks the drawing's right edge horizontally
 }
-function reflow(){ placeRotcol(); }
-function refresh(){ draw(); render(); wireCanvas(); reflow(); }
+function refresh(){ draw(); render(); wireCanvas(); placeRotcol(); }
 function applyTransform(){ model = transformModel(baseModel, rot, flipX, flipY); refresh(); }
 
-function showScan(which){                                          // toggle the scan reference between the original crop and the cleaned pipeline input
-  const b64 = which === "clean" ? baseModel.scan_clean : baseModel.scan;
-  $("#scanimg").src = "data:image/jpeg;base64," + b64;
+function setTransform(r, fx, fy){                                  // write the transform state to the globals AND their widgets
+  rot = r; flipX = fx; flipY = fy;
+  $("#rotSlider").value = rot; $("#rotOut").textContent = rot + "°";
+  $("#flipXBtn").classList.toggle("on", flipX); $("#flipYBtn").classList.toggle("on", flipY);
+}
+function setScanTab(which){                                        // which of the two scan-reference tabs is active
   $("#scanOrigBtn").classList.toggle("on", which !== "clean");
   $("#scanCleanBtn").classList.toggle("on", which === "clean");
+}
+
+function showScan(which){                                          // toggle the scan reference between the original crop and the cleaned pipeline input
+  $("#scanimg").src = "data:image/jpeg;base64," + (which === "clean" ? baseModel.scan_clean : baseModel.scan);
+  setScanTab(which);
 }
 function showScanCrop(box){                                        // show the ORIGINAL scan crop right away, before the model vectorizes
   if(!SCAN || !box || box.x1 == null) return;                     // (the cleaned crop only exists post-pipeline, so its tab waits)
@@ -336,8 +351,7 @@ function showScanCrop(box){                                        // show the O
     cv.getContext("2d").drawImage(im, box.x0, box.y0, w, h, 0, 0, w, h);
     $("#scanimg").src = cv.toDataURL("image/png");
     $("#scanref").hidden = false;
-    $("#scanOrigBtn").classList.add("on"); $("#scanCleanBtn").classList.remove("on");
-    $("#scanCleanBtn").disabled = true;
+    setScanTab("orig"); $("#scanCleanBtn").disabled = true;
   };
   im.src = "/scan/" + encodeURIComponent(SCAN);
 }
@@ -345,9 +359,7 @@ function loadSubject(name){
   $("#waiting").hidden = true; $("#errbox").hidden = true;         // model is ready -- clear any waiting/error overlay
   if(SCAN) localStorage.setItem("pv:lastbox:" + SCAN, name);       // remember it, so the boxer's asset-tool tab reopens it
   baseModel = MODELS[name]; adj = buildAdjacency(baseModel);        // adjacency is sid-based, transform-independent
-  rot = 0; flipX = false; flipY = false;
-  $("#rotSlider").value = 0; $("#rotOut").textContent = "0°";
-  $("#flipXBtn").classList.remove("on"); $("#flipYBtn").classList.remove("on");
+  setTransform(0, false, false);
   if(baseModel.scan){
     $("#scanref").hidden = false;
     $("#scanCleanBtn").disabled = !baseModel.scan_clean;        // demo subjects have no cleaned crop
@@ -364,9 +376,7 @@ function loadSubject(name){
 function loadAsset(a){                                            // reload a saved asset's editing state back into the drawing
   const st = a.state || {};
   hidden = new Set(st.hidden || []); selected = new Set();
-  rot = st.rot || 0; flipX = !!st.flipX; flipY = !!st.flipY;
-  $("#rotSlider").value = rot; $("#rotOut").textContent = rot + "°";
-  $("#flipXBtn").classList.toggle("on", flipX); $("#flipYBtn").classList.toggle("on", flipY);
+  setTransform(st.rot || 0, !!st.flipX, !!st.flipY);
   $("#assetName").value = a.name || a.asset.replace(/\.svg$/, "");
   currentAsset = a.asset; updateAssetBar();
   applyTransform();                                               // redraw with the restored transform; render() re-applies hidden
@@ -375,7 +385,7 @@ function loadAsset(a){                                            // reload a sa
 function updateAssetBar(){                                        // one button: updates the loaded asset, or saves a new one
   $("#saveBtn").textContent = currentAsset ? "Update asset" : "Save new asset";
   for(const fig of document.querySelectorAll("#exports .exp"))
-    fig.classList.toggle("on", decodeURIComponent(fig.dataset.asset) === currentAsset);
+    fig.classList.toggle("on", fig.dataset.asset === currentAsset);
 }
 
 // ---- marquee (drag) selection: geometry tested in SVG user space against the box ----
@@ -499,30 +509,34 @@ function assetsFor(subject){                                      // this box's 
 }
 function renderExports(subject){                                  // thumbnail of each saved asset; click one to reload its state
   const assets = assetsFor(subject), box = $("#exports");
+  box.innerHTML = "";
   if(!assets.length){ box.innerHTML = '<div class="none">no assets yet</div>'; return; }
-  box.innerHTML = assets.map(a => {
+  for(const a of assets){                                         // build each figure and close over its asset directly
     const label = a.name || a.asset.replace(/\.svg$/, "");
-    return `<figure class="exp${a.asset === currentAsset ? " on" : ""}" data-asset="${encodeURIComponent(a.asset)}">`
-      + `<div class="thumb"><img src="/svg/${encodeURIComponent(a.asset)}?t=${Date.now()}" alt="${label}">`
-      + `<figcaption>${label}</figcaption></div>`
-      + `<button class="trash" title="Delete asset">${TRASH}</button></figure>`;
-  }).join("");
-  for(const fig of box.querySelectorAll(".exp")){
-    const a = assets.find(x => x.asset === decodeURIComponent(fig.dataset.asset));
+    const fig = document.createElement("figure");
+    fig.className = "exp" + (a.asset === currentAsset ? " on" : "");
+    fig.dataset.asset = a.asset;
+    fig.innerHTML = `<div class="thumb"><img src="/svg/${encodeURIComponent(a.asset)}?t=${Date.now()}" alt="${label}">`
+      + `<figcaption>${label}</figcaption></div><button class="trash" title="Delete asset">${TRASH}</button>`;
     fig.querySelector(".thumb").onclick = () => loadAsset(a);
     fig.querySelector(".trash").onclick = () => deleteAsset(a);   // its own control, beside the drawing
+    box.appendChild(fig);
   }
 }
+function postJSON(url, body){                                     // POST a json body, resolve to the parsed json response
+  return fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)}).then(r => r.json());
+}
+async function syncBoxes(){                                        // reload this scan's boxes and re-render every view that reads them
+  const bd = await (await fetch("/boxes")).json();
+  if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
+  renderTabs(); renderExports(model.subject); updateAssetBar();
+}
 function deleteAsset(a){
-  fetch("/asset/delete", {method:"POST", headers:{"Content-Type":"application/json"},
-                          body: JSON.stringify({subject: model.subject, asset: a.asset})})
-    .then(r => r.json())
+  postJSON("/asset/delete", {subject: model.subject, asset: a.asset})
     .then(async res => {
       if(!res.ok){ console.error("delete failed"); return; }
       if(currentAsset === a.asset) currentAsset = null;           // was loaded in the editor -> deselect
-      const bd = await (await fetch("/boxes")).json();
-      if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
-      renderTabs(); renderExports(model.subject); updateAssetBar();
+      await syncBoxes();
     })
     .catch(() => console.error("delete failed (is the server running?)"));
 }
@@ -535,24 +549,13 @@ function buildAssetSvg(){                                        // every non-hi
   const edges = m.edges.filter(e => !hidden.has(e.sid));
   if(!blobs.length && !edges.length) return null;
 
-  let x0=Infinity, y0=Infinity, x1=-Infinity, y1=-Infinity;     // tight bounds over the kept geometry
-  const grow = (x,y) => { if(x<x0)x0=x; if(y<y0)y0=y; if(x>x1)x1=x; if(y>y1)y1=y; };
-  for(const b of blobs) for(const p of b.boundary) grow(p[0], p[1]);
-  for(const e of edges) for(const p of e.pts) grow(p[0], p[1]);
-  const pad = sw/2 + 1;                                          // keep stroke caps / fill edge off the crop
-  x0-=pad; y0-=pad; x1+=pad; y1+=pad;
-  const vb = `${x0.toFixed(1)} ${y0.toFixed(1)} ${(x1-x0).toFixed(1)} ${(y1-y0).toFixed(1)}`;
-
-  const pal = model.palette || [[20,20,20]];
-  const col = c => { const p = pal[c || 0] || [20,20,20]; return `rgb(${p[0]},${p[1]},${p[2]})`; };
-  const out = [`<svg viewBox="${vb}" xmlns="${SVGNS}">`];
-  for(const b of blobs){
-    let d = "M"+b.boundary.map(p=>p.join(" ")).join("L")+"Z";
-    for(const h of (b.holes||[])) d += " M"+h.map(p=>p.join(" ")).join("L")+"Z";
-    out.push(`<path d="${d}" fill="${col(b.color)}" fill-rule="evenodd"/>`);
-  }
+  const bb = contentBounds({blobs, edges}), pad = sw/2 + 1;     // tight bounds over the kept geometry, caps off the crop
+  const x0 = bb.x0-pad, y0 = bb.y0-pad, w = bb.x1-bb.x0+2*pad, h = bb.y1-bb.y0+2*pad;
+  const col = c => `rgb(${rgbOf(c).join(",")})`;
+  const out = [`<svg viewBox="${x0.toFixed(1)} ${y0.toFixed(1)} ${w.toFixed(1)} ${h.toFixed(1)}" xmlns="${SVGNS}">`];
+  for(const b of blobs) out.push(`<path d="${blobPathD(b)}" fill="${col(b.color)}" fill-rule="evenodd"/>`);
   out.push(`<g fill="none" stroke-width="${sw}" stroke-linecap="round" stroke-linejoin="round">`);
-  for(const e of edges) out.push(`<polyline points="${e.pts.map(p=>p.join(",")).join(" ")}" stroke="${col(e.color)}"/>`);
+  for(const e of edges) out.push(`<polyline points="${edgePts(e)}" stroke="${col(e.color)}"/>`);
   out.push("</g></svg>");
   return out.join("");
 }
@@ -562,14 +565,11 @@ function saveAsset(assetId){                                     // assetId null
   if(svg === null){ alert("Nothing to save — everything is hidden."); return; }
   const body = { subject: model.subject, name: displayName(), svg, state: currentState() };
   if(assetId) body.asset = assetId;
-  fetch("/export", {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)})
-    .then(r => r.json())
+  postJSON("/export", body)
     .then(async res => {
       if(!res.ok){ console.error("save failed"); return; }
       currentAsset = res.asset;                                  // now editing the saved asset -> further ⌘S updates it
-      const bd = await (await fetch("/boxes")).json();
-      if(SCAN) SCANBOXES = (bd.boxes || []).filter(b => b.scan === SCAN);
-      renderTabs(); renderExports(model.subject); updateAssetBar();
+      await syncBoxes();
     })
     .catch(() => console.error("save failed (is the server running?)"));
 }
@@ -579,12 +579,12 @@ $("#saveBtn").onclick = () => saveAsset(currentAsset);           // null -> new 
 $("#tabBoxer").onclick = () => { if(!$("#tabBoxer").disabled) location.href = "/?scan=" + encodeURIComponent(SCAN); };
 $("#scBtn").onclick = () => {                                    // toggle the shortcuts panel (rightmost box)
   const sc = $("#shortcuts"); sc.hidden = !sc.hidden;
-  $("#scBtn").classList.toggle("on", !sc.hidden); reflow();
+  $("#scBtn").classList.toggle("on", !sc.hidden); placeRotcol();
 };
-window.addEventListener("resize", reflow);
-$("#rotSlider").oninput = e => { rot = +e.target.value; $("#rotOut").textContent = rot + "°"; applyTransform(); };
-$("#flipXBtn").onclick = e => { flipX = !flipX; e.currentTarget.classList.toggle("on", flipX); applyTransform(); };
-$("#flipYBtn").onclick = e => { flipY = !flipY; e.currentTarget.classList.toggle("on", flipY); applyTransform(); };
+window.addEventListener("resize", placeRotcol);
+$("#rotSlider").oninput = e => { setTransform(+e.target.value, flipX, flipY); applyTransform(); };
+$("#flipXBtn").onclick = () => { setTransform(rot, !flipX, flipY); applyTransform(); };
+$("#flipYBtn").onclick = () => { setTransform(rot, flipX, !flipY); applyTransform(); };
 $("#revecBtn").onclick = revectorize;
 $("#scanOrigBtn").onclick = () => showScan("orig");
 $("#scanCleanBtn").onclick = () => { if(baseModel.scan_clean) showScan("clean"); };
@@ -669,8 +669,7 @@ async function boot(){
   const p = new URLSearchParams(location.search);
   SCAN = p.get("scan"); const want = p.get("subject");
   loadScanList();
-  await loadModels();
-  const boxData = await (await fetch("/boxes")).json();
+  const [, boxData] = await Promise.all([loadModels(), fetch("/boxes").then(r => r.json())]);   // independent -> parallel
   if(SCAN){
     SCANBOXES = (boxData.boxes || []).filter(b => b.scan === SCAN);
     const coords = (p.get("box") || "").split(",").map(Number);  // a freshly-drawn box passes its coords, not yet in boxes.json

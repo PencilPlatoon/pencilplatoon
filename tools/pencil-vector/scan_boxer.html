@@ -86,6 +86,7 @@ const TRASH = '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" strok
   + '<path d="M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/></svg>';
 const ov = $("#ov"), img = $("#scan");
 let scanName = null, boxes = [], seq = 0, LBL = 14;
+const post = (url, body) => fetch(url, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify(body)});
 
 fetch("/scans").then(r => r.json()).then(list => {
   const ul = $("#scanlist");
@@ -158,8 +159,7 @@ ov.addEventListener("pointerup", () => {
 
 function saveBox(b){                                            // persist a drawn box def at once so it survives navigation
   const name = b.name;                                          // capture: a rename before this lands leaves serverName != name
-  fetch("/box", {method:"POST", headers:{"Content-Type":"application/json"},
-    body: JSON.stringify({name, scan:scanName, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1})})
+  post("/box", {name, scan:scanName, x0:b.x0, y0:b.y0, x1:b.x1, y1:b.y1})
     .then(() => { b.serverName = name; })
     .catch(() => console.error("failed to save box (is the server running?)"));
 }
@@ -169,8 +169,7 @@ function openBox(b){
   const url = `/asset?scan=${encodeURIComponent(scanName)}&subject=${encodeURIComponent(b.name)}`
             + `&box=${b.x0},${b.y0},${b.x1},${b.y1}`;
   if(b.serverName && b.name !== b.serverName){                   // renamed since it was persisted -> propagate first
-    fetch("/rename", {method:"POST", headers:{"Content-Type":"application/json"},
-      body: JSON.stringify({old:b.serverName, new:b.name})})
+    post("/rename", {old:b.serverName, new:b.name})
       .then(() => { b.serverName = b.name; location.href = url; })
       .catch(() => console.error("rename failed (is the server running?)"));
     return;
@@ -210,15 +209,13 @@ function render(){
     inp.oninput = () => { b.name = inp.value; const t = ov.querySelectorAll(".drawn text")[i]; if(t) t.textContent = b.name; };
     inp.onchange = () => {                                        // commit a rename -> propagate to the persisted box def
       if(b.serverName && b.name && b.name !== b.serverName)
-        fetch("/rename", {method:"POST", headers:{"Content-Type":"application/json"},
-          body: JSON.stringify({old:b.serverName, new:b.name})}).then(() => { b.serverName = b.name; });
+        post("/rename", {old:b.serverName, new:b.name}).then(() => { b.serverName = b.name; });
     };
     const go = document.createElement("button"); go.className = "go"; go.textContent = "→"; go.title = "open in asset tool";
     go.onclick = () => openBox(b);
     const del = document.createElement("button"); del.className = "del"; del.title = "delete box"; del.innerHTML = TRASH;
     del.onclick = () => {                                         // drop it on the server too, so it stays gone
-      fetch("/box/delete", {method:"POST", headers:{"Content-Type":"application/json"},
-        body: JSON.stringify({name: b.serverName || b.name})});
+      post("/box/delete", {name: b.serverName || b.name});
       boxes.splice(i,1); render();
     };
     li.append(del, inp, go);                                      // trash on the left, then name, then open
