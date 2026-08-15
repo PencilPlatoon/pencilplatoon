@@ -139,6 +139,16 @@ def bbox_slice(mask: np.ndarray, pad: int = 1):
             slice(max(0, int(xs[0]) - pad), min(W, int(xs[-1]) + 1 + pad)))
 
 
+def windowed_dilation(mask: np.ndarray, iters: int) -> np.ndarray:
+    """Full-frame bool of `mask` dilated by `iters`, computed in the mask's bbox window
+    (identical result -- the dilation reaches at most `iters` px past the bbox)."""
+    out = np.zeros_like(mask)
+    sl = bbox_slice(mask, pad=iters + 1)
+    if sl is not None:
+        out[sl] = ndimage.binary_dilation(mask[sl], iterations=iters)
+    return out
+
+
 def _has_2d_core(comp: np.ndarray, w: float) -> bool:
     """A blob owns a genuine 2D interior -- a deep core wider than the pen (§6.1).
     A thickened spot on a line or a small dark mark has almost none, so it fails."""

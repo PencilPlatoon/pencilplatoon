@@ -19,16 +19,21 @@ from skimage.morphology import skeletonize
 
 from ink import Ink
 from model import BLOB, ENDPOINT, JUNCTION, Edge, Graph, Node
-from widthclass import bbox_slice
+from widthclass import bbox_slice, windowed_dilation
 
 # 8-connectivity for skeleton pixel adjacency
 _N8 = np.ones((3, 3), dtype=int)
 
 
+def neighbour_count(sk: np.ndarray) -> np.ndarray:
+    """8-neighbour count per pixel, self excluded (0 where off-mask is irrelevant -- callers
+    mask by `sk` where needed). Shared with growth.py via `GR.neighbour_count`."""
+    return ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
+
+
 def _degree(skel: np.ndarray) -> np.ndarray:
     """Neighbor count for each skeleton pixel (0 off-skeleton)."""
-    neigh = ndimage.convolve(skel.astype(int), _N8, mode="constant") - skel
-    return np.where(skel, neigh, 0)
+    return np.where(skel, neighbour_count(skel), 0)
 
 
 def _trace_run(start, came_from, skel, node_at):
@@ -136,11 +141,6 @@ EDGE_CAP_W = 1.0        # w: max free-end retraction. A ragged pen cap / fork pr
 MERGE_THR = 1.4         # w: collapse a junction-junction stub shorter than this (the skeletonizer 'H')
 
 
-def _neigh(sk: np.ndarray) -> np.ndarray:
-    """8-neighbour count per pixel (self excluded)."""
-    return ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
-
-
 def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarray,
                 cap_len: float) -> np.ndarray:
     """Retract the skeleton from its FREE endpoints while they sit closer than `thr` to the ink edge:
@@ -157,7 +157,7 @@ def _edge_prune(skel: np.ndarray, dt: np.ndarray, thr: float, protect: np.ndarra
     # Incremental leaf-peel: keep an 8-neighbour count and only revisit a pixel when a neighbour is
     # removed (one convolution up front, then O(1) per removed pixel). Each worklist entry carries how
     # many pixels have been eaten from its free end, so the cap can stop a run without a full re-scan.
-    deg = ndimage.convolve(sk.astype(int), _N8, mode="constant") - sk
+    deg = neighbour_count(sk)
     H, W = sk.shape
     ys, xs = np.where(sk & erodable & (deg <= 1))
     stack = [(int(y), int(x), 0) for y, x in zip(ys, xs)]
@@ -187,7 +187,7 @@ def _drop_short_free_branches(skel: np.ndarray, protect: np.ndarray, minlen: flo
     changed = True
     while changed:
         changed = False
-        nb = _neigh(sk)
+        nb = neighbour_count(sk)
         endpt = sk & (nb == 1)
         junc = sk & (nb >= 3)
         cc, _ = ndimage.label(sk, structure=_N8)         # whole components: a junction-free one is a mark
@@ -205,7 +205,7 @@ def _drop_short_free_branches(skel: np.ndarray, protect: np.ndarray, minlen: flo
     return sk
 
 
-def _skel_back(sk: np.ndarray, y: int, x: int, span: int):
+def skel_walk_back(sk: np.ndarray, y: int, x: int, span: int):
     """Walk `span` pixels back along the skeleton from endpoint (y,x) for a stable outgoing direction."""
     prev, cur = (y, x), (y, x)
     for _ in range(span):
@@ -233,8 +233,8 @@ def _extend_contacts(skel: np.ndarray, blob_union: np.ndarray, w: float) -> np.n
     sk = skel.copy()
     band = ndimage.binary_dilation(blob_union, iterations=max(1, int(round(w / 2.0))))
     H, Wd = sk.shape
-    for y, x in np.argwhere(sk & (_neigh(sk) <= 1) & band):
-        by, bx = _skel_back(sk, int(y), int(x), 4)
+    for y, x in np.argwhere(sk & (neighbour_count(sk) <= 1) & band):
+        by, bx = skel_walk_back(sk, int(y), int(x), 4)
         dy, dx = y - by, x - bx
         nrm = float(np.hypot(dy, dx))
         if nrm == 0:
@@ -377,10 +377,7 @@ def attach_edges_to_blobs(g: Graph, blob_masks: dict) -> Graph:
     it = max(1, int(round(g.w)))
     for nid, mask in blob_masks.items():
         nb = g.nodes[nid]
-        near = np.zeros_like(mask)                         # dilate in the blob's window (identical: the
-        sl = bbox_slice(mask, pad=it + 1)                  # dilation reaches at most `it` past the bbox)
-        if sl is not None:
-            near[sl] = ndimage.binary_dilation(mask[sl], iterations=it)
+        near = windowed_dilation(mask, it)                 # "near the blob" band, dilated in-window
         attached = []
         for e in g.edges.values():
             if _edge_touches_blob(e, mask, near, g.w):
@@ -524,10 +521,7 @@ def absorb_rim_stubs(g: Graph, blob_masks: dict, ink_mask, w: float) -> Graph:
     removed: set = set()
     for nid, mask in list(blob_masks.items()):
         bcol = g.nodes[nid].ann.get("color", 0)
-        near = np.zeros_like(mask)                         # dilate in the blob's window (identical result)
-        sl = bbox_slice(mask, pad=it + 1)
-        if sl is not None:
-            near[sl] = ndimage.binary_dilation(mask[sl], iterations=it)
+        near = windowed_dilation(mask, it)                 # "near the blob" band, dilated in-window
         stubs = []
         for e in g.edges.values():
             if e.id in removed or e.length > STUB_LEN * w or e.ann.get("color", 0) != bcol:

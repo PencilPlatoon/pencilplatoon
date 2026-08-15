@@ -44,7 +44,6 @@ MIN_NET_SEG_W = 0.5                            # drop a grown network segment sh
                                                # short to be more than its pen-width round cap, which only
                                                # pokes past the (thin) region edge; the sub-w/2 gap it leaves
                                                # is bridged by the neighbouring segments' caps
-_NB = np.ones((3, 3), np.uint8); _NB[1, 1] = 0
 
 
 # ----------------------------------------------------------------------------- region detection
@@ -111,7 +110,7 @@ def snap_overshoot(skel, grown, w):
     changed = True
     while changed:
         changed = False
-        nb = ndimage.convolve(sk.astype(np.uint8), _NB, mode="constant")
+        nb = GR.neighbour_count(sk)
         for y, x in np.argwhere(sk & (nb == 1)):
             prev, cur, path, hit = (y, x), (y, x), [(y, x)], -1
             for _ in range(1, reach + 1):
@@ -152,21 +151,12 @@ def blob_contacts(skel, grown, w):
     thresh = SNAP_W * w
     distg, idx = ndimage.distance_transform_edt(~grown, return_distances=True, return_indices=True)
     lab, _ = ndimage.label(grown, structure=np.ones((3, 3)))
-    nb = ndimage.convolve(skel.astype(np.uint8), _NB, mode="constant")
+    nb = GR.neighbour_count(skel)
     H, W = skel.shape
 
     def sk_nbrs(y, x):
         return [(y + dy, x + dx) for dy in (-1, 0, 1) for dx in (-1, 0, 1)
                 if (dy or dx) and 0 <= y + dy < H and 0 <= x + dx < W and skel[y + dy, x + dx]]
-
-    def back(y, x):
-        prev, cur = (y, x), (y, x)
-        for _ in range(KBACK):
-            nxt = next((nn for nn in sk_nbrs(*cur) if nn != prev), None)
-            if nxt is None:
-                break
-            prev, cur = cur, nxt
-        return cur
 
     reach = int(np.ceil(thresh))
     raw = []
@@ -178,7 +168,7 @@ def blob_contacts(skel, grown, w):
         if not is_end and not all(distg[ny, nx] >= d for ny, nx in sk_nbrs(y, x)):
             continue                                       # neither an endpoint nor a closest-approach minimum
         if is_end:                                         # continue the segment's own line onto the edge
-            by, bx = back(y, x); base_pt = np.array([bx, by], float)
+            by, bx = GR.skel_walk_back(skel, y, x, KBACK); base_pt = np.array([bx, by], float)
         else:                                              # straight (shortest) to the edge
             base_pt = np.array([x, y], float)
         edge = np.array([idx[1][y, x], idx[0][y, x]], float)   # PRIMARY: nearest region edge (unchanged)
