@@ -317,10 +317,16 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, closed: bool, r, anchors
         k = _nearest_index(S, ax, ay)
         if 0 <= k < M:
             anchor_ix.append(k)
-    smooth_breaks = cornerset | set(anchor_ix)
+    C = _smoothing_spline(S, cornerset | set(anchor_ix), anchor_ix, closed)
+    prims = _classify_spans(C, S, w, cornerset, anchor_ix, closed)
+    return Fit(closed=closed, samples=S, prims=prims, resid=S - C)
 
-    # smoothing spline: minimize |C - S|^2 + LAMBDA*|D2 C|^2. Drop any 2nd-difference row whose 3-point
-    # stencil touches a break, so corners/attachments bend freely. Banded, solved once for both columns.
+
+def _smoothing_spline(S: np.ndarray, smooth_breaks: set, anchor_ix: list, closed: bool) -> np.ndarray:
+    """Solve the smoothing spline: minimize |C - S|^2 + LAMBDA*|D2 C|^2. Drop any 2nd-difference row
+    whose 3-point stencil touches a break, so corners/attachments bend freely. Banded, solved once for
+    both columns; anchors are then pinned exactly back onto their trace samples (joins stay on the trace)."""
+    M = len(S)
     d_rows = []
     for k in (range(M) if closed else range(1, M - 1)):
         km, kp = (k - 1) % M, (k + 1) % M
@@ -332,16 +338,20 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, closed: bool, r, anchors
     C = np.linalg.solve(np.eye(M) + SPLINE_LAMBDA * (D.T @ D), S)
     for k in anchor_ix:                                   # keep the boundary exactly on its trace at joins
         _pin(C, S, k)
+    return C
 
-    # classify the smoothed curve into primitives; geometry rendered stays C (resid = S - C), so joins are
-    # as smooth as C itself -- the primitives are labels + params, not a re-fit that could reintroduce kinks.
-    # The break for an anchor goes one sample AFTER it, so the piece ENDS on the pinned sample: path_d draws
-    # each piece to C[j-1], so this lands the rendered vertex exactly on the attachment (the boundary touches
-    # the stroke; a break at the anchor itself would leave the pinned point mid-piece, where a line/arc chord
-    # can bow off it).
+
+def _classify_spans(C: np.ndarray, S: np.ndarray, w: float, cornerset: set, anchor_ix: list,
+                    closed: bool) -> list:
+    """Classify the smoothed curve C into line/arc primitives. Geometry rendered stays C (resid = S - C),
+    so joins are as smooth as C itself -- the primitives are labels + params, not a re-fit that could
+    reintroduce kinks. The break for an anchor goes one sample AFTER it, so the piece ENDS on the pinned
+    sample: path_d draws each piece to C[j-1], so this lands the rendered vertex exactly on the attachment
+    (a break at the anchor itself would leave the pinned point mid-piece, where a line/arc chord can bow
+    off it)."""
+    M = len(C)
     seg_breaks = sorted(cornerset | {(k + 1) % M for k in anchor_ix})
-    pre = _Prefix(C)
-    spans = _segment(C, pre, w, seg_breaks)
+    spans = _segment(C, _Prefix(C), w, seg_breaks)
     prims = []
     for i, j, (kind, par) in spans:
         seg = C[i:j]
@@ -352,7 +362,7 @@ def _fit_spline(S: np.ndarray, P: np.ndarray, w: float, closed: bool, r, anchors
         p = Primitive(kind, i, j, params, _rms(S[i:j], seg))
         p.corner_in = i in cornerset
         prims.append(p)
-    return Fit(closed=closed, samples=S, prims=prims, resid=S - C)
+    return prims
 
 
 def _segment(P: np.ndarray, pre: _Prefix, w: float, breaks):
